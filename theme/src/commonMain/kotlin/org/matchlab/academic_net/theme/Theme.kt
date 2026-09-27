@@ -1,4 +1,4 @@
-package org.matchlab.academic_net.ui.theme
+package org.matchlab.academic_net.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme

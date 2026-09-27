@@ -1,10 +1,10 @@
-package org.matchlab.academic_net.ui.theme
+package org.matchlab.academic_net.theme
 
-import academicnet.shared.generated.resources.Res
-import academicnet.shared.generated.resources.golos_text_bold
-import academicnet.shared.generated.resources.golos_text_medium
-import academicnet.shared.generated.resources.golos_text_regular
-import academicnet.shared.generated.resources.golos_text_semibold
+import academicnet.theme.generated.resources.Res
+import academicnet.theme.generated.resources.golos_text_bold
+import academicnet.theme.generated.resources.golos_text_medium
+import academicnet.theme.generated.resources.golos_text_regular
+import academicnet.theme.generated.resources.golos_text_semibold
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
