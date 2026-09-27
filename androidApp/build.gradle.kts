@@ -12,6 +12,8 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    // Component catalog screen (src/debug).
+    debugImplementation(project(":components"))
 
     implementation(libs.androidx.activity.compose)
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug-only catalog of the design system components:
+             adb shell am start -n org.matchlab.academic_net/.catalog.CatalogActivity -->
+        <activity
+            android:name=".catalog.CatalogActivity"
+            android:exported="true" />
+    </application>
+
+</manifest>

@@ -23,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.AppNavigationBar
+import org.matchlab.academic_net.components.AppNavigationBarItem
 
 // Tab switch is a fade through: the old tab fades out, then the new one fades in, so two
 // screens are never drawn on top of each other (Material timing for bottom navigation).
@@ -43,10 +45,16 @@ fun MainScaffold() {
     Scaffold(
         containerColor = containerColor,
         bottomBar = {
-            AppNavigationBar(
-                selectedDestination = currentDestination,
-                onDestinationSelected = { currentDestination = it },
-            )
+            AppNavigationBar {
+                TopLevelDestination.entries.forEach { destination ->
+                    AppNavigationBarItem(
+                        selected = destination == currentDestination,
+                        onClick = { currentDestination = destination },
+                        icon = destination.icon,
+                        label = stringResource(destination.label),
+                    )
+                }
+            }
         },
     ) { innerPadding ->
         AnimatedContent(

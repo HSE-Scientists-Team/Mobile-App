@@ -46,6 +46,7 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(project(":theme"))
+            implementation(project(":components"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

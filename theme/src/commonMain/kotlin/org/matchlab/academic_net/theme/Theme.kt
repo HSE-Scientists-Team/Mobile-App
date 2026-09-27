@@ -3,6 +3,7 @@ package org.matchlab.academic_net.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 // "MatchLab Color" variables from the Figma design system. The design has a single light mode.
@@ -46,10 +47,12 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun AcademicNetTheme(content: @Composable () -> Unit) {
-    // The design's radius tokens (4/8/12/16/28) match the Material 3 default shapes.
-    MaterialTheme(
-        colorScheme = LightColorScheme,
-        typography = appTypography(),
-        content = content,
-    )
+    CompositionLocalProvider(LocalExtendedColors provides LightExtendedColors) {
+        // The design's radius tokens (4/8/12/16/28) match the Material 3 default shapes.
+        MaterialTheme(
+            colorScheme = LightColorScheme,
+            typography = appTypography(),
+            content = content,
+        )
+    }
 }
