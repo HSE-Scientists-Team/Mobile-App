@@ -49,7 +49,7 @@ fun AcademicNetTheme(content: @Composable () -> Unit) {
     // The design's radius tokens (4/8/12/16/28) match the Material 3 default shapes.
     MaterialTheme(
         colorScheme = LightColorScheme,
-        typography = AppTypography,
+        typography = appTypography(),
         content = content,
     )
 }
