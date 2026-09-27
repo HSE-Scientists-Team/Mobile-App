@@ -17,3 +17,19 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Signing keys and their passwords
+*.jks
+*.keystore
+keystore.properties
+
+# Signed APK/AAB output of Android Studio's "Generate Signed Bundle / APK"
+/androidApp/release/
+
+# JVM crash logs and heap dumps
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+
+# Claude Code personal settings (shared settings live in .claude/settings.json)
+.claude/settings.local.json
