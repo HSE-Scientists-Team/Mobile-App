@@ -1,24 +1,20 @@
-package org.matchlab.academic_net.components
+package org.matchlab.academic_net.feature.chats.ui
 
-import academicnet.components.generated.resources.Res
-import academicnet.components.generated.resources.components_attach
-import academicnet.components.generated.resources.components_send
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,50 +22,25 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.AppIcon
+import org.matchlab.academic_net.components.AppIcons
+import org.matchlab.academic_net.feature.chats.ui.generated.resources.Res
+import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_attach
+import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_message_placeholder
+import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_send
 
-/** "Chat/Bubble": 280dp message bubble with the time under it. */
-@Composable
-fun ChatBubble(
-    text: String,
-    time: String,
-    outgoing: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val colors = MaterialTheme.colorScheme
-    val shape = MaterialTheme.shapes.large
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        val bubble = if (outgoing) {
-            Modifier.background(colors.primary, shape).padding(horizontal = 14.dp, vertical = 10.dp)
-        } else {
-            // The incoming outline adds 1dp on each side, as in Figma.
-            Modifier
-                .background(colors.surface, shape)
-                .border(1.dp, colors.outlineVariant, shape)
-                .padding(horizontal = 15.dp, vertical = 11.dp)
-        }
-        Box(Modifier.width(280.dp).then(bubble)) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (outgoing) colors.onPrimary else colors.onSurface,
-            )
-        }
-        Text(time, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-    }
-}
+@Immutable
+data class ChatComposerUiModel(
+    val message: String = "",
+)
 
 /** "Chat/Composer": message field with an attach action and a send button. */
 @Composable
 fun ChatComposer(
-    message: String,
+    model: ChatComposerUiModel,
     onMessageChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onAttach: () -> Unit,
-    placeholder: String,
+    onSendClick: () -> Unit,
+    onAttachClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -82,13 +53,14 @@ fun ChatComposer(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BasicTextField(
-            value = message,
+            value = model.message,
             onValueChange = onMessageChange,
             modifier = Modifier.weight(1f),
             maxLines = 4,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
             cursorBrush = SolidColor(colors.primary),
             decorationBox = { innerTextField ->
+                // The 1dp outline adds to the size, as in Figma, so the padding is 1dp larger.
                 Row(
                     Modifier
                         .background(colors.surface, CircleShape)
@@ -99,19 +71,24 @@ fun ChatComposer(
                 ) {
                     AppIcon(
                         icon = AppIcons.Upload,
-                        contentDescription = stringResource(Res.string.components_attach),
+                        contentDescription = stringResource(Res.string.chats_attach),
                         modifier = Modifier.clickable(
                             interactionSource = null,
                             indication = ripple(bounded = false, radius = 20.dp),
                             role = Role.Button,
-                            onClick = onAttach,
+                            onClick = onAttachClick,
                         ),
                         size = 20.dp,
                         tint = colors.onSurfaceVariant,
                     )
                     Box(Modifier.weight(1f)) {
-                        if (message.isEmpty()) {
-                            Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant, maxLines = 1)
+                        if (model.message.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.chats_message_placeholder),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1,
+                            )
                         }
                         innerTextField()
                     }
@@ -122,12 +99,12 @@ fun ChatComposer(
             Modifier
                 .clip(CircleShape)
                 .background(colors.primary)
-                .clickable(role = Role.Button, onClick = onSend)
+                .clickable(role = Role.Button, onClick = onSendClick)
                 .padding(12.dp),
         ) {
             AppIcon(
                 icon = AppIcons.Send,
-                contentDescription = stringResource(Res.string.components_send),
+                contentDescription = stringResource(Res.string.chats_send),
                 size = 20.dp,
                 tint = colors.onPrimary,
             )

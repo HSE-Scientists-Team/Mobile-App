@@ -1,7 +1,14 @@
 package org.matchlab.academic_net.components
 
+import academicnet.components.generated.resources.Res
+import academicnet.components.generated.resources.components_message
+import academicnet.components.generated.resources.components_report
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -17,13 +24,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.stringResource
 
 enum class AppButtonVariant {
     Filled,
@@ -171,4 +181,54 @@ fun AppIconButton(
             AppIcon(icon, contentDescription)
         }
     }
+}
+
+/** "Пожаловаться" action (flag), e.g. in the app bar of a project or a profile. */
+@Composable
+fun ReportIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentColor: Color = MaterialTheme.colorScheme.error,
+) {
+    AppIconButton(
+        icon = AppIcons.Flag,
+        contentDescription = stringResource(Res.string.components_report),
+        onClick = onClick,
+        modifier = modifier,
+        contentColor = contentColor,
+    )
+}
+
+/** Round 36dp button with a 20dp icon, used for actions inside cards. */
+@Composable
+fun CardIconButton(
+    icon: DrawableResource,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier
+            .clip(CircleShape)
+            .background(containerColor)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(8.dp),
+    ) {
+        AppIcon(icon, contentDescription, size = 20.dp, tint = contentColor)
+    }
+}
+
+/** Chat ("Написать") button of cards. */
+@Composable
+fun ChatIconButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    CardIconButton(
+        icon = AppIcons.Message,
+        contentDescription = stringResource(Res.string.components_message),
+        onClick = onClick,
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.primary,
+        modifier = modifier,
+    )
 }

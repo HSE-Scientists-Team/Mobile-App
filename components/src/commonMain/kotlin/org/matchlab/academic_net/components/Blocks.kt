@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 /** "Badge/Dot": 6dp primary dot in a 2dp surface ring (10dp overall). */
 @Composable
@@ -63,6 +64,17 @@ fun Avatar(
         modifier = modifier.size(size).clip(CircleShape),
         contentScale = ContentScale.Crop,
     )
+}
+
+/** [Avatar] for an image from resources, as UI models carry it. */
+@Composable
+fun Avatar(
+    image: DrawableResource,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+) {
+    Avatar(painterResource(image), contentDescription, modifier, size)
 }
 
 /** "Banner/Info": note inside a screen, e.g. a service rule. */
