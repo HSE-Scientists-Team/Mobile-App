@@ -15,6 +15,7 @@ import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
@@ -34,8 +35,11 @@ data class OccupiedRoleItem(
 
 @Immutable
 data class VacantRoleItem(
+    val id: RoleId,
     val title: String,
     val skills: List<String>,
+    /** The search for people for this role is offered: to the project initiator only. */
+    val canFindPeople: Boolean,
 )
 
 /** The project as the three management tabs show it. */
@@ -171,5 +175,5 @@ internal fun Project.toDetails() = ProjectDetails(
             completedProjects = member.completedProjects,
         )
     },
-    vacantRoles = vacantRoles.map { VacantRoleItem(it.title, it.skills) },
+    vacantRoles = vacantRoles.map { VacantRoleItem(it.id, it.title, it.skills, canFindPeople = viewerIsInitiator) },
 )

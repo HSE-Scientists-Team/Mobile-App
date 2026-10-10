@@ -242,6 +242,16 @@ private fun SharedFeatureComponents() {
             PersonListItemUiModel("Арджун Мехта", "Stanford · 3 курс · Computer Science", Arjun, isVerified = true),
             onClick = {},
         )
+        PersonListItem(
+            PersonListItemUiModel(
+                name = "Арджун Мехта",
+                subtitle = "Stanford · 3 курс бакалавриата · Computer Science",
+                avatar = Arjun,
+                isVerified = true,
+            ),
+            onClick = {},
+            outlined = true,
+        )
         NotificationListItem(NotificationListItemUiModel("Новый отклик на роль ML Engineer", "2 часа назад"))
         ProjectCard(
             ProjectCardUiModel(
@@ -274,6 +284,7 @@ private fun ProjectsComponents() {
         )
         RoleCard(RoleCardUiModel("ML Engineer", "Арджун Мехта", Elena, canManage = true))
         VacantRoleCard(VacantRoleCardUiModel("ML Engineer", listOf("Machine Learning", "Machine Learning"), isEditable = true))
+        VacantRoleCard(VacantRoleCardUiModel("Mobile Developer", listOf("Flutter", "Dart"), canFindPeople = true))
         RoleApplyCard(RoleApplyCardUiModel("Mobile Developer", listOf("Flutter", "Dart")), onApplyClick = {})
         ParticipantManageCard(Initiator, onKickClick = {})
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -325,6 +336,8 @@ private fun ChatsComponents() {
         ChatBubble(ChatBubbleUiModel("Текст сообщения в диалоге", "10:22", isOutgoing = true))
         var composer by remember { mutableStateOf(ChatComposerUiModel()) }
         ChatComposer(composer, { composer = composer.copy(message = it) }, onSendClick = {}, onAttachClick = {})
+        // Without the attach icon: sending files is not available yet.
+        ChatComposer(composer, { composer = composer.copy(message = it) }, onSendClick = {})
     }
 }
 

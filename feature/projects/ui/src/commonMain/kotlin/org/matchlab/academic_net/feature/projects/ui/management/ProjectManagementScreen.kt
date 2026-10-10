@@ -30,6 +30,7 @@ import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.components.ActionListItem
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
@@ -66,7 +67,7 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_not_found
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_empty
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_occupied
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_title
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_header
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_confirm
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_dialog_text
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_dialog_title
@@ -83,6 +84,7 @@ fun ProjectManagementRoute(
     dependencies: ProjectsUiDependencies,
     projectId: ProjectId,
     onNavigateBack: () -> Unit,
+    onFindCollaborators: (ProjectId, RoleId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel(key = projectId.value) {
@@ -100,6 +102,7 @@ fun ProjectManagementRoute(
         onNavigateBack = onNavigateBack,
         onAddRoleClick = viewModel::onAddRoleClick,
         onUnpublishClick = viewModel::onUnpublishClick,
+        onFindPeopleClick = { roleId -> onFindCollaborators(projectId, roleId) },
         modifier = modifier,
     )
 
@@ -132,6 +135,7 @@ internal fun ProjectManagementScreen(
     onNavigateBack: () -> Unit,
     onAddRoleClick: () -> Unit,
     onUnpublishClick: () -> Unit,
+    onFindPeopleClick: (RoleId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -172,7 +176,7 @@ internal fun ProjectManagementScreen(
                 ) {
                     when (selectedTab) {
                         0 -> OverviewTab(project)
-                        1 -> RolesTab(project, onAddRoleClick)
+                        1 -> RolesTab(project, onAddRoleClick, onFindPeopleClick)
                         else -> ManageTab(project, state.isUnpublishing, onUnpublishClick)
                     }
                     if (state.actionFailed) {
@@ -224,13 +228,20 @@ private fun OverviewTab(project: ProjectDetails) {
     }
 }
 
-/** "07b … Роли". The kick button and the chat button need later stories, so members are plain cards. */
+/**
+ * "07b … Роли". The kick button and the chat button of members need later stories, so members
+ * are plain cards; the search button of a vacant role opens "08 Поиск коллабораторов" for it.
+ */
 @Composable
-private fun RolesTab(project: ProjectDetails, onAddRoleClick: () -> Unit) {
+private fun RolesTab(
+    project: ProjectDetails,
+    onAddRoleClick: () -> Unit,
+    onFindPeopleClick: (RoleId) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = stringResource(Res.string.projects_roles_title),
+            text = stringResource(Res.string.projects_roles_header),
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.titleLarge,
             color = colors.onSurface,
@@ -245,7 +256,12 @@ private fun RolesTab(project: ProjectDetails, onAddRoleClick: () -> Unit) {
         PersonCard(role.toCardUiModel())
     }
     project.vacantRoles.forEach { role ->
-        VacantRoleCard(VacantRoleCardUiModel(role.title, role.skills))
+        // The search for people who could take the role starts from the button of the card, which
+        // only the initiator gets; the rest of the card is not clickable.
+        VacantRoleCard(
+            model = VacantRoleCardUiModel(role.title, role.skills, canFindPeople = role.canFindPeople),
+            onFindPeopleClick = { onFindPeopleClick(role.id) },
+        )
     }
     if (project.rolesCount == 0) {
         Text(

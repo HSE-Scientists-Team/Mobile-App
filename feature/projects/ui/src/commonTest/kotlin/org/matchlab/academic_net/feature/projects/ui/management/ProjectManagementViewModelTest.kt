@@ -11,6 +11,11 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.UserId
+import org.matchlab.academic_net.common.model.UserSummary
+import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsData
+import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
 import org.matchlab.academic_net.feature.projects.ui.FailingDataSource
 import org.matchlab.academic_net.feature.projects.ui.TestGraph
@@ -52,8 +57,35 @@ class ProjectManagementViewModelTest {
         assertEquals(4.8, project.occupiedRoles.first().rating)
         assertEquals(3, project.occupiedRoles.first().completedProjects)
         assertEquals(listOf("Mobile Developer", "UX Researcher"), project.vacantRoles.map { it.title })
+        assertEquals(RoleId("role-mobile-developer"), project.vacantRoles.first().id)
         assertEquals(listOf("Flutter", "Dart"), project.vacantRoles.first().skills)
         assertEquals(4, project.rolesCount)
+    }
+
+    @Test
+    fun initiatorCanLookForPeopleForEveryVacantRole() = runTest {
+        val viewModel = viewModel(TestGraph())
+        keepCollecting(viewModel.uiState)
+
+        val project = assertNotNull(viewModel.uiState.value.project)
+
+        assertTrue(project.vacantRoles.isNotEmpty())
+        assertTrue(project.vacantRoles.all { it.canFindPeople })
+    }
+
+    @Test
+    fun whoIsNotTheInitiatorGetsNoPeopleSearch() = runTest {
+        val stranger = UserSummary(UserId("someone-else"), "Кто-то")
+        val foreign = MockProjectsData.myProjects().first()
+            .copy(initiator = stranger, viewerIsInitiator = false)
+        val graph = TestGraph(MockProjectsDataSource(initialProjects = listOf(foreign), latencyMillis = 0))
+        val viewModel = viewModel(graph, foreign.id)
+        keepCollecting(viewModel.uiState)
+
+        val project = assertNotNull(viewModel.uiState.value.project)
+
+        assertTrue(project.vacantRoles.isNotEmpty())
+        assertTrue(project.vacantRoles.none { it.canFindPeople })
     }
 
     @Test

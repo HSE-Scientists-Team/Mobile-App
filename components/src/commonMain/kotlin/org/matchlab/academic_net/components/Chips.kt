@@ -49,7 +49,10 @@ fun AppInputChip(text: String, onRemove: () -> Unit, modifier: Modifier = Modifi
 /**
  * "Chip/Filter". Pass `onClick = null` for a static label (e.g. the project type on a card).
  *
- * As in Figma, the unselected outline adds 1dp on each side, so it is 2dp larger than the selected chip.
+ * Selected and unselected chips have the same size, so toggling one does not move the others. The
+ * Figma component differs here: its unselected variant has a 1px stroke that is part of the layout
+ * (30px high) and the selected one has none (28px). The size of the unselected chip is kept, and
+ * the selected chip gets the same border in its fill color.
  */
 @Composable
 fun AppFilterChip(
@@ -61,7 +64,9 @@ fun AppFilterChip(
     val colors = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.small
     val container = if (selected) {
-        Modifier.background(colors.primaryContainer, shape)
+        Modifier
+            .background(colors.primaryContainer, shape)
+            .border(1.dp, colors.primaryContainer, shape)
     } else {
         Modifier.border(1.dp, colors.outlineVariant, shape)
     }
@@ -75,7 +80,8 @@ fun AppFilterChip(
             .clip(shape)
             .then(container)
             .then(interaction)
-            .padding(horizontal = if (selected) 12.dp else 13.dp, vertical = if (selected) 6.dp else 7.dp),
+            // 12x6 as in Figma plus the 1dp border.
+            .padding(horizontal = 13.dp, vertical = 7.dp),
     ) {
         ChipText(text, if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant)
     }

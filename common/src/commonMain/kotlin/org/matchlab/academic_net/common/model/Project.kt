@@ -53,6 +53,11 @@ data class Project(
     val initiator: UserSummary,
     val roles: List<Role>,
     val status: ProjectStatus,
+    /**
+     * The user who asked for the project is its initiator (the server knows who asks). Only the
+     * initiator manages the project and looks for people for its roles.
+     */
+    val viewerIsInitiator: Boolean,
 ) {
     val vacantRoles: List<Role> get() = roles.filter { it.isVacant }
     val occupiedRolesCount: Int get() = roles.count { !it.isVacant }

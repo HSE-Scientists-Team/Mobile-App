@@ -9,6 +9,6 @@ import org.matchlab.academic_net.ui.navigation.AppNavHost
 @Preview
 fun App() {
     AcademicNetTheme {
-        AppNavHost(AppContainer.projectsUi)
+        AppNavHost(AppContainer.dependencies)
     }
 }

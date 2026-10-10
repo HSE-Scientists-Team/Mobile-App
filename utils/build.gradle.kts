@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
 }
 
-// Platform-independent helpers with no dependencies: text, ids, result handling.
+// Platform-independent helpers: text, ids, result handling, time formatting.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.utils"
@@ -23,6 +23,10 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+        commonMain.dependencies {
+            // Time formatting takes and returns kotlinx-datetime types.
+            api(libs.kotlinx.datetime)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)

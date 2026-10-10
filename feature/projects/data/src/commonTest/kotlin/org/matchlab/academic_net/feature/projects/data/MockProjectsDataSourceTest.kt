@@ -47,7 +47,8 @@ class MockProjectsDataSourceTest {
     @Test
     fun projectsOfOtherUsersAreNotListed() = runTest {
         val stranger = UserSummary(UserId("someone-else"), "Кто-то")
-        val foreign = MockProjectsData.myProjects().first().copy(initiator = stranger)
+        val foreign = MockProjectsData.myProjects().first()
+            .copy(initiator = stranger, viewerIsInitiator = false)
         val source = MockProjectsDataSource(initialProjects = listOf(foreign), latencyMillis = 0)
 
         assertEquals(emptyList(), source.observeMyProjects().first())
@@ -62,6 +63,7 @@ class MockProjectsDataSourceTest {
 
         assertEquals(ProjectStatus.Recruiting, created.status)
         assertEquals(MockProjectsData.currentUser, created.initiator)
+        assertTrue(created.viewerIsInitiator)
         assertEquals(created, source.observeMyProjects().first().first())
         assertEquals(listOf("Backend"), created.roles.map { it.title })
         assertTrue(created.roles.single().isVacant)

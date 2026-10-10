@@ -26,6 +26,7 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_apply
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_delete
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_edit
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_find_people
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick
 
 // Role cards use 12dp corners and 16x12 padding.
@@ -81,15 +82,18 @@ data class VacantRoleCardUiModel(
     val skills: List<String>,
     /** Delete and edit actions, shown to the project initiator. */
     val isEditable: Boolean = false,
+    /** Search for people for this role: the only way to it, shown to the project initiator only. */
+    val canFindPeople: Boolean = false,
 )
 
-/** "Card/Role" (vacant): open role with the skills it needs. */
+/** "Card/Role" (vacant): open role with the skills it needs. The card itself is not clickable. */
 @Composable
 fun VacantRoleCard(
     model: VacantRoleCardUiModel,
     modifier: Modifier = Modifier,
     onDeleteClick: () -> Unit = {},
     onEditClick: () -> Unit = {},
+    onFindPeopleClick: () -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     AppCard(modifier, spacing = 8.dp, cornerRadius = 12.dp, verticalPadding = 12.dp) {
@@ -108,6 +112,15 @@ fun VacantRoleCard(
                     icon = AppIcons.Pencil,
                     contentDescription = stringResource(Res.string.projects_edit),
                     onClick = onEditClick,
+                    containerColor = colors.primaryContainer,
+                    contentColor = colors.primary,
+                )
+            }
+            if (model.canFindPeople) {
+                CardIconButton(
+                    icon = AppIcons.Search,
+                    contentDescription = stringResource(Res.string.projects_find_people),
+                    onClick = onFindPeopleClick,
                     containerColor = colors.primaryContainer,
                     contentColor = colors.primary,
                 )

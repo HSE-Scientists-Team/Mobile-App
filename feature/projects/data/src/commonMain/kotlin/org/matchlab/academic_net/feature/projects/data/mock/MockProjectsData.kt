@@ -74,6 +74,7 @@ object MockProjectsData {
                 ),
             ),
             status = ProjectStatus.Recruiting,
+            viewerIsInitiator = true,
         ),
         Project(
             id = ProjectId("project-digital-twin"),
@@ -94,6 +95,7 @@ object MockProjectsData {
                 Role(RoleId("role-pm"), "Project Manager", listOf("Agile")),
             ),
             status = ProjectStatus.Recruiting,
+            viewerIsInitiator = true,
         ),
     )
 }

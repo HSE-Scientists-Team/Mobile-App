@@ -3,6 +3,7 @@
     <string name="projects_kick">Выгнать</string>
     <string name="projects_delete">Удалить</string>
     <string name="projects_edit">Изменить</string>
+    <string name="projects_find_people">Найти людей на роль</string>
 
     <!-- Project type and status -->
     <string name="projects_type_scientific">Научный</string>
@@ -75,6 +76,7 @@
     <string name="projects_block_problem">Проблема</string>
     <string name="projects_block_goal">Цель</string>
     <string name="projects_block_tags">Теги</string>
+    <string name="projects_roles_header">Роли</string>
     <string name="projects_roles_occupied">%1$d из %2$d занято</string>
     <string name="projects_roles_empty">Ролей пока нет. Объявите первую, чтобы начать набор команды</string>
     <string name="projects_member_rating">★ %1$s</string>

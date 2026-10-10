@@ -39,6 +39,7 @@ fun testProject(
     initiator = TestUser,
     roles = roles,
     status = status,
+    viewerIsInitiator = true,
 )
 
 /** Repository that keeps projects in memory and can be told to fail. */

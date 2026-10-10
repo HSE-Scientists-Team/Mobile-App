@@ -50,6 +50,12 @@ kotlin {
             implementation(project(":feature:projects:ui"))
             implementation(project(":feature:projects:domain"))
             implementation(project(":feature:projects:data"))
+            implementation(project(":feature:chats:ui"))
+            implementation(project(":feature:chats:domain"))
+            implementation(project(":feature:chats:data"))
+            implementation(project(":feature:collaborators:ui"))
+            implementation(project(":feature:collaborators:domain"))
+            implementation(project(":feature:collaborators:data"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -62,6 +68,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

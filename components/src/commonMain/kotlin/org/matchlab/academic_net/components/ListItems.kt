@@ -108,15 +108,41 @@ data class PersonListItemUiModel(
     val isVerified: Boolean = false,
 )
 
-/** "List item/Person": person in a list; clickable rows get a chevron. */
+/**
+ * "List item/Person": person in a list; clickable rows get a chevron. [outlined] puts the row in
+ * a rounded card with an outline, as on the collaborators search screen.
+ */
 @Composable
 fun PersonListItem(
     model: PersonListItemUiModel,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    outlined: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
-    PlainRow(modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)) {
+    val clickable = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    val row = @Composable { content: @Composable RowScope.() -> Unit ->
+        if (outlined) {
+            // Figma padding 16x12 plus the 1dp outline.
+            val shape = MaterialTheme.shapes.large
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(colors.surface)
+                    .border(1.dp, colors.outlineVariant, shape)
+                    .then(modifier)
+                    .then(clickable)
+                    .padding(horizontal = 17.dp, vertical = 13.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = content,
+            )
+        } else {
+            PlainRow(modifier.then(clickable), content)
+        }
+    }
+    row {
         Avatar(model.avatar, contentDescription = null, size = 48.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             PersonName(model.name, model.isVerified, MaterialTheme.typography.titleMedium)

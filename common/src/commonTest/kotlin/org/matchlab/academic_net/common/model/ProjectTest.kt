@@ -22,6 +22,7 @@ class ProjectTest {
         initiator = user,
         roles = roles,
         status = ProjectStatus.Recruiting,
+        viewerIsInitiator = true,
     )
 
     @Test
