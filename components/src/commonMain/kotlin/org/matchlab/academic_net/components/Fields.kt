@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
@@ -90,6 +91,8 @@ fun AppTextField(
     enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    // Not in the design: error state is the Material 3 one (error outline and a line under the box).
+    errorText: String? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
@@ -112,7 +115,7 @@ fun AppTextField(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .fieldBox(focused)
+                        .fieldBox(focused, isError = errorText != null)
                         .padding(horizontal = 17.dp, vertical = 15.dp),
                 ) {
                     if (value.isEmpty()) Placeholder(placeholder)
@@ -120,6 +123,45 @@ fun AppTextField(
                 }
             },
         )
+        if (errorText != null) FieldError(errorText)
+    }
+}
+
+/**
+ * "Text field/Outlined" that opens a picker instead of taking input (sphere, dates): shows
+ * [value], or [placeholder] while nothing is chosen.
+ */
+@Composable
+fun AppSelectField(
+    label: String,
+    value: String?,
+    placeholder: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    errorText: String? = null,
+) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FieldLabel(label)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .fieldBox(focused = false, isError = errorText != null)
+                .clickable(role = Role.DropdownList, onClick = onClick)
+                .padding(horizontal = 17.dp, vertical = 15.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f)) {
+                if (value.isNullOrEmpty()) {
+                    Placeholder(placeholder)
+                } else {
+                    Text(value, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface, maxLines = 1)
+                }
+            }
+            AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 20.dp, tint = colors.outline)
+        }
+        if (errorText != null) FieldError(errorText)
     }
 }
 
@@ -195,11 +237,20 @@ fun AppTagsField(
 }
 
 @Composable
-private fun Modifier.fieldBox(focused: Boolean): Modifier {
+private fun Modifier.fieldBox(focused: Boolean, isError: Boolean = false): Modifier {
     val colors = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.medium
-    return background(colors.surface, shape)
-        .border(1.dp, if (focused) colors.primary else colors.outlineVariant, shape)
+    val outline = when {
+        isError -> colors.error
+        focused -> colors.primary
+        else -> colors.outlineVariant
+    }
+    return background(colors.surface, shape).border(1.dp, outline, shape)
+}
+
+@Composable
+private fun FieldError(text: String) {
+    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
 }
 
 @Composable

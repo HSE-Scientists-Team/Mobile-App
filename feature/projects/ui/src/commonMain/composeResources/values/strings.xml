@@ -3,4 +3,91 @@
     <string name="projects_kick">Выгнать</string>
     <string name="projects_delete">Удалить</string>
     <string name="projects_edit">Изменить</string>
+
+    <!-- Project type and status -->
+    <string name="projects_type_scientific">Научный</string>
+    <string name="projects_type_practical">Проектный</string>
+    <string name="projects_status_recruiting">Поиск соавторов</string>
+    <string name="projects_status_unpublished">Снят с публикации</string>
+
+    <!-- My projects -->
+    <string name="projects_my_title">Мои проекты</string>
+    <string name="projects_tab_initiator">Я инициатор</string>
+    <string name="projects_tab_participant">Я участник</string>
+    <string name="projects_you_initiator">Вы инициатор</string>
+    <string name="projects_create">Создать проект</string>
+    <string name="projects_empty_title">Пока нет проектов</string>
+    <string name="projects_empty_text">Опубликуйте проект и соберите команду</string>
+    <string name="projects_participant_empty_title">Пока нет участия</string>
+    <string name="projects_participant_empty_text">Здесь появятся проекты, в которых вы участвуете</string>
+    <string name="projects_load_error">Не удалось загрузить проекты</string>
+    <!-- Forms are picked by russianPluralForm: resource plurals follow the device language. -->
+    <string name="projects_roles_count_one">%1$d роль</string>
+    <string name="projects_roles_count_few">%1$d роли</string>
+    <string name="projects_roles_count_many">%1$d ролей</string>
+
+    <!-- Create project -->
+    <string name="projects_new_title">Новый проект</string>
+    <string name="projects_close">Закрыть</string>
+    <string name="projects_field_title">Название проекта</string>
+    <string name="projects_field_title_hint">Например, AI-навигация по кампусу</string>
+    <string name="projects_field_type">Тип проекта</string>
+    <string name="projects_field_sphere">Сфера</string>
+    <string name="projects_field_sphere_hint">Выберите сферу</string>
+    <string name="projects_field_problem">Проблема</string>
+    <string name="projects_field_problem_hint">Какую проблему решает проект</string>
+    <string name="projects_field_goal">Цель</string>
+    <string name="projects_field_goal_hint">Что хотите получить на выходе</string>
+    <string name="projects_field_tags">Теги</string>
+    <string name="projects_field_tags_hint">Введите тег и нажмите Enter</string>
+    <string name="projects_roles_title">Роли в команде</string>
+    <string name="projects_add_role">Добавить роль</string>
+    <string name="projects_publish">Опубликовать проект</string>
+    <string name="projects_publishing">Публикуем…</string>
+    <string name="projects_publish_error">Не удалось опубликовать проект. Попробуйте ещё раз</string>
+    <string name="projects_error_required">Заполните поле</string>
+    <string name="projects_error_title_too_long">Не длиннее %1$d символов</string>
+    <string name="projects_error_type">Выберите тип проекта</string>
+    <string name="projects_error_sphere">Выберите сферу</string>
+    <string name="projects_error_role">Укажите название у каждой роли</string>
+
+    <!-- Sphere picker -->
+    <string name="projects_sphere_sheet_title">Сфера проекта</string>
+    <string name="projects_spheres_load_error">Не удалось загрузить сферы</string>
+    <string name="projects_retry">Повторить</string>
+
+    <!-- Role editor -->
+    <string name="projects_role_new">Новая роль</string>
+    <string name="projects_role_edit">Редактирование роли</string>
+    <string name="projects_role_title">Название роли</string>
+    <string name="projects_role_title_hint">Например, ML Engineer</string>
+    <string name="projects_role_skills">Навыки</string>
+    <string name="projects_role_skills_hint">Введите навык и нажмите Enter</string>
+    <string name="projects_role_save">Сохранить</string>
+    <string name="projects_cancel">Отмена</string>
+    <string name="projects_role_error_too_long">Не длиннее %1$d символов</string>
+
+    <!-- Project management -->
+    <string name="projects_manage_tab_overview">Обзор</string>
+    <string name="projects_manage_tab_roles">Роли</string>
+    <string name="projects_manage_tab_manage">Управление</string>
+    <string name="projects_back">Назад</string>
+    <string name="projects_block_problem">Проблема</string>
+    <string name="projects_block_goal">Цель</string>
+    <string name="projects_block_tags">Теги</string>
+    <string name="projects_roles_occupied">%1$d из %2$d занято</string>
+    <string name="projects_roles_empty">Ролей пока нет. Объявите первую, чтобы начать набор команды</string>
+    <string name="projects_member_rating">★ %1$s</string>
+    <string name="projects_completed_count_one">%1$d завершённый проект</string>
+    <string name="projects_completed_count_few">%1$d завершённых проекта</string>
+    <string name="projects_completed_count_many">%1$d завершённых проектов</string>
+    <string name="projects_banner_recruiting">Сейчас: поиск соавторов. Проект виден в поиске, можно откликаться на вакантные роли</string>
+    <string name="projects_banner_unpublished">Проект снят с публикации: он скрыт из поиска, отклики приостановлены</string>
+    <string name="projects_action_unpublish">Снять с публикации</string>
+    <string name="projects_action_unpublish_hint">Проект скроется из поиска, отклики приостановятся</string>
+    <string name="projects_unpublish_dialog_title">Снять проект с публикации?</string>
+    <string name="projects_unpublish_dialog_text">Проект скроется из поиска, отклики приостановятся.</string>
+    <string name="projects_unpublish_confirm">Снять</string>
+    <string name="projects_action_error">Не удалось выполнить действие. Попробуйте ещё раз</string>
+    <string name="projects_not_found">Проект не найден</string>
 </resources>

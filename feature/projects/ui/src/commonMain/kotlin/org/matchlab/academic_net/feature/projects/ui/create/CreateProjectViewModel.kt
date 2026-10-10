@@ -1,0 +1,168 @@
+package org.matchlab.academic_net.feature.projects.ui.create
+
+import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.result.SubmitResult
+import org.matchlab.academic_net.feature.projects.domain.ProjectDraft
+import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
+import org.matchlab.academic_net.feature.projects.domain.usecase.GetSpheresUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.PublishProjectUseCase
+import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorState
+import org.matchlab.academic_net.utils.withTag
+import org.matchlab.academic_net.utils.withoutTag
+
+@Immutable
+data class CreateProjectUiState(
+    val draft: ProjectDraft = ProjectDraft(),
+    /** Field errors; empty until the first attempt to publish, then kept up to date while editing. */
+    val errors: Set<ProjectDraftError> = emptySet(),
+    val spheres: List<Sphere> = emptyList(),
+    val spheresLoadFailed: Boolean = false,
+    val isSpherePickerVisible: Boolean = false,
+    /** The role sheet, `null` while it is closed. */
+    val roleEditor: RoleEditorState? = null,
+    val isPublishing: Boolean = false,
+    val publishFailed: Boolean = false,
+    /** Set once the project is published: the screen leaves for it. */
+    val publishedProjectId: ProjectId? = null,
+)
+
+/** "05 Создание проекта": "опубликовать новый проект", "объявить роли", "выбрать сферу проекта". */
+class CreateProjectViewModel(
+    private val publishProject: PublishProjectUseCase,
+    private val getSpheres: GetSpheresUseCase,
+) : ViewModel() {
+    private val state = MutableStateFlow(CreateProjectUiState())
+    val uiState: StateFlow<CreateProjectUiState> = state.asStateFlow()
+
+    private var showErrors = false
+
+    init {
+        loadSpheres()
+    }
+
+    fun onTitleChange(title: String) = editDraft { it.copy(title = title) }
+
+    fun onTypeSelect(type: ProjectType) = editDraft { it.copy(type = type) }
+
+    fun onProblemChange(problem: String) = editDraft { it.copy(problem = problem) }
+
+    fun onGoalChange(goal: String) = editDraft { it.copy(goal = goal) }
+
+    fun onAddTag(tag: String) = editDraft { it.copy(tags = it.tags.withTag(tag)) }
+
+    fun onRemoveTag(tag: String) = editDraft { it.copy(tags = it.tags.withoutTag(tag)) }
+
+    fun onSphereFieldClick() {
+        state.update { it.copy(isSpherePickerVisible = true) }
+        if (state.value.spheres.isEmpty()) loadSpheres()
+    }
+
+    fun onSphereSelect(sphere: Sphere) {
+        editDraft { it.copy(sphere = sphere) }
+        state.update { it.copy(isSpherePickerVisible = false) }
+    }
+
+    fun onSpherePickerDismiss() = state.update { it.copy(isSpherePickerVisible = false) }
+
+    fun onSpheresRetry() = loadSpheres()
+
+    fun onAddRoleClick() = state.update { it.copy(roleEditor = RoleEditorState()) }
+
+    fun onEditRoleClick(index: Int) {
+        val role = state.value.draft.roles.getOrNull(index) ?: return
+        state.update { it.copy(roleEditor = RoleEditorState(editedIndex = index, draft = role)) }
+    }
+
+    fun onDeleteRoleClick(index: Int) = editDraft { draft ->
+        draft.copy(roles = draft.roles.filterIndexed { i, _ -> i != index })
+    }
+
+    fun onRoleTitleChange(title: String) = editRole { it.withTitle(title) }
+
+    fun onRoleSkillAdd(skill: String) = editRole { it.withSkill(skill) }
+
+    fun onRoleSkillRemove(skill: String) = editRole { it.withoutSkill(skill) }
+
+    fun onRoleSave() {
+        val editor = state.value.roleEditor ?: return
+        val checked = editor.validated()
+        if (checked.errors.isNotEmpty()) {
+            state.update { it.copy(roleEditor = checked) }
+            return
+        }
+        val role = checked.draft.normalized()
+        editDraft { draft ->
+            val index = checked.editedIndex
+            val roles = if (index != null && index in draft.roles.indices) {
+                draft.roles.toMutableList().also { it[index] = role }
+            } else {
+                draft.roles + role
+            }
+            draft.copy(roles = roles)
+        }
+        state.update { it.copy(roleEditor = null) }
+    }
+
+    fun onRoleEditorDismiss() = state.update { it.copy(roleEditor = null) }
+
+    fun onPublishClick() {
+        val current = state.value
+        if (current.isPublishing) return
+        val errors = current.draft.normalized().validate()
+        showErrors = true
+        if (errors.isNotEmpty()) {
+            state.update { it.copy(errors = errors) }
+            return
+        }
+        state.update { it.copy(errors = emptySet(), isPublishing = true, publishFailed = false) }
+        viewModelScope.launch {
+            when (val result = publishProject(current.draft)) {
+                is SubmitResult.Success -> state.update {
+                    it.copy(isPublishing = false, publishedProjectId = result.value.id)
+                }
+                is SubmitResult.Invalid -> state.update {
+                    it.copy(isPublishing = false, errors = result.errors)
+                }
+                is SubmitResult.Failure -> state.update {
+                    it.copy(isPublishing = false, publishFailed = true)
+                }
+            }
+        }
+    }
+
+    private fun editDraft(transform: (ProjectDraft) -> ProjectDraft) {
+        state.update { current ->
+            val draft = transform(current.draft)
+            current.copy(
+                draft = draft,
+                errors = if (showErrors) draft.normalized().validate() else current.errors,
+                publishFailed = false,
+            )
+        }
+    }
+
+    private fun editRole(transform: (RoleEditorState) -> RoleEditorState) {
+        state.update { current -> current.copy(roleEditor = current.roleEditor?.let(transform)) }
+    }
+
+    private fun loadSpheres() {
+        viewModelScope.launch {
+            getSpheres().fold(
+                onSuccess = { spheres ->
+                    state.update { it.copy(spheres = spheres, spheresLoadFailed = false) }
+                },
+                onFailure = { state.update { it.copy(spheresLoadFailed = true) } },
+            )
+        }
+    }
+}

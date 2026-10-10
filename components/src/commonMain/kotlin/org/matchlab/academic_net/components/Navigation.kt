@@ -133,8 +133,8 @@ fun RowScope.AppNavigationBarItem(
 }
 
 /**
- * "App bar": back arrow, title with an optional subtitle and up to three actions (use
- * [AppIconButton] in [actions]). The white background extends under the status bar.
+ * "App bar": back arrow (or [navigationIcon]), title with an optional subtitle and up to three
+ * actions (use [AppIconButton] in [actions]). The white background extends under the status bar.
  */
 @Composable
 fun AppTopBar(
@@ -144,6 +144,9 @@ fun AppTopBar(
     onNavigateBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     windowInsets: WindowInsets = WindowInsets.statusBars,
+    // Screens that are closed rather than left (e.g. a form) show an X instead of the arrow.
+    navigationIcon: DrawableResource = AppIcons.ArrowLeft,
+    navigationContentDescription: String = stringResource(Res.string.components_back),
 ) {
     val colors = MaterialTheme.colorScheme
     Row(
@@ -169,8 +172,8 @@ fun AppTopBar(
                 contentAlignment = Alignment.Center,
             ) {
                 AppIcon(
-                    icon = AppIcons.ArrowLeft,
-                    contentDescription = stringResource(Res.string.components_back),
+                    icon = navigationIcon,
+                    contentDescription = navigationContentDescription,
                     tint = colors.onSurface,
                 )
             }

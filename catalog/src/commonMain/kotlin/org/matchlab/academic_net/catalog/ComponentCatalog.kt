@@ -1,8 +1,5 @@
 package org.matchlab.academic_net.catalog
 
-import academicnet.catalog.generated.resources.Res
-import academicnet.catalog.generated.resources.sample_avatar_arjun
-import academicnet.catalog.generated.resources.sample_avatar_elena
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.matchlab.academic_net.components.ActionListItem
+import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.AppBadgeDot
 import org.matchlab.academic_net.components.AppButton
@@ -42,6 +40,7 @@ import org.matchlab.academic_net.components.AppNavigationBar
 import org.matchlab.academic_net.components.AppNavigationBarItem
 import org.matchlab.academic_net.components.AppRadioButton
 import org.matchlab.academic_net.components.AppSearchBar
+import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppStatusChipTone
 import org.matchlab.academic_net.components.AppSwitch
@@ -125,8 +124,8 @@ fun ComponentCatalog() {
 }
 
 private val NoInsets = WindowInsets(0)
-private val Elena = Res.drawable.sample_avatar_elena
-private val Arjun = Res.drawable.sample_avatar_arjun
+private val Elena = AppAvatars.Elena
+private val Arjun = AppAvatars.Arjun
 
 private val Initiator = PersonCardUiModel(
     name = "Проф. Елена Васкес",
@@ -166,6 +165,15 @@ private fun BaseComponents() {
         AppSearchBar(query, { query = it }, placeholder = "Поиск проектов и людей")
         var title by remember { mutableStateOf("") }
         AppTextField(title, { title = it }, label = "Название проекта", placeholder = "Введите текст")
+        AppTextField("", {}, label = "Цель", placeholder = "Что хотите получить на выходе", errorText = "Заполните поле")
+        AppSelectField(label = "Сфера", value = "Computer Science", placeholder = "Выберите сферу", onClick = {})
+        AppSelectField(
+            label = "Сфера",
+            value = null,
+            placeholder = "Выберите сферу",
+            onClick = {},
+            errorText = "Выберите сферу",
+        )
         val tags = remember { mutableStateListOf("Machine Learning", "Python") }
         AppTagsField(
             label = "Теги",

@@ -18,10 +18,6 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
-        // Packages the sample avatars (Compose resources).
-        androidResources {
-            enable = true
-        }
     }
 
     // Same targets as the modules it shows.

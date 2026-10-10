@@ -31,9 +31,9 @@ import org.matchlab.academic_net.components.AppNavigationBarItem
 private const val TabFadeOutMillis = 90
 private const val TabFadeInMillis = 210
 
-/** Root screen: the selected tab's content above the bottom navigation bar. */
+/** Root screen: the selected tab's [content] above the bottom navigation bar. */
 @Composable
-fun MainScaffold() {
+fun MainScaffold(content: @Composable (TopLevelDestination) -> Unit) {
     var currentDestination by rememberSaveable { mutableStateOf(TopLevelDestination.Feed) }
     // Keeps each tab's saveable state (e.g. scroll position) while another tab is shown.
     val tabStateHolder = rememberSaveableStateHolder()
@@ -69,7 +69,7 @@ fun MainScaffold() {
             },
         ) { destination ->
             tabStateHolder.SaveableStateProvider(destination.name) {
-                TabPlaceholder(destination)
+                content(destination)
             }
         }
     }
@@ -84,7 +84,7 @@ private fun TopLevelDestination.screenBackground(): Color = when (this) {
 
 // Stand-in until the tab screens are implemented.
 @Composable
-private fun TabPlaceholder(destination: TopLevelDestination) {
+internal fun TabPlaceholder(destination: TopLevelDestination) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text = stringResource(destination.label),
