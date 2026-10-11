@@ -28,6 +28,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":feature:feed:domain"))
             implementation(project(":utils"))
+            implementation(project(":mockserver"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

@@ -5,6 +5,7 @@ import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.data.FeedDataSource
+import org.matchlab.academic_net.mockserver.MockAccounts
 
 /**
  * In-memory stand-in for the feed backend: answers with the people of the Figma screen "01c Лента
@@ -36,8 +37,8 @@ class MockFeedDataSource(
 }
 
 object MockFeedData {
-    /** The same user as the initiator of the mock projects. */
-    val viewer = UserSummary(UserId("user-me"), "Вы", isVerified = true)
+    /** The same user as the initiator of the mock projects: the account every mock sign-in lands on. */
+    val viewer: UserSummary = MockAccounts.viewer
 
     val recommendedPeople: List<Collaborator> = listOf(
         Collaborator(

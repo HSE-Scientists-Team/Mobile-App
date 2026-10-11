@@ -12,11 +12,12 @@ import org.matchlab.academic_net.common.model.RoleMember
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
+import org.matchlab.academic_net.mockserver.MockAccounts
 
 /** Sample data of the mock backend: the people, spheres and projects from the Figma screens. */
 object MockProjectsData {
-    /** The signed-in user of the mock backend. */
-    val currentUser = UserSummary(UserId("user-me"), "Вы", isVerified = true)
+    /** The signed-in user of the mock backend: the account every mock sign-in lands on. */
+    val currentUser: UserSummary = MockAccounts.viewer
 
     private val arjun = UserSummary(UserId("user-arjun"), "Арджун Мехта", isVerified = true)
     private val lina = UserSummary(UserId("user-lina"), "Лина Ковач", isVerified = true)
