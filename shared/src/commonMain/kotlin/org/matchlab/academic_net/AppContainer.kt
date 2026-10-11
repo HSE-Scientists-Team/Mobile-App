@@ -14,6 +14,11 @@ import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaborato
 import org.matchlab.academic_net.feature.collaborators.domain.usecase.GetRoleRequirementUseCase
 import org.matchlab.academic_net.feature.collaborators.domain.usecase.SearchCollaboratorsUseCase
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorsUiDependencies
+import org.matchlab.academic_net.feature.feed.data.FeedRepositoryImpl
+import org.matchlab.academic_net.feature.feed.data.mock.MockFeedDataSource
+import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedPeopleUseCase
+import org.matchlab.academic_net.feature.feed.domain.usecase.GetViewerUseCase
+import org.matchlab.academic_net.feature.feed.ui.FeedUiDependencies
 import org.matchlab.academic_net.feature.projects.data.ProjectsRepositoryImpl
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
@@ -29,6 +34,7 @@ class AppDependencies(
     val projects: ProjectsUiDependencies,
     val chats: ChatsUiDependencies,
     val collaborators: CollaboratorsUiDependencies,
+    val feed: FeedUiDependencies,
 )
 
 /**
@@ -40,6 +46,7 @@ class AppDependencies(
 internal object AppContainer {
     private val projectsRepository by lazy { ProjectsRepositoryImpl(MockProjectsDataSource()) }
     private val chatsRepository by lazy { ChatsRepositoryImpl(MockChatsDataSource()) }
+    private val feedRepository by lazy { FeedRepositoryImpl(MockFeedDataSource()) }
     // What the people search knows about roles: the mock server reads the projects, a real one would too.
     private val roleRequirements by lazy { ProjectsRoleRequirementProvider(projectsRepository) }
     private val collaboratorsRepository by lazy {
@@ -67,6 +74,10 @@ internal object AppContainer {
             collaborators = CollaboratorsUiDependencies(
                 getRoleRequirement = GetRoleRequirementUseCase(roleRequirements),
                 searchCollaborators = SearchCollaboratorsUseCase(collaboratorsRepository),
+            ),
+            feed = FeedUiDependencies(
+                getViewer = GetViewerUseCase(feedRepository),
+                getRecommendedPeople = GetRecommendedPeopleUseCase(feedRepository),
             ),
         )
     }

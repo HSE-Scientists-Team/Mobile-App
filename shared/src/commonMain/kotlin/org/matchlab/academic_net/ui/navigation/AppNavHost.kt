@@ -12,11 +12,13 @@ import kotlinx.coroutines.launch
 import org.matchlab.academic_net.AppDependencies
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.chat.ChatRoute
 import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorSearchRoute
+import org.matchlab.academic_net.feature.feed.ui.FeedRoute
 import org.matchlab.academic_net.feature.projects.ui.create.CreateProjectRoute
 import org.matchlab.academic_net.feature.projects.ui.list.MyProjectsRoute
 import org.matchlab.academic_net.feature.projects.ui.management.ProjectManagementRoute
@@ -32,6 +34,7 @@ private object Routes {
     const val Project = "project/{$ProjectArgument}"
     const val Collaborators = "collaborators/{$ProjectArgument}/{$RoleArgument}"
     const val Chat = "chat/{$ConversationArgument}"
+    const val PeopleSearch = "people_search"
 
     fun project(id: ProjectId) = "project/${id.value}"
     fun collaborators(projectId: ProjectId, roleId: RoleId) = "collaborators/${projectId.value}/${roleId.value}"
@@ -49,10 +52,26 @@ fun AppNavHost(dependencies: AppDependencies) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
 
+    // The person's profile is a story of the next block; until then a tap on a person starts the
+    // conversation with them.
+    val openChatWith: (UserSummary) -> Unit = { user ->
+        scope.launch {
+            dependencies.chats.openConversation(user).onSuccess { id ->
+                navController.navigate(Routes.chat(id))
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = Routes.Main) {
         composable(Routes.Main) {
-            MainScaffold { destination ->
+            MainScaffold { destination, selectTab ->
                 when (destination) {
+                    TopLevelDestination.Feed -> FeedRoute(
+                        dependencies = dependencies.feed,
+                        onProfileClick = { selectTab(TopLevelDestination.Profile) },
+                        onSearchPeopleClick = { navController.navigate(Routes.PeopleSearch) },
+                        onPersonClick = openChatWith,
+                    )
                     TopLevelDestination.Projects -> MyProjectsRoute(
                         dependencies = dependencies.projects,
                         onCreateProject = { navController.navigate(Routes.CreateProject) },
@@ -108,17 +127,19 @@ fun AppNavHost(dependencies: AppDependencies) {
                     dependencies = dependencies.collaborators,
                     role = RoleReference(ProjectId(projectId), RoleId(roleId)),
                     onNavigateBack = { navController.popBackStack() },
-                    // The person's profile is a story of the next block; until then a tap
-                    // starts the conversation with them.
-                    onCollaboratorClick = { user ->
-                        scope.launch {
-                            dependencies.chats.openConversation(user).onSuccess { id ->
-                                navController.navigate(Routes.chat(id))
-                            }
-                        }
-                    },
+                    onCollaboratorClick = openChatWith,
                 )
             }
+        }
+        composable(Routes.PeopleSearch) {
+            // Opened from the search bar of the feed: everyone, with the cursor in the search bar.
+            CollaboratorSearchRoute(
+                dependencies = dependencies.collaborators,
+                role = null,
+                autoFocusSearch = true,
+                onNavigateBack = { navController.popBackStack() },
+                onCollaboratorClick = openChatWith,
+            )
         }
         composable(
             route = Routes.Chat,
