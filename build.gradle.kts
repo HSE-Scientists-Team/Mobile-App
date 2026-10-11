@@ -23,6 +23,8 @@ dependencies {
     kover(project(":feature:projects:domain"))
     kover(project(":feature:projects:data"))
     kover(project(":feature:projects:ui"))
+    kover(project(":feature:profile:domain"))
+    kover(project(":feature:profile:data"))
     kover(project(":feature:profile:ui"))
     kover(project(":feature:chats:domain"))
     kover(project(":feature:chats:data"))
