@@ -1,0 +1,16 @@
+<resources>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_privacy_title">Приватность и безопасность</string>
+    <string name="settings_show_projects">Показывать проекты, где я участвую</string>
+    <string name="settings_show_projects_hint">Иначе их видят только инициаторы этих проектов</string>
+    <string name="settings_show_contacts">Показывать контакты</string>
+    <string name="settings_show_contacts_hint">Почта и телеграм видны только команде ваших проектов</string>
+    <string name="settings_save_error">Не удалось сохранить настройку. Попробуйте ещё раз</string>
+    <string name="settings_load_error">Не удалось загрузить настройки</string>
+    <string name="settings_retry">Повторить</string>
+    <string name="settings_sign_out">Выйти из аккаунта</string>
+    <string name="settings_sign_out_title">Выйти из аккаунта?</string>
+    <string name="settings_sign_out_text">Чтобы войти снова, понадобится новый код из письма</string>
+    <string name="settings_sign_out_confirm">Выйти</string>
+    <string name="settings_sign_out_cancel">Отмена</string>
+</resources>
