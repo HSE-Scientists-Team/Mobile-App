@@ -1,0 +1,7 @@
+<resources>
+    <string name="nav_feed">Лента</string>
+    <string name="nav_projects">Проекты</string>
+    <string name="nav_responses">Отклики</string>
+    <string name="nav_chats">Чаты</string>
+    <string name="nav_profile">Профиль</string>
+</resources>

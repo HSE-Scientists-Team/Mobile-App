@@ -1,4 +1,4 @@
 <resources>
-    <string name="profile_verified">Подтверждено</string>
-    <string name="profile_rejected">Не подтверждено</string>
+    <string name="profile_verified">Verified</string>
+    <string name="profile_rejected">Not verified</string>
 </resources>

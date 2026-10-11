@@ -1,15 +1,15 @@
 <resources>
     <string name="feed_title">MatchLab</string>
-    <string name="feed_profile">Профиль</string>
-    <string name="feed_scope_projects">Проекты</string>
-    <string name="feed_scope_people">Люди</string>
-    <string name="feed_search_projects">Поиск проектов и людей</string>
-    <string name="feed_search_people">Поиск людей по навыкам и интересам</string>
-    <string name="feed_people_title">Люди для ваших проектов</string>
-    <string name="feed_people_empty_title">Пока нет рекомендаций</string>
-    <string name="feed_people_empty_text">Объявите роли в проекте, и мы подберём людей</string>
-    <string name="feed_people_error">Не удалось загрузить рекомендации</string>
-    <string name="feed_retry">Повторить</string>
-    <string name="feed_projects_title">Рекомендации проектов</string>
-    <string name="feed_projects_text">Подборка проектов появится здесь позже</string>
+    <string name="feed_profile">Profile</string>
+    <string name="feed_scope_projects">Projects</string>
+    <string name="feed_scope_people">People</string>
+    <string name="feed_search_projects">Search projects and people</string>
+    <string name="feed_search_people">Search people by skills and interests</string>
+    <string name="feed_people_title">People for your projects</string>
+    <string name="feed_people_empty_title">No recommendations yet</string>
+    <string name="feed_people_empty_text">Announce roles in a project and we will find people</string>
+    <string name="feed_people_error">Could not load recommendations</string>
+    <string name="feed_retry">Retry</string>
+    <string name="feed_projects_title">Project recommendations</string>
+    <string name="feed_projects_text">A selection of projects will appear here later</string>
 </resources>
