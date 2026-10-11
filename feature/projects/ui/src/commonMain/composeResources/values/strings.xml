@@ -1,5 +1,4 @@
 <resources>
-    <string name="projects_apply">Apply</string>
     <string name="projects_kick">Remove</string>
     <string name="projects_delete">Delete</string>
     <string name="projects_edit">Edit</string>
@@ -67,17 +66,8 @@
     <string name="projects_manage_tab_roles">Roles</string>
     <string name="projects_manage_tab_manage">Manage</string>
     <string name="projects_back">Back</string>
-    <string name="projects_block_problem">Problem</string>
-    <string name="projects_block_goal">Goal</string>
-    <string name="projects_block_tags">Tags</string>
     <string name="projects_roles_header">Roles</string>
-    <string name="projects_roles_occupied">%1$d of %2$d filled</string>
     <string name="projects_roles_empty">No roles yet. Announce the first one to start building your team</string>
-    <string name="projects_member_rating">★ %1$s</string>
-    <plurals name="projects_completed_count">
-        <item quantity="one">%1$d completed project</item>
-        <item quantity="other">%1$d completed projects</item>
-    </plurals>
     <string name="projects_banner_recruiting">Now: recruiting collaborators. The project is visible in search, and people can apply for open roles</string>
     <string name="projects_banner_unpublished">The project is unpublished: it is hidden from search and applications are paused</string>
     <string name="projects_action_unpublish">Unpublish</string>

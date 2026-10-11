@@ -1,5 +1,7 @@
 package org.matchlab.academic_net.components
 
+import academicnet.components.generated.resources.Res
+import academicnet.components.generated.resources.components_message
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.stringResource
 
 @Immutable
 data class PersonCardUiModel(
@@ -21,6 +24,8 @@ data class PersonCardUiModel(
     /** Extra line under the subtitle, e.g. "★ 4.9 · 12 завершённых проектов". */
     val stats: String? = null,
     val showChatButton: Boolean = false,
+    /** What a screen reader says for the chat button; the generic "Написать" when `null`. */
+    val chatContentDescription: String? = null,
 )
 
 /**
@@ -63,6 +68,11 @@ fun PersonSummary(
                 Text(model.stats, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
             }
         }
-        if (model.showChatButton) ChatIconButton(onChatClick)
+        if (model.showChatButton) {
+            ChatIconButton(
+                onClick = onChatClick,
+                contentDescription = model.chatContentDescription ?: stringResource(Res.string.components_message),
+            )
+        }
     }
 }

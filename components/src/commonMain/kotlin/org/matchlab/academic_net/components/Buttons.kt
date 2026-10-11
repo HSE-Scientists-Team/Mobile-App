@@ -220,12 +220,19 @@ fun CardIconButton(
     }
 }
 
-/** Chat ("Написать") button of cards. */
+/**
+ * Chat ("Написать") button of cards. [contentDescription] is what a screen reader says; a card
+ * that knows whom it writes to can make it more precise ("Написать инициатору").
+ */
 @Composable
-fun ChatIconButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ChatIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = stringResource(Res.string.components_message),
+) {
     CardIconButton(
         icon = AppIcons.Message,
-        contentDescription = stringResource(Res.string.components_message),
+        contentDescription = contentDescription,
         onClick = onClick,
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.primary,

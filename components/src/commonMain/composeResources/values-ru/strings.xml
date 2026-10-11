@@ -21,6 +21,23 @@
         <item quantity="other">%1$d роли</item>
     </plurals>
 
+    <!-- Project page blocks: shared by the management screen and the project page of others -->
+    <string name="components_project_block_problem">Проблема</string>
+    <string name="components_project_block_goal">Цель</string>
+    <string name="components_project_block_tags">Теги</string>
+    <!-- 1: roles filled, 2: roles in total -->
+    <string name="components_project_roles_occupied">%1$d из %2$d занято</string>
+    <string name="components_role_apply">Откликнуться</string>
+
+    <!-- A person's numbers on their card: the rating line and the completed projects -->
+    <string name="components_person_rating">★ %1$s</string>
+    <plurals name="components_person_completed_projects">
+        <item quantity="one">%1$d завершённый проект</item>
+        <item quantity="few">%1$d завершённых проекта</item>
+        <item quantity="many">%1$d завершённых проектов</item>
+        <item quantity="other">%1$d завершённых проекта</item>
+    </plurals>
+
     <!-- Sphere picker -->
     <string name="components_sphere_picker_title">Сфера проекта</string>
     <string name="components_sphere_picker_error">Не удалось загрузить сферы</string>

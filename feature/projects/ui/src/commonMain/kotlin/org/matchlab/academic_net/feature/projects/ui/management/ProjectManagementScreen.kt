@@ -4,8 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -26,7 +25,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
@@ -38,20 +36,18 @@ import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppConfirmDialog
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTabs
-import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.InfoBanner
-import org.matchlab.academic_net.components.InfoCard
 import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
-import org.matchlab.academic_net.components.TagsBlock
-import org.matchlab.academic_net.components.TextBlock
-import org.matchlab.academic_net.components.format.monthRangeText
-import org.matchlab.academic_net.components.project.label
+import org.matchlab.academic_net.components.person.personStatsText
+import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
+import org.matchlab.academic_net.components.project.ProjectHeader
+import org.matchlab.academic_net.components.project.ProjectPeriodCard
+import org.matchlab.academic_net.components.project.RolesSectionHeader
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
-import org.matchlab.academic_net.feature.projects.ui.completedProjectsText
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_action_error
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_action_unpublish
@@ -60,18 +56,13 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_back
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_recruiting
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_unpublished
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_block_goal
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_block_problem
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_block_tags
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_cancel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_manage
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_overview
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_roles
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_member_rating
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_not_found
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_empty
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_header
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_occupied
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_confirm
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_dialog_text
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_dialog_title
@@ -207,31 +198,10 @@ internal fun ProjectManagementScreen(
 
 /** "07 … Обзор". */
 @Composable
-private fun OverviewTab(project: ProjectDetails) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = project.title,
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AppTagChip(project.type.label())
-            AppTagChip(project.status.label())
-            AppTagChip(project.sphere)
-        }
-    }
-    TextBlock(stringResource(Res.string.projects_block_problem), project.problem)
-    TextBlock(stringResource(Res.string.projects_block_goal), project.goal)
-    if (project.tags.isNotEmpty()) {
-        TagsBlock(stringResource(Res.string.projects_block_tags), project.tags)
-    }
-    InfoCard(
-        text = monthRangeText(project.period.start, project.period.end),
-        icon = AppIcons.Calendar,
-    )
+private fun ColumnScope.OverviewTab(project: ProjectDetails) {
+    ProjectHeader(project.title, project.type, project.status, project.sphere)
+    ProjectDescriptionBlocks(project.problem, project.goal, project.tags)
+    ProjectPeriodCard(project.period)
 }
 
 /**
@@ -245,19 +215,11 @@ private fun RolesTab(
     onFindPeopleClick: (RoleId) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = stringResource(Res.string.projects_roles_header),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleLarge,
-            color = colors.onSurface,
-        )
-        Text(
-            text = stringResource(Res.string.projects_roles_occupied, project.occupiedRoles.size, project.rolesCount),
-            style = MaterialTheme.typography.labelSmall,
-            color = colors.onSurfaceVariant,
-        )
-    }
+    RolesSectionHeader(
+        title = stringResource(Res.string.projects_roles_header),
+        occupiedCount = project.occupiedRoles.size,
+        totalCount = project.rolesCount,
+    )
     project.occupiedRoles.forEach { role ->
         PersonCard(role.toCardUiModel())
     }
@@ -307,24 +269,10 @@ private fun ManageTab(project: ProjectDetails, isUnpublishing: Boolean, onUnpubl
 }
 
 @Composable
-private fun OccupiedRoleItem.toCardUiModel(): PersonCardUiModel {
-    val completed = completedProjectsText(completedProjects)
-    val stats = if (rating != null) {
-        stringResource(Res.string.projects_member_rating, formatRating(rating)) + " · " + completed
-    } else {
-        completed
-    }
-    return PersonCardUiModel(
-        name = memberName,
-        subtitle = roleTitle,
-        avatar = AppAvatars.forKey(avatarKey),
-        isVerified = isMemberVerified,
-        stats = stats,
-    )
-}
-
-/** One decimal digit, with a point: 4.8. */
-private fun formatRating(rating: Double): String {
-    val tenths = (rating * 10).roundToInt().coerceIn(0, 50)
-    return "${tenths / 10}.${tenths % 10}"
-}
+private fun OccupiedRoleItem.toCardUiModel(): PersonCardUiModel = PersonCardUiModel(
+    name = memberName,
+    subtitle = roleTitle,
+    avatar = AppAvatars.forKey(avatarKey),
+    isVerified = isMemberVerified,
+    stats = personStatsText(rating, completedProjects),
+)

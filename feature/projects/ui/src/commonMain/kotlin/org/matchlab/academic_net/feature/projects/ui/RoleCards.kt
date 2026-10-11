@@ -1,7 +1,6 @@
 package org.matchlab.academic_net.feature.projects.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,12 +17,12 @@ import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppIcons
-import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.CardIconButton
 import org.matchlab.academic_net.components.ChatIconButton
+import org.matchlab.academic_net.components.RoleCardTitle
+import org.matchlab.academic_net.components.SkillChips
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_apply
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_delete
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_edit
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_find_people
@@ -49,7 +48,7 @@ fun RoleCard(
     onChatClick: () -> Unit = {},
 ) {
     AppCard(modifier, spacing = 8.dp, cornerRadius = 12.dp, verticalPadding = 12.dp) {
-        RoleTitle(model.role)
+        RoleCardTitle(model.role)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(model.memberAvatar, contentDescription = null, size = 32.dp)
             Text(
@@ -97,9 +96,9 @@ fun VacantRoleCard(
 ) {
     val colors = MaterialTheme.colorScheme
     AppCard(modifier, spacing = 8.dp, cornerRadius = 12.dp, verticalPadding = 12.dp) {
-        RoleTitle(model.role)
+        RoleCardTitle(model.role)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Skills(model.skills, Modifier.weight(1f))
+            SkillChips(model.skills, Modifier.weight(1f))
             if (model.isEditable) {
                 CardIconButton(
                     icon = AppIcons.Trash,
@@ -126,46 +125,5 @@ fun VacantRoleCard(
                 )
             }
         }
-    }
-}
-
-@Immutable
-data class RoleApplyCardUiModel(
-    val role: String,
-    val skills: List<String>,
-)
-
-/** "Card/Role apply": open role for someone outside the project, with a full-width apply button. */
-@Composable
-fun RoleApplyCard(
-    model: RoleApplyCardUiModel,
-    onApplyClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    AppCard(modifier, spacing = 12.dp, cornerRadius = 12.dp, verticalPadding = 12.dp) {
-        RoleTitle(model.role)
-        Skills(model.skills)
-        AppButton(
-            text = stringResource(Res.string.projects_apply),
-            onClick = onApplyClick,
-            modifier = Modifier.fillMaxWidth(),
-            variant = AppButtonVariant.Tonal,
-        )
-    }
-}
-
-@Composable
-private fun RoleTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-}
-
-@Composable
-private fun Skills(skills: List<String>, modifier: Modifier = Modifier) {
-    FlowRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        skills.forEach { AppTagChip(it) }
     }
 }

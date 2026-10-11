@@ -77,15 +77,24 @@ import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.RadioListItem
 import org.matchlab.academic_net.components.ReportIconButton
+import org.matchlab.academic_net.components.RoleApplyCard
+import org.matchlab.academic_net.components.RoleApplyCardUiModel
+import org.matchlab.academic_net.components.RoleCardTitle
 import org.matchlab.academic_net.components.SearchTopBar
 import org.matchlab.academic_net.components.SectionHeader
 import org.matchlab.academic_net.components.SettingListItem
 import org.matchlab.academic_net.components.SheetHeader
+import org.matchlab.academic_net.components.SkillChips
 import org.matchlab.academic_net.components.SpherePickerSheet
 import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.ToggleListItem
 import org.matchlab.academic_net.components.UploadCard
+import org.matchlab.academic_net.components.person.personStatsText
+import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
+import org.matchlab.academic_net.components.project.ProjectHeader
+import org.matchlab.academic_net.components.project.ProjectPeriodCard
+import org.matchlab.academic_net.components.project.RolesSectionHeader
 import org.matchlab.academic_net.components.project.label
 import org.matchlab.academic_net.components.project.projectCardUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatBubble
@@ -108,8 +117,6 @@ import org.matchlab.academic_net.feature.profile.ui.WorkType
 import org.matchlab.academic_net.feature.projects.ui.CandidateCard
 import org.matchlab.academic_net.feature.projects.ui.CandidateCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.ParticipantManageCard
-import org.matchlab.academic_net.feature.projects.ui.RoleApplyCard
-import org.matchlab.academic_net.feature.projects.ui.RoleApplyCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.RoleCard
 import org.matchlab.academic_net.feature.projects.ui.RoleCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.StatCard
@@ -134,6 +141,7 @@ fun ComponentCatalog() {
         ) {
             item { BaseComponents() }
             item { SharedFeatureComponents() }
+            item { ProjectPageComponents() }
             item { SearchComponents() }
             item { ProjectsComponents() }
             item { ProfileComponents() }
@@ -305,6 +313,52 @@ private fun SharedFeatureComponents() {
     }
 }
 
+/** The pieces of "04 Проект" and "07 Управление проектом": the header, the blocks, the roles. */
+@Composable
+private fun ProjectPageComponents() {
+    Section(":components — страница проекта") {
+        ProjectHeader(
+            title = "AI-навигация по кампусу",
+            type = ProjectType.Scientific,
+            status = ProjectStatus.Recruiting,
+            sphere = "Computer Science",
+        )
+        // The line under the name: with the rating, and for a person with no reviews yet.
+        PersonCard(
+            PersonCardUiModel(
+                name = "Проф. Елена Васкес",
+                subtitle = "Инициатор · Stanford University",
+                avatar = Elena,
+                isVerified = true,
+                stats = personStatsText(rating = 4.9, completedProjects = 12),
+                showChatButton = true,
+            ),
+        )
+        PersonCard(
+            PersonCardUiModel(
+                name = "Даниил Крюков",
+                subtitle = "Инициатор · ИТМО",
+                avatar = Arjun,
+                stats = personStatsText(rating = null, completedProjects = 1),
+            ),
+        )
+        ProjectDescriptionBlocks(
+            problem = "Навигация по кампусу фрагментарна: GPS не работает внутри зданий, а карты не отражают " +
+                "изменения расписания и ремонтов.",
+            goal = "Собрать систему компьютерного зрения, которая распознаёт помещения и строит маршрут " +
+                "внутри корпусов в реальном времени.",
+            tags = listOf("Machine Learning", "Computer Vision", "Mobile Dev"),
+        )
+        RolesSectionHeader("Вакантные роли", occupiedCount = 2, totalCount = 4)
+        RoleApplyCard(RoleApplyCardUiModel("Mobile Developer", listOf("Flutter", "Dart")), onApplyClick = {})
+        // Without the button: applying is not available on the project page yet.
+        RoleApplyCard(RoleApplyCardUiModel("UX Researcher", listOf("Figma", "Интервью")))
+        RoleCardTitle("ML Engineer")
+        SkillChips(listOf("Python", "PyTorch", "OpenCV"))
+        ProjectPeriodCard(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)))
+    }
+}
+
 @Composable
 private fun SearchComponents() {
     Section(":components — поиск и фильтры") {
@@ -412,7 +466,6 @@ private fun ProjectsComponents() {
         RoleCard(RoleCardUiModel("ML Engineer", "Арджун Мехта", Elena, canManage = true))
         VacantRoleCard(VacantRoleCardUiModel("ML Engineer", listOf("Machine Learning", "Machine Learning"), isEditable = true))
         VacantRoleCard(VacantRoleCardUiModel("Mobile Developer", listOf("Flutter", "Dart"), canFindPeople = true))
-        RoleApplyCard(RoleApplyCardUiModel("Mobile Developer", listOf("Flutter", "Dart")), onApplyClick = {})
         ParticipantManageCard(Initiator, onKickClick = {})
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard(StatCardUiModel("7", "новых откликов"), Modifier.weight(1f))

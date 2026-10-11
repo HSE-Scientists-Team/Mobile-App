@@ -1,5 +1,4 @@
 <resources>
-    <string name="projects_apply">Откликнуться</string>
     <string name="projects_kick">Выгнать</string>
     <string name="projects_delete">Удалить</string>
     <string name="projects_edit">Изменить</string>
@@ -67,19 +66,8 @@
     <string name="projects_manage_tab_roles">Роли</string>
     <string name="projects_manage_tab_manage">Управление</string>
     <string name="projects_back">Назад</string>
-    <string name="projects_block_problem">Проблема</string>
-    <string name="projects_block_goal">Цель</string>
-    <string name="projects_block_tags">Теги</string>
     <string name="projects_roles_header">Роли</string>
-    <string name="projects_roles_occupied">%1$d из %2$d занято</string>
     <string name="projects_roles_empty">Ролей пока нет. Объявите первую, чтобы начать набор команды</string>
-    <string name="projects_member_rating">★ %1$s</string>
-    <plurals name="projects_completed_count">
-        <item quantity="one">%1$d завершённый проект</item>
-        <item quantity="few">%1$d завершённых проекта</item>
-        <item quantity="many">%1$d завершённых проектов</item>
-        <item quantity="other">%1$d завершённых проекта</item>
-    </plurals>
     <string name="projects_banner_recruiting">Сейчас: поиск соавторов. Проект виден в поиске, можно откликаться на вакантные роли</string>
     <string name="projects_banner_unpublished">Проект снят с публикации: он скрыт из поиска, отклики приостановлены</string>
     <string name="projects_action_unpublish">Снять с публикации</string>

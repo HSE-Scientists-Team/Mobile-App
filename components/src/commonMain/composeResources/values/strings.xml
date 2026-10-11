@@ -19,6 +19,21 @@
         <item quantity="other">%1$d roles</item>
     </plurals>
 
+    <!-- Project page blocks: shared by the management screen and the project page of others -->
+    <string name="components_project_block_problem">Problem</string>
+    <string name="components_project_block_goal">Goal</string>
+    <string name="components_project_block_tags">Tags</string>
+    <!-- 1: roles filled, 2: roles in total -->
+    <string name="components_project_roles_occupied">%1$d of %2$d filled</string>
+    <string name="components_role_apply">Apply</string>
+
+    <!-- A person's numbers on their card: the rating line and the completed projects -->
+    <string name="components_person_rating">★ %1$s</string>
+    <plurals name="components_person_completed_projects">
+        <item quantity="one">%1$d completed project</item>
+        <item quantity="other">%1$d completed projects</item>
+    </plurals>
+
     <!-- Sphere picker -->
     <string name="components_sphere_picker_title">Project field</string>
     <string name="components_sphere_picker_error">Could not load fields</string>
