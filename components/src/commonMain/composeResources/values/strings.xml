@@ -74,4 +74,6 @@
     <string name="date_month_range">%1$s – %2$s</string>
     <!-- 1: day of month, 2: month name -->
     <string name="date_day_month">%2$s %1$d</string>
+    <!-- The day before today in a time label, see chatListTimeText -->
+    <string name="components_yesterday">Yesterday</string>
 </resources>

@@ -23,11 +23,20 @@ fun personStatsText(rating: Double?, completedProjects: Int): String {
         completedProjects,
     )
     return if (rating != null) {
-        stringResource(Res.string.components_person_rating, formatRating(rating)) + " · " + completed
+        ratingText(rating) + " · " + completed
     } else {
         completed
     }
 }
+
+/**
+ * The average of reviews on its own, with a star and one decimal digit: "★ 4.8". It is the text
+ * of a person's stats line and of the heading of their reviews.
+ *
+ * @param rating the average of reviews, 0..5; a value outside is cut to the nearest bound
+ */
+@Composable
+fun ratingText(rating: Double): String = stringResource(Res.string.components_person_rating, formatRating(rating))
 
 /** One decimal digit, with a point: 4.8. A value outside 0..5 is cut to the nearest bound. */
 internal fun formatRating(rating: Double): String {

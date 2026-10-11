@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -38,8 +37,12 @@ import org.jetbrains.compose.resources.stringResource
 
 // In the design the 1dp outline adds to the component size, so the inner padding is 1dp larger
 // than the Figma padding (the text stays exactly where Figma puts it).
+// The text inputs are built on AppBasicTextField, so the caret and the selection survive rotation.
 
-/** "Search bar": full-round field with a search icon. */
+/**
+ * "Search bar": full-round field with a search icon. The caret survives configuration changes
+ * (see [AppBasicTextField]).
+ */
 @Composable
 fun AppSearchBar(
     query: String,
@@ -50,7 +53,7 @@ fun AppSearchBar(
     enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
-    BasicTextField(
+    AppBasicTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier,
@@ -106,7 +109,10 @@ fun AppSearchBarButton(
     }
 }
 
-/** "Text field/Outlined": label above a 12dp-rounded outlined box. */
+/**
+ * "Text field/Outlined": label above a 12dp-rounded outlined box. The caret survives configuration
+ * changes (see [AppBasicTextField]).
+ */
 @Composable
 fun AppTextField(
     value: String,
@@ -127,7 +133,7 @@ fun AppTextField(
     val focused by interactionSource.collectIsFocusedAsState()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         FieldLabel(label)
-        BasicTextField(
+        AppBasicTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
@@ -235,7 +241,7 @@ fun AppTagsField(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BasicTextField(
+                AppBasicTextField(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),

@@ -59,7 +59,10 @@ fun SettingListItem(
     }
 }
 
-/** "List item/Toggle": row with a switch; the whole row toggles it. */
+/**
+ * "List item/Toggle": row with a switch; the whole row toggles it. With [enabled] `false` the
+ * row ignores taps and the switch is dimmed, e.g. while the new value is being saved.
+ */
 @Composable
 fun ToggleListItem(
     title: String,
@@ -67,13 +70,14 @@ fun ToggleListItem(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    enabled: Boolean = true,
 ) {
     OutlinedRow(
-        modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
         MaterialTheme.shapes.large,
     ) {
         TitleWithSubtitle(title, subtitle)
-        AppSwitch(checked = checked, onCheckedChange = null)
+        AppSwitch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

@@ -38,6 +38,10 @@ kotlin {
             api(libs.kotlinx.datetime)
             // The labels and the sphere picker take the shared project model in their signatures.
             api(project(":common"))
+            // chatListTimeText (format/DateText.kt) takes ChatListTime of :utils in its signature, so the
+            // type must be visible to every module that calls it. :utils is plain Kotlin and depends on
+            // no feature or UI module, so the layering stays acyclic.
+            api(project(":utils"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
