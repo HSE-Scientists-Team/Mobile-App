@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.feature.projects.data.mock
 
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.Project
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
@@ -74,6 +76,7 @@ object MockProjectsData {
                 ),
             ),
             status = ProjectStatus.Recruiting,
+            period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)),
             viewerIsInitiator = true,
         ),
         Project(
@@ -95,6 +98,7 @@ object MockProjectsData {
                 Role(RoleId("role-pm"), "Project Manager", listOf("Agile")),
             ),
             status = ProjectStatus.Recruiting,
+            period = ProjectPeriod(YearMonth(2026, 9), YearMonth(2027, 3)),
             viewerIsInitiator = true,
         ),
     )

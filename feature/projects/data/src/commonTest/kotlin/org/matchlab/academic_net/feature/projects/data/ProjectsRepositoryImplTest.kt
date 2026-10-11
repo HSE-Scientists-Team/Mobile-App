@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.feature.projects.data
 
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -18,7 +20,10 @@ class ProjectsRepositoryImplTest {
         val before = repository.observeMyProjects().first().size
 
         val project = repository.publishProject(
-            NewProject("Проект", ProjectType.Scientific, MockProjectsData.spheres.first(), "p", "g", emptyList(), emptyList()),
+            NewProject(
+                "Проект", ProjectType.Scientific, MockProjectsData.spheres.first(), "p", "g", emptyList(), emptyList(),
+                ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)),
+            ),
         )
 
         val after = repository.observeMyProjects().first()

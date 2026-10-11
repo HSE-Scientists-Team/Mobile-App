@@ -1,6 +1,7 @@
 package org.matchlab.academic_net.common.model
 
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -22,6 +23,7 @@ class ProjectTest {
         initiator = user,
         roles = roles,
         status = ProjectStatus.Recruiting,
+        period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)),
         viewerIsInitiator = true,
     )
 

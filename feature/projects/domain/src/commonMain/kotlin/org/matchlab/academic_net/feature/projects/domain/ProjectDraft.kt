@@ -1,5 +1,7 @@
 package org.matchlab.academic_net.feature.projects.domain
 
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.utils.normalizeTag
@@ -39,6 +41,11 @@ enum class ProjectDraftError {
 
     /** One of the declared roles has no title. */
     RoleInvalid,
+    StartMissing,
+    EndMissing,
+
+    /** The project would end in an earlier month than it starts. */
+    EndBeforeStart,
 }
 
 /** The "new project" form as the user has filled it so far. */
@@ -50,6 +57,10 @@ data class ProjectDraft(
     val goal: String = "",
     val tags: List<String> = emptyList(),
     val roles: List<RoleDraft> = emptyList(),
+    /** First month of the project. */
+    val start: YearMonth? = null,
+    /** Last month of the project. */
+    val end: YearMonth? = null,
 ) {
     fun normalized(): ProjectDraft = copy(
         title = title.normalizeTag(),
@@ -67,6 +78,9 @@ data class ProjectDraft(
         if (problem.isBlank()) add(ProjectDraftError.ProblemEmpty)
         if (goal.isBlank()) add(ProjectDraftError.GoalEmpty)
         if (roles.any { it.validate().isNotEmpty() }) add(ProjectDraftError.RoleInvalid)
+        if (start == null) add(ProjectDraftError.StartMissing)
+        if (end == null) add(ProjectDraftError.EndMissing)
+        if (start != null && end != null && end < start) add(ProjectDraftError.EndBeforeStart)
     }
 }
 
@@ -79,11 +93,14 @@ data class NewProject(
     val goal: String,
     val tags: List<String>,
     val roles: List<RoleDraft>,
+    val period: ProjectPeriod,
 )
 
-/** The draft as a [NewProject], or `null` while the type or the sphere is not chosen. */
+/** The draft as a [NewProject], or `null` while something that is required is not chosen. */
 internal fun ProjectDraft.toNewProject(): NewProject? {
     val type = type ?: return null
     val sphere = sphere ?: return null
-    return NewProject(title, type, sphere, problem, goal, tags, roles)
+    val start = start ?: return null
+    val end = end ?: return null
+    return NewProject(title, type, sphere, problem, goal, tags, roles, ProjectPeriod(start, end))
 }

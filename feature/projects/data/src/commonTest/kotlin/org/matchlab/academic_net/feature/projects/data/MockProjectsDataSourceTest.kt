@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.feature.projects.data
 
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
@@ -34,6 +36,7 @@ class MockProjectsDataSourceTest {
         goal = "goal",
         tags = listOf("IoT"),
         roles = listOf(RoleDraft("Backend", listOf("Kotlin"))),
+        period = ProjectPeriod(YearMonth(2026, 9), YearMonth(2027, 6)),
     )
 
     @Test
@@ -42,6 +45,14 @@ class MockProjectsDataSourceTest {
 
         assertTrue(projects.isNotEmpty())
         assertTrue(projects.all { it.initiator == MockProjectsData.currentUser })
+    }
+
+    @Test
+    fun seededProjectsRunOverSeveralMonths() = runTest {
+        val projects = dataSource().observeMyProjects().first()
+
+        assertTrue(projects.all { it.period.end >= it.period.start })
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), projects.first().period)
     }
 
     @Test
@@ -64,6 +75,7 @@ class MockProjectsDataSourceTest {
         assertEquals(ProjectStatus.Recruiting, created.status)
         assertEquals(MockProjectsData.currentUser, created.initiator)
         assertTrue(created.viewerIsInitiator)
+        assertEquals(newProject.period, created.period)
         assertEquals(created, source.observeMyProjects().first().first())
         assertEquals(listOf("Backend"), created.roles.map { it.title })
         assertTrue(created.roles.single().isVacant)

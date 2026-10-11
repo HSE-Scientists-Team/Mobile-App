@@ -4,7 +4,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import org.matchlab.academic_net.common.model.Project
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Role
@@ -22,6 +24,8 @@ fun validDraft() = ProjectDraft(
     sphere = TestSphere,
     problem = "GPS не работает внутри зданий",
     goal = "Строить маршруты внутри корпусов",
+    start = YearMonth(2026, 10),
+    end = YearMonth(2027, 3),
 )
 
 fun testProject(
@@ -39,6 +43,7 @@ fun testProject(
     initiator = TestUser,
     roles = roles,
     status = status,
+    period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)),
     viewerIsInitiator = true,
 )
 
@@ -73,6 +78,7 @@ class FakeProjectsRepository(initial: List<Project> = emptyList()) : ProjectsRep
             problem = project.problem,
             goal = project.goal,
             tags = project.tags,
+            period = project.period,
             roles = project.roles.mapIndexed { index, role -> Role(RoleId("r$index"), role.title, role.skills) },
         )
         projects.value = listOf(created) + projects.value

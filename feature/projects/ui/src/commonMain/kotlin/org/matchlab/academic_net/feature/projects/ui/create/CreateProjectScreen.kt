@@ -16,10 +16,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
@@ -39,17 +43,23 @@ import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_add_role
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_close
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_end_sheet_title
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_end_before_start
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_month
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_required
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_role
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_sphere
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_title_too_long
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_type
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_end
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_goal
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_goal_hint
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_month_hint
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_problem
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_problem_hint
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_sphere
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_sphere_hint
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_start
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_tags
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_tags_hint
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_title
@@ -60,7 +70,9 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_publish_error
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_publishing
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_title
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_start_sheet_title
 import org.matchlab.academic_net.feature.projects.ui.label
+import org.matchlab.academic_net.utils.fieldLabel
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
@@ -87,6 +99,8 @@ fun CreateProjectRoute(
         onTitleChange = viewModel::onTitleChange,
         onTypeSelect = viewModel::onTypeSelect,
         onSphereFieldClick = viewModel::onSphereFieldClick,
+        onStartFieldClick = viewModel::onStartFieldClick,
+        onEndFieldClick = viewModel::onEndFieldClick,
         onProblemChange = viewModel::onProblemChange,
         onGoalChange = viewModel::onGoalChange,
         onAddTag = viewModel::onAddTag,
@@ -108,6 +122,23 @@ fun CreateProjectRoute(
             onDismiss = viewModel::onSpherePickerDismiss,
         )
     }
+    state.monthPickerFor?.let { field ->
+        val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
+        val draft = state.draft
+        val selected = if (field == DateField.Start) draft.start else draft.end
+        MonthPickerSheet(
+            title = stringResource(
+                if (field == DateField.Start) Res.string.projects_start_sheet_title else Res.string.projects_end_sheet_title,
+            ),
+            selected = selected,
+            // The end is most likely near the start; with nothing chosen the picker starts at this year.
+            initialYear = selected?.year ?: draft.start?.year ?: today.year,
+            minYear = today.year - 2,
+            maxYear = today.year + 10,
+            onSelect = viewModel::onMonthSelect,
+            onDismiss = viewModel::onMonthPickerDismiss,
+        )
+    }
     state.roleEditor?.let { editor ->
         RoleEditorSheet(
             state = editor,
@@ -127,6 +158,8 @@ internal fun CreateProjectScreen(
     onTitleChange: (String) -> Unit,
     onTypeSelect: (ProjectType) -> Unit,
     onSphereFieldClick: () -> Unit,
+    onStartFieldClick: () -> Unit,
+    onEndFieldClick: () -> Unit,
     onProblemChange: (String) -> Unit,
     onGoalChange: (String) -> Unit,
     onAddTag: (String) -> Unit,
@@ -255,6 +288,33 @@ internal fun CreateProjectScreen(
                     onClick = onAddRoleClick,
                     modifier = Modifier.fillMaxWidth(),
                     variant = AppButtonVariant.Outlined,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppSelectField(
+                    label = stringResource(Res.string.projects_field_start),
+                    value = draft.start?.fieldLabel(),
+                    placeholder = stringResource(Res.string.projects_field_month_hint),
+                    onClick = onStartFieldClick,
+                    modifier = Modifier.weight(1f),
+                    errorText = if (ProjectDraftError.StartMissing in errors) {
+                        stringResource(Res.string.projects_error_month)
+                    } else {
+                        null
+                    },
+                )
+                AppSelectField(
+                    label = stringResource(Res.string.projects_field_end),
+                    value = draft.end?.fieldLabel(),
+                    placeholder = stringResource(Res.string.projects_field_month_hint),
+                    onClick = onEndFieldClick,
+                    modifier = Modifier.weight(1f),
+                    errorText = when {
+                        ProjectDraftError.EndMissing in errors -> stringResource(Res.string.projects_error_month)
+                        ProjectDraftError.EndBeforeStart in errors ->
+                            stringResource(Res.string.projects_error_end_before_start)
+                        else -> null
+                    },
                 )
             }
         }

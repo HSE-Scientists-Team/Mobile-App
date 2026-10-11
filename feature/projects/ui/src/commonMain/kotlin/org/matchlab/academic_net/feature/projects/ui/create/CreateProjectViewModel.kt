@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
@@ -20,6 +21,9 @@ import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorState
 import org.matchlab.academic_net.utils.withTag
 import org.matchlab.academic_net.utils.withoutTag
 
+/** The two month fields of the form. */
+enum class DateField { Start, End }
+
 @Immutable
 data class CreateProjectUiState(
     val draft: ProjectDraft = ProjectDraft(),
@@ -28,6 +32,8 @@ data class CreateProjectUiState(
     val spheres: List<Sphere> = emptyList(),
     val spheresLoadFailed: Boolean = false,
     val isSpherePickerVisible: Boolean = false,
+    /** The month picker is open for this field, `null` while it is closed. */
+    val monthPickerFor: DateField? = null,
     /** The role sheet, `null` while it is closed. */
     val roleEditor: RoleEditorState? = null,
     val isPublishing: Boolean = false,
@@ -75,6 +81,23 @@ class CreateProjectViewModel(
     fun onSpherePickerDismiss() = state.update { it.copy(isSpherePickerVisible = false) }
 
     fun onSpheresRetry() = loadSpheres()
+
+    fun onStartFieldClick() = state.update { it.copy(monthPickerFor = DateField.Start) }
+
+    fun onEndFieldClick() = state.update { it.copy(monthPickerFor = DateField.End) }
+
+    fun onMonthPickerDismiss() = state.update { it.copy(monthPickerFor = null) }
+
+    fun onMonthSelect(month: YearMonth) {
+        val field = state.value.monthPickerFor ?: return
+        editDraft { draft ->
+            when (field) {
+                DateField.Start -> draft.copy(start = month)
+                DateField.End -> draft.copy(end = month)
+            }
+        }
+        state.update { it.copy(monthPickerFor = null) }
+    }
 
     fun onAddRoleClick() = state.update { it.copy(roleEditor = RoleEditorState()) }
 

@@ -42,6 +42,15 @@
     <string name="projects_field_tags">Теги</string>
     <string name="projects_field_tags_hint">Введите тег и нажмите Enter</string>
     <string name="projects_roles_title">Роли в команде</string>
+    <string name="projects_field_start">Начало</string>
+    <string name="projects_field_end">Завершение</string>
+    <string name="projects_field_month_hint">Выберите месяц</string>
+    <string name="projects_start_sheet_title">Начало проекта</string>
+    <string name="projects_end_sheet_title">Завершение проекта</string>
+    <string name="projects_prev_year">Предыдущий год</string>
+    <string name="projects_next_year">Следующий год</string>
+    <string name="projects_error_month">Укажите месяц</string>
+    <string name="projects_error_end_before_start">Не раньше начала</string>
     <string name="projects_add_role">Добавить роль</string>
     <string name="projects_publish">Опубликовать проект</string>
     <string name="projects_publishing">Публикуем…</string>

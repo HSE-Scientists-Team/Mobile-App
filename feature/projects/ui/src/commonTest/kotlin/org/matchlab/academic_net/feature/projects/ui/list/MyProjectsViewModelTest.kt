@@ -3,6 +3,7 @@ package org.matchlab.academic_net.feature.projects.ui.list
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -66,6 +67,8 @@ class MyProjectsViewModelTest {
                 problem = "p",
                 goal = "g",
                 roles = listOf(RoleDraft("Dev"), RoleDraft("QA")),
+                start = YearMonth(2026, 11),
+                end = YearMonth(2027, 2),
             ),
         )
 

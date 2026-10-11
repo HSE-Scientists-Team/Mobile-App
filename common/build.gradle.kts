@@ -24,6 +24,10 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+        commonMain.dependencies {
+            // Project dates are year-months.
+            api(libs.kotlinx.datetime)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

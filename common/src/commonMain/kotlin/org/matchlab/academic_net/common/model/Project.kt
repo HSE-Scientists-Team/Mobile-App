@@ -1,5 +1,7 @@
 package org.matchlab.academic_net.common.model
 
+import kotlinx.datetime.YearMonth
+
 /** Field of science or practice a project belongs to ("Computer Science", "Биология", ...). */
 data class Sphere(
     val id: String,
@@ -40,6 +42,12 @@ data class Role(
     val isVacant: Boolean get() = member == null
 }
 
+/** The months a project runs, from [start] to [end] inclusive; [end] is not before [start]. */
+data class ProjectPeriod(
+    val start: YearMonth,
+    val end: YearMonth,
+)
+
 data class Project(
     val id: ProjectId,
     val title: String,
@@ -53,6 +61,7 @@ data class Project(
     val initiator: UserSummary,
     val roles: List<Role>,
     val status: ProjectStatus,
+    val period: ProjectPeriod,
     /**
      * The user who asked for the project is its initiator (the server knows who asks). Only the
      * initiator manages the project and looks for people for its roles.

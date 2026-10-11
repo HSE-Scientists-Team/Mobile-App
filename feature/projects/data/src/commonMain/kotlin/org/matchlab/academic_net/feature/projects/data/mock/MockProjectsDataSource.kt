@@ -56,6 +56,7 @@ class MockProjectsDataSource(
             initiator = currentUser,
             roles = project.roles.map { it.toRole() },
             status = ProjectStatus.Recruiting,
+            period = project.period,
             viewerIsInitiator = true,
         )
         // Newest first, as the server returns them.

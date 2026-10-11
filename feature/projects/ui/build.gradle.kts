@@ -33,6 +33,7 @@ kotlin {
             // The screens' entry points take the feature's use cases.
             api(project(":feature:projects:domain"))
             implementation(project(":utils"))
+            implementation(libs.kotlinx.datetime)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

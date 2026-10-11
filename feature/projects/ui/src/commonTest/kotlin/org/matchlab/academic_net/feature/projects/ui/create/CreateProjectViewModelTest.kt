@@ -3,6 +3,8 @@ package org.matchlab.academic_net.feature.projects.ui.create
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -37,6 +39,10 @@ class CreateProjectViewModelTest {
         onSphereSelect(MockProjectsData.spheres.first())
         onProblemChange("Простаивает оборудование")
         onGoalChange("Онлайн-запись")
+        onStartFieldClick()
+        onMonthSelect(YearMonth(2026, 10))
+        onEndFieldClick()
+        onMonthSelect(YearMonth(2027, 3))
     }
 
     @Test
@@ -89,6 +95,8 @@ class CreateProjectViewModelTest {
                 ProjectDraftError.SphereMissing,
                 ProjectDraftError.ProblemEmpty,
                 ProjectDraftError.GoalEmpty,
+                ProjectDraftError.StartMissing,
+                ProjectDraftError.EndMissing,
             ),
             state.errors,
         )
@@ -116,6 +124,62 @@ class CreateProjectViewModelTest {
 
         assertFalse(ProjectDraftError.TitleEmpty in viewModel.uiState.value.errors)
         assertTrue(ProjectDraftError.GoalEmpty in viewModel.uiState.value.errors)
+    }
+
+    @Test
+    fun monthsAreChosenThroughThePicker() {
+        val viewModel = viewModel()
+
+        viewModel.onStartFieldClick()
+        assertEquals(DateField.Start, viewModel.uiState.value.monthPickerFor)
+        viewModel.onMonthSelect(YearMonth(2026, 10))
+        assertNull(viewModel.uiState.value.monthPickerFor)
+        viewModel.onEndFieldClick()
+        assertEquals(DateField.End, viewModel.uiState.value.monthPickerFor)
+        viewModel.onMonthSelect(YearMonth(2027, 3))
+
+        val draft = viewModel.uiState.value.draft
+        assertEquals(YearMonth(2026, 10), draft.start)
+        assertEquals(YearMonth(2027, 3), draft.end)
+    }
+
+    @Test
+    fun dismissedPickerChangesNothing() {
+        val viewModel = viewModel()
+        viewModel.onStartFieldClick()
+
+        viewModel.onMonthPickerDismiss()
+
+        assertNull(viewModel.uiState.value.monthPickerFor)
+        assertNull(viewModel.uiState.value.draft.start)
+    }
+
+    @Test
+    fun selectingWithoutAPickerIsIgnored() {
+        val viewModel = viewModel()
+
+        viewModel.onMonthSelect(YearMonth(2026, 10))
+
+        assertNull(viewModel.uiState.value.draft.start)
+        assertNull(viewModel.uiState.value.draft.end)
+    }
+
+    @Test
+    fun endBeforeStartIsReportedAndFixedByAnotherMonth() = runTest {
+        val viewModel = viewModel()
+        viewModel.fillRequiredFields()
+        viewModel.onEndFieldClick()
+        viewModel.onMonthSelect(YearMonth(2026, 5))
+
+        viewModel.onPublishClick()
+
+        assertEquals(setOf(ProjectDraftError.EndBeforeStart), viewModel.uiState.value.errors)
+        assertNull(viewModel.uiState.value.publishedProjectId)
+
+        viewModel.onEndFieldClick()
+        viewModel.onMonthSelect(YearMonth(2026, 10))
+
+        assertTrue(viewModel.uiState.value.errors.isEmpty())
     }
 
     @Test
@@ -207,6 +271,7 @@ class CreateProjectViewModelTest {
         assertEquals(ProjectStatus.Recruiting, project.status)
         assertEquals(listOf("Backend"), project.roles.map { it.title })
         assertEquals(listOf("Kotlin"), project.roles.single().skills)
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), project.period)
     }
 
     @Test
