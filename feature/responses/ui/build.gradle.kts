@@ -20,6 +20,7 @@ kotlin {
         androidResources {
             enable = true
         }
+        withHostTest {}
     }
 
     // Same targets as :shared, which will use the feature from commonMain.
@@ -34,6 +35,9 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }

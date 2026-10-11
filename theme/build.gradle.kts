@@ -21,6 +21,7 @@ kotlin {
         androidResources {
             enable = true
         }
+        withHostTest {}
     }
 
     // Same targets as :shared, which uses the theme from commonMain.
@@ -34,6 +35,9 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }
