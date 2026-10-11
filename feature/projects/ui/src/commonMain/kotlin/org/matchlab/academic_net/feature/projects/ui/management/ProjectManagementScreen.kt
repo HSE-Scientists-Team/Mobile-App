@@ -47,9 +47,11 @@ import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.format.monthRangeText
+import org.matchlab.academic_net.components.project.label
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
+import org.matchlab.academic_net.feature.projects.ui.completedProjectsText
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_action_error
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_action_unpublish
@@ -68,13 +70,11 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_member_rating
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_not_found
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_empty
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_occupied
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_header
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_occupied
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_confirm
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_dialog_text
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_dialog_title
-import org.matchlab.academic_net.feature.projects.ui.completedProjectsText
-import org.matchlab.academic_net.feature.projects.ui.label
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**

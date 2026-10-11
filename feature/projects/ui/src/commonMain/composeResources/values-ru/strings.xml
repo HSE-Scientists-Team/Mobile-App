@@ -5,12 +5,6 @@
     <string name="projects_edit">Изменить</string>
     <string name="projects_find_people">Найти людей на роль</string>
 
-    <!-- Project type and status -->
-    <string name="projects_type_scientific">Научный</string>
-    <string name="projects_type_practical">Проектный</string>
-    <string name="projects_status_recruiting">Поиск соавторов</string>
-    <string name="projects_status_unpublished">Снят с публикации</string>
-
     <!-- My projects -->
     <string name="projects_my_title">Мои проекты</string>
     <string name="projects_tab_initiator">Я инициатор</string>
@@ -22,12 +16,6 @@
     <string name="projects_participant_empty_title">Пока нет участия</string>
     <string name="projects_participant_empty_text">Здесь появятся проекты, в которых вы участвуете</string>
     <string name="projects_load_error">Не удалось загрузить проекты</string>
-    <plurals name="projects_roles_count">
-        <item quantity="one">%1$d роль</item>
-        <item quantity="few">%1$d роли</item>
-        <item quantity="many">%1$d ролей</item>
-        <item quantity="other">%1$d роли</item>
-    </plurals>
 
     <!-- Create project -->
     <string name="projects_new_title">Новый проект</string>
@@ -62,11 +50,6 @@
     <string name="projects_error_type">Выберите тип проекта</string>
     <string name="projects_error_sphere">Выберите сферу</string>
     <string name="projects_error_role">Укажите название у каждой роли</string>
-
-    <!-- Sphere picker -->
-    <string name="projects_sphere_sheet_title">Сфера проекта</string>
-    <string name="projects_spheres_load_error">Не удалось загрузить сферы</string>
-    <string name="projects_retry">Повторить</string>
 
     <!-- Role editor -->
     <string name="projects_role_new">Новая роль</string>

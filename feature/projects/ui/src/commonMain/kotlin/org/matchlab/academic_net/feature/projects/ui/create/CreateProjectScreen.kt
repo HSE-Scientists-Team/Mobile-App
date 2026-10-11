@@ -36,7 +36,9 @@ import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppTagsField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.SpherePickerSheet
 import org.matchlab.academic_net.components.format.yearMonthText
+import org.matchlab.academic_net.components.project.label
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
 import org.matchlab.academic_net.feature.projects.domain.ProjectLimits
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
@@ -73,7 +75,6 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_publishing
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_title
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_start_sheet_title
-import org.matchlab.academic_net.feature.projects.ui.label
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**

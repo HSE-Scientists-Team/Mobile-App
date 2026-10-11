@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,13 +29,11 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppAvatars
-import org.matchlab.academic_net.components.AppBadgeDot
-import org.matchlab.academic_net.components.AppButton
-import org.matchlab.academic_net.components.AppButtonVariant
-import org.matchlab.academic_net.components.AppIconButton
-import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppSearchBar
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.FiltersButton
+import org.matchlab.academic_net.components.LoadingState
+import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
@@ -125,16 +121,11 @@ internal fun CollaboratorSearchScreen(
             onNavigateBack = onNavigateBack,
             navigationContentDescription = stringResource(Res.string.collaborators_back),
             actions = {
-                Box {
-                    AppIconButton(
-                        icon = AppIcons.Sliders,
-                        contentDescription = stringResource(Res.string.collaborators_filters),
-                        onClick = onFiltersClick,
-                    )
-                    if (!state.filters.isEmpty) {
-                        AppBadgeDot(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 6.dp))
-                    }
-                }
+                FiltersButton(
+                    active = !state.filters.isEmpty,
+                    onClick = onFiltersClick,
+                    contentDescription = stringResource(Res.string.collaborators_filters),
+                )
             },
         )
         Box(
@@ -152,44 +143,16 @@ internal fun CollaboratorSearchScreen(
             )
         }
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.primary)
-            }
-            state.hasError -> Column(
-                Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-            ) {
-                Text(
-                    text = stringResource(Res.string.collaborators_error),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                AppButton(
-                    text = stringResource(Res.string.collaborators_retry),
-                    onClick = onRetry,
-                    variant = AppButtonVariant.Outlined,
-                )
-            }
-            state.results.isEmpty() -> Column(
-                Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-            ) {
-                Text(
-                    text = stringResource(Res.string.collaborators_empty_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colors.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = stringResource(Res.string.collaborators_empty_search),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            state.isLoading -> LoadingState()
+            state.hasError -> MessageState(
+                title = stringResource(Res.string.collaborators_error),
+                actionText = stringResource(Res.string.collaborators_retry),
+                onAction = onRetry,
+            )
+            state.results.isEmpty() -> MessageState(
+                title = stringResource(Res.string.collaborators_empty_title),
+                text = stringResource(Res.string.collaborators_empty_search),
+            )
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().navigationBarsPadding(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
