@@ -1,0 +1,31 @@
+<resources>
+    <string name="projectsearch_back">Назад</string>
+    <string name="projectsearch_filters">Фильтры</string>
+    <string name="projectsearch_search_hint">Название, навык или вуз</string>
+    <plurals name="projectsearch_found">
+        <item quantity="one">Найден %1$d проект</item>
+        <item quantity="few">Найдено %1$d проекта</item>
+        <item quantity="many">Найдено %1$d проектов</item>
+        <item quantity="other">Найдено %1$d проекта</item>
+    </plurals>
+    <string name="projectsearch_empty_title">Ничего не найдено</string>
+    <string name="projectsearch_empty_text">Измените запрос или фильтры</string>
+    <string name="projectsearch_reset_filters">Сбросить фильтры</string>
+    <string name="projectsearch_error">Не удалось загрузить проекты. Попробуйте ещё раз</string>
+    <string name="projectsearch_retry">Повторить</string>
+
+    <!-- Filters sheet -->
+    <string name="projectsearch_filters_title">Фильтры</string>
+    <string name="projectsearch_group_type">Тип проекта</string>
+    <string name="projectsearch_field_sphere">Сфера</string>
+    <string name="projectsearch_sphere_any">Любая сфера</string>
+    <string name="projectsearch_group_duration">Сроки</string>
+    <string name="projectsearch_duration_up_to_3">до 3 мес</string>
+    <string name="projectsearch_duration_3_to_6">3–6 мес</string>
+    <string name="projectsearch_duration_over_6">6+ мес</string>
+    <string name="projectsearch_field_keywords">Ключевые слова</string>
+    <string name="projectsearch_field_keywords_hint">Введите слово</string>
+    <string name="projectsearch_reset">Сбросить</string>
+    <string name="projectsearch_cancel">Отмена</string>
+    <string name="projectsearch_apply">Применить</string>
+</resources>

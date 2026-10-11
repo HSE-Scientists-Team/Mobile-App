@@ -1,0 +1,29 @@
+<resources>
+    <string name="projectsearch_back">Back</string>
+    <string name="projectsearch_filters">Filters</string>
+    <string name="projectsearch_search_hint">Title, skill or university</string>
+    <plurals name="projectsearch_found">
+        <item quantity="one">%1$d project found</item>
+        <item quantity="other">%1$d projects found</item>
+    </plurals>
+    <string name="projectsearch_empty_title">No projects found</string>
+    <string name="projectsearch_empty_text">Change your query or filters</string>
+    <string name="projectsearch_reset_filters">Reset filters</string>
+    <string name="projectsearch_error">Could not load projects. Please try again</string>
+    <string name="projectsearch_retry">Retry</string>
+
+    <!-- Filters sheet -->
+    <string name="projectsearch_filters_title">Filters</string>
+    <string name="projectsearch_group_type">Project type</string>
+    <string name="projectsearch_field_sphere">Field</string>
+    <string name="projectsearch_sphere_any">Any field</string>
+    <string name="projectsearch_group_duration">Duration</string>
+    <string name="projectsearch_duration_up_to_3">Up to 3 mo</string>
+    <string name="projectsearch_duration_3_to_6">3–6 mo</string>
+    <string name="projectsearch_duration_over_6">6+ mo</string>
+    <string name="projectsearch_field_keywords">Keywords</string>
+    <string name="projectsearch_field_keywords_hint">Type a word</string>
+    <string name="projectsearch_reset">Reset</string>
+    <string name="projectsearch_cancel">Cancel</string>
+    <string name="projectsearch_apply">Apply</string>
+</resources>
