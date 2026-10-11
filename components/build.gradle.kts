@@ -34,6 +34,8 @@ kotlin {
             api(project(":theme"))
             // AppIcons exposes DrawableResource.
             api(libs.compose.components.resources)
+            // Date texts (format/DateText.kt) take kotlinx-datetime types.
+            api(libs.kotlinx.datetime)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

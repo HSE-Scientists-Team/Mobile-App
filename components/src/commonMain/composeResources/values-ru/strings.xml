@@ -1,0 +1,47 @@
+<resources>
+    <string name="components_remove">Удалить</string>
+    <string name="components_add">Добавить</string>
+    <string name="components_back">Назад</string>
+    <string name="components_accept">Принять</string>
+    <string name="components_decline">Отклонить</string>
+    <string name="components_message">Написать</string>
+    <string name="components_report">Пожаловаться</string>
+    <string name="components_verified">Подтверждён</string>
+
+    <!-- Dates: month names are abbreviated and used on their own ("окт"), before a year or after a day. -->
+    <string-array name="date_months_short">
+        <item>янв</item>
+        <item>фев</item>
+        <item>мар</item>
+        <item>апр</item>
+        <item>май</item>
+        <item>июн</item>
+        <item>июл</item>
+        <item>авг</item>
+        <item>сен</item>
+        <item>окт</item>
+        <item>ноя</item>
+        <item>дек</item>
+    </string-array>
+    <!-- Month names next to a day number ("9 мая"); differ from the names above only in May. -->
+    <string-array name="date_months_short_day">
+        <item>янв</item>
+        <item>фев</item>
+        <item>мар</item>
+        <item>апр</item>
+        <item>мая</item>
+        <item>июн</item>
+        <item>июл</item>
+        <item>авг</item>
+        <item>сен</item>
+        <item>окт</item>
+        <item>ноя</item>
+        <item>дек</item>
+    </string-array>
+    <!-- 1: month name, 2: year -->
+    <string name="date_year_month">%1$s %2$d</string>
+    <!-- 1: start month, 2: end month, both already formatted by date_year_month -->
+    <string name="date_month_range">%1$s — %2$s</string>
+    <!-- 1: day of month, 2: month name -->
+    <string name="date_day_month">%1$d %2$s</string>
+</resources>
