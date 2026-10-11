@@ -44,6 +44,8 @@ dependencies {
     kover(project(":feature:feed:ui"))
     kover(project(":feature:auth:domain"))
     kover(project(":feature:auth:data"))
+    kover(project(":feature:settings:domain"))
+    kover(project(":feature:settings:data"))
 }
 
 kover {
