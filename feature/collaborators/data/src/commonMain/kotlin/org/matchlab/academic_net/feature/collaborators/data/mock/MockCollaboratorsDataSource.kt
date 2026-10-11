@@ -9,6 +9,8 @@ import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsDataSou
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirementProvider
 import org.matchlab.academic_net.feature.collaborators.domain.ScoredCollaborator
+import org.matchlab.academic_net.utils.occursIn
+import org.matchlab.academic_net.utils.searchTerms
 
 /**
  * A person as the server's database has them: what the app shows ([collaborator]) plus what the
@@ -79,10 +81,6 @@ internal fun matchPercent(required: List<String>, skills: List<String>): Int? {
     return (covered * 100 + needed.size / 2) / needed.size
 }
 
-/** Terms of the search text: comma-separated, blanks dropped. */
-private fun termsOf(text: String): List<String> =
-    text.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-
 private fun MockPerson.haystack(): String = buildList {
     add(collaborator.user.name)
     add(collaborator.university)
@@ -91,12 +89,10 @@ private fun MockPerson.haystack(): String = buildList {
     addAll(skills)
 }.joinToString(separator = "\n").lowercase()
 
-private fun String.occursIn(haystack: String): Boolean = isNotBlank() && trim().lowercase() in haystack
-
 internal fun MockPerson.matches(query: CollaboratorQuery): Boolean {
     val filters = query.filters
     val haystack = haystack()
-    val terms = termsOf(query.text)
+    val terms = searchTerms(query.text)
 
     if (terms.isNotEmpty() && terms.none { it.occursIn(haystack) }) return false
     if (filters.verifiedProfile && !collaborator.user.isVerified) return false
