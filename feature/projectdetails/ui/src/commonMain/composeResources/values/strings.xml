@@ -1,0 +1,13 @@
+<resources>
+    <string name="projectdetails_title">Project</string>
+    <string name="projectdetails_initiator">Initiator</string>
+    <!-- 1: the initiator's university -->
+    <string name="projectdetails_initiator_subtitle">Initiator · %1$s</string>
+    <string name="projectdetails_message_initiator">Message the initiator</string>
+    <string name="projectdetails_open_roles">Open roles</string>
+    <string name="projectdetails_all_roles_filled">All roles are filled</string>
+    <string name="projectdetails_not_found_title">Project not found</string>
+    <string name="projectdetails_not_found_text">It may have been taken off publication</string>
+    <string name="projectdetails_error">Could not load the project</string>
+    <string name="projectdetails_retry">Retry</string>
+</resources>
