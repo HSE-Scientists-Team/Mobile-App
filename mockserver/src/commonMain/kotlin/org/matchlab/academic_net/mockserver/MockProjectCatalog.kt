@@ -36,6 +36,9 @@ data class MockServerProject(
  * offers in the sphere filter. The people who also exist in the mock chats and collaborators
  * (Елена Васкес, Мария Соколова, Тимур Алиев) have the same ids there, so that "message the
  * initiator" opens the existing chat instead of creating a second one.
+ *
+ * The people themselves (name, verification, university, rating, finished projects) are those of
+ * [MockPeople.default]: the catalog only says who initiates and who takes a role.
  */
 object MockProjectCatalog {
     private val computerScience = Sphere("computer-science", "Computer Science")
@@ -50,8 +53,11 @@ object MockProjectCatalog {
     private val linguistics = Sphere("linguistics", "Лингвистика")
     private val design = Sphere("design", "Дизайн")
 
-    private fun user(id: String, name: String, verified: Boolean = true) =
-        UserSummary(UserId("user-$id"), name, isVerified = verified)
+    private val people = MockPeople.default
+
+    /** The person `user-[key]` of the mock people tables. */
+    private fun user(key: String): UserSummary =
+        people.summary(UserId("user-$key")) ?: error("no person user-$key in MockPeople")
 
     private fun role(id: String, title: String, vararg skills: String, member: UserSummary? = null) = Role(
         id = RoleId("role-$id"),
@@ -72,11 +78,8 @@ object MockProjectCatalog {
         goal: String,
         tags: List<String>,
         initiator: UserSummary,
-        university: String,
         roles: List<Role>,
         period: ProjectPeriod,
-        rating: Double? = null,
-        completedProjects: Int = 0,
     ) = MockServerProject(
         project = Project(
             id = ProjectId("project-$id"),
@@ -92,9 +95,9 @@ object MockProjectCatalog {
             period = period,
             viewerIsInitiator = false,
         ),
-        initiatorUniversity = university,
-        initiatorRating = rating,
-        initiatorCompletedProjects = completedProjects,
+        initiatorUniversity = people.person(initiator.id)?.university.orEmpty(),
+        initiatorRating = people.rating(initiator.id),
+        initiatorCompletedProjects = people.person(initiator.id)?.completedProjects ?: 0,
     )
 
     val all: List<MockServerProject> = listOf(
@@ -109,18 +112,15 @@ object MockProjectCatalog {
             goal = "Собрать систему компьютерного зрения, которая распознаёт помещения и " +
                 "строит маршрут внутри корпусов в реальном времени.",
             tags = listOf("Machine Learning", "Computer Vision", "Mobile Dev"),
-            initiator = user("elena", "Проф. Елена Васкес"),
-            university = "Stanford",
+            initiator = user("elena"),
             // Two of the four roles are taken: "2 из 4 занято" on "04 Проект".
             roles = listOf(
-                role("campus-ml", "ML Engineer", "TensorFlow", "Python", member = user("kirill", "Кирилл Назаров")),
+                role("campus-ml", "ML Engineer", "TensorFlow", "Python", member = user("kirill")),
                 role("campus-mobile", "Mobile Developer", "Kotlin", "Android"),
-                role("campus-data", "Data Analyst", "SQL", "Pandas", member = user("sofia", "София Лебедева")),
+                role("campus-data", "Data Analyst", "SQL", "Pandas", member = user("sofia")),
                 role("campus-ux", "UX Researcher", "Interviews", "Figma"),
             ),
             period = period(2026, 10, 2027, 3),
-            rating = 4.9,
-            completedProjects = 12,
         ),
         // 7 months.
         project(
@@ -133,8 +133,7 @@ object MockProjectCatalog {
             goal = "Обучить модель, которая выделяет подозрительные области на МРТ: " +
                 "машинное обучение на размеченных снимках клиники.",
             tags = listOf("Медицина", "Deep Learning", "DICOM"),
-            initiator = user("anna-petrova-sechenov", "Д-р Анна Петрова"),
-            university = "Сеченовский",
+            initiator = user("anna-petrova-sechenov"),
             roles = listOf(
                 role("mri-ml", "ML Engineer", "PyTorch", "Python"),
                 role("mri-radiologist", "Radiology Consultant", "MRI", "Annotation"),
@@ -153,11 +152,10 @@ object MockProjectCatalog {
             goal = "Собрать цифровую модель лаборатории с данными датчиков и панелью " +
                 "мониторинга в реальном времени.",
             tags = listOf("IoT", "Digital Twin", "Dashboards"),
-            initiator = user("ivan-orlov", "Иван Орлов"),
-            university = "ИТМО",
+            initiator = user("ivan-orlov"),
             roles = listOf(
                 role("twin-iot", "IoT Engineer", "MQTT", "C++"),
-                role("twin-backend", "Backend Developer", "Kotlin", "PostgreSQL", member = user("timur", "Тимур Алиев")),
+                role("twin-backend", "Backend Developer", "Kotlin", "PostgreSQL", member = user("timur")),
                 role("twin-frontend", "Frontend Developer", "TypeScript", "React"),
                 role("twin-designer", "UI Designer", "Figma"),
                 role("twin-qa", "QA Engineer", "Test Automation"),
@@ -174,8 +172,7 @@ object MockProjectCatalog {
             goal = "Спроектировать и сделать прототип приложения с каталогом, бронированием и " +
                 "картой читальных залов.",
             tags = listOf("Mobile Dev", "UX", "Прототип"),
-            initiator = user("daria-smirnova", "Дарья Смирнова", verified = false),
-            university = "ВШЭ",
+            initiator = user("daria-smirnova"),
             roles = listOf(
                 role("library-designer", "Product Designer", "Figma", "UX Research"),
                 role("library-mobile", "Mobile Developer", "Flutter", "Dart"),
@@ -193,8 +190,7 @@ object MockProjectCatalog {
             goal = "Провести опрос и серию интервью и подготовить статью о цифровых " +
                 "привычках студентов.",
             tags = listOf("Опрос", "Интервью", "Статистика"),
-            initiator = user("mikhail-gromov", "Михаил Громов"),
-            university = "СПбГУ",
+            initiator = user("mikhail-gromov"),
             roles = listOf(
                 role("habits-sociologist", "Sociologist", "Interviews", "Qualitative Analysis"),
                 role("habits-analyst", "Data Analyst", "R", "Statistics"),
@@ -211,8 +207,7 @@ object MockProjectCatalog {
             problem = "Расписание факультета публикуется таблицей, в которой тяжело найти свою группу.",
             goal = "Запустить бота, который присылает расписание группы и уведомляет об изменениях.",
             tags = listOf("Telegram", "Kotlin", "Backend"),
-            initiator = user("ilyas", "Ильяс Каримов", verified = false),
-            university = "КФУ",
+            initiator = user("ilyas"),
             roles = listOf(
                 role("bot-backend", "Backend Developer", "Kotlin", "Docker"),
                 role("bot-tester", "QA Engineer", "Test Automation"),
@@ -230,8 +225,7 @@ object MockProjectCatalog {
             goal = "Подобрать защитное покрытие и опубликовать результаты стабильности " +
                 "образцов за год испытаний.",
             tags = listOf("Материаловедение", "Эксперимент", "Публикация"),
-            initiator = user("natalia-egorova", "Проф. Наталья Егорова"),
-            university = "МФТИ",
+            initiator = user("natalia-egorova"),
             roles = listOf(
                 role("cells-physicist", "Experimental Physicist", "Spectroscopy", "Thin Films"),
                 role("cells-chemist", "Chemist", "Synthesis"),
@@ -248,8 +242,7 @@ object MockProjectCatalog {
             problem = "Первокурсники не умеют планировать расходы и к середине месяца остаются без денег.",
             goal = "Сделать сервис с калькулятором бюджета и набор коротких уроков для студентов.",
             tags = listOf("Финансы", "Образование", "Web"),
-            initiator = user("pavel-zaitsev", "Павел Зайцев", verified = false),
-            university = "РЭУ им. Плеханова",
+            initiator = user("pavel-zaitsev"),
             roles = listOf(
                 role("budget-economist", "Economist", "Excel", "Personal Finance"),
                 role("budget-web", "Web Developer", "TypeScript", "React"),
@@ -266,8 +259,7 @@ object MockProjectCatalog {
                 "выборках и противоречива.",
             goal = "Собрать образцы у студентов в течение семестра и оценить изменения состава микробиома.",
             tags = listOf("Микробиом", "Биоинформатика", "Статистика"),
-            initiator = user("maria", "Мария Соколова"),
-            university = "МГУ",
+            initiator = user("maria"),
             roles = listOf(
                 role("microbiome-bioinformatician", "Bioinformatician", "Python", "R", "16S"),
                 role("microbiome-lab", "Laboratory Assistant", "PCR"),
@@ -285,8 +277,7 @@ object MockProjectCatalog {
                 "по дням недели и сессиям.",
             goal = "Построить прогноз продаж по блюдам и показать его в простой панели для персонала.",
             tags = listOf("машинное обучение", "Time Series", "Dashboards"),
-            initiator = user("lina", "Лина Ковач"),
-            university = "ВШЭ",
+            initiator = user("lina"),
             roles = listOf(
                 role("demand-ml", "Data Scientist", "Python", "Pandas", "Time Series"),
                 role("demand-bi", "BI Developer", "SQL", "Tableau"),
@@ -302,8 +293,7 @@ object MockProjectCatalog {
             problem = "Региональные говоры исчезают, а записей, пригодных для анализа, мало.",
             goal = "Расшифровать и разметить аудиозаписи экспедиций и открыть корпус для исследователей.",
             tags = listOf("Корпусная лингвистика", "NLP", "Разметка"),
-            initiator = user("olga-kuznetsova", "Д-р Ольга Кузнецова"),
-            university = "СПбГУ",
+            initiator = user("olga-kuznetsova"),
             roles = listOf(
                 role("dialects-linguist", "Linguist", "Phonetics", "Annotation"),
                 role("dialects-nlp", "NLP Engineer", "Python", "spaCy"),
@@ -320,8 +310,7 @@ object MockProjectCatalog {
             problem = "Одноразовая пластиковая упаковка в кофейнях кампуса не перерабатывается.",
             goal = "Получить образцы упаковки из кофейного жмыха и сравнить их прочность и срок разложения.",
             tags = listOf("Зелёная химия", "Материалы", "Эксперимент"),
-            initiator = user("denis-belov", "Денис Белов", verified = false),
-            university = "РХТУ им. Менделеева",
+            initiator = user("denis-belov"),
             roles = listOf(
                 role("packaging-chemist", "Chemist", "Polymers", "Synthesis"),
                 role("packaging-engineer", "Materials Engineer", "Mechanical Testing"),
