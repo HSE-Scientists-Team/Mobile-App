@@ -33,6 +33,8 @@ dependencies {
     kover(project(":feature:projectsearch:domain"))
     kover(project(":feature:projectsearch:data"))
     kover(project(":feature:projectsearch:ui"))
+    kover(project(":feature:projectdetails:domain"))
+    kover(project(":feature:projectdetails:data"))
     kover(project(":feature:feed:domain"))
     kover(project(":feature:feed:data"))
     kover(project(":feature:feed:ui"))
