@@ -15,6 +15,7 @@ dependencies {
     kover(project(":shared"))
     kover(project(":theme"))
     kover(project(":utils"))
+    kover(project(":securestore"))
     kover(project(":common"))
     kover(project(":mockserver"))
     kover(project(":components"))
