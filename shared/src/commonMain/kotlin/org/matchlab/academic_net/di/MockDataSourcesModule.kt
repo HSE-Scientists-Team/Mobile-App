@@ -10,6 +10,8 @@ import org.matchlab.academic_net.feature.feed.data.FeedDataSource
 import org.matchlab.academic_net.feature.feed.data.mock.MockFeedDataSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
+import org.matchlab.academic_net.feature.projectsearch.data.MockProjectSearchDataSource
+import org.matchlab.academic_net.feature.projectsearch.data.ProjectSearchDataSource
 
 /**
  * Where every data source comes from. This is the only place that picks the mocks: when the
@@ -24,6 +26,10 @@ internal interface MockDataSourcesModule {
     @Provides
     @AppScope
     fun chatsDataSource(): ChatsDataSource = MockChatsDataSource()
+
+    @Provides
+    @AppScope
+    fun projectSearchDataSource(): ProjectSearchDataSource = MockProjectSearchDataSource()
 
     @Provides
     @AppScope

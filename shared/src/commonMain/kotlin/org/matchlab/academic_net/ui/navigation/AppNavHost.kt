@@ -22,6 +22,7 @@ import org.matchlab.academic_net.feature.feed.ui.FeedRoute
 import org.matchlab.academic_net.feature.projects.ui.create.CreateProjectRoute
 import org.matchlab.academic_net.feature.projects.ui.list.MyProjectsRoute
 import org.matchlab.academic_net.feature.projects.ui.management.ProjectManagementRoute
+import org.matchlab.academic_net.feature.projectsearch.ui.ProjectSearchRoute
 
 private object Routes {
     const val Main = "main"
@@ -35,6 +36,7 @@ private object Routes {
     const val Collaborators = "collaborators/{$ProjectArgument}/{$RoleArgument}"
     const val Chat = "chat/{$ConversationArgument}"
     const val PeopleSearch = "people_search"
+    const val ProjectSearch = "project_search"
 
     fun project(id: ProjectId) = "project/${id.value}"
     fun collaborators(projectId: ProjectId, roleId: RoleId) = "collaborators/${projectId.value}/${roleId.value}"
@@ -70,6 +72,7 @@ fun AppNavHost(dependencies: AppDependencies) {
                         dependencies = dependencies.feed,
                         onProfileClick = { selectTab(TopLevelDestination.Profile) },
                         onSearchPeopleClick = { navController.navigate(Routes.PeopleSearch) },
+                        onSearchProjectsClick = { navController.navigate(Routes.ProjectSearch) },
                         onPersonClick = openChatWith,
                     )
                     TopLevelDestination.Projects -> MyProjectsRoute(
@@ -139,6 +142,15 @@ fun AppNavHost(dependencies: AppDependencies) {
                 autoFocusSearch = true,
                 onNavigateBack = { navController.popBackStack() },
                 onCollaboratorClick = openChatWith,
+            )
+        }
+        composable(Routes.ProjectSearch) {
+            // Opened from the search bar of the feed in the "Projects" mode: every published project, with
+            // the cursor in the search bar. A card leads nowhere until the project details exist.
+            ProjectSearchRoute(
+                dependencies = dependencies.projectSearch,
+                autoFocusSearch = true,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
         composable(

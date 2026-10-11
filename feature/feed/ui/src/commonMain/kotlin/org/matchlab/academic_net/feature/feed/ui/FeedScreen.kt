@@ -60,8 +60,9 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_title
 /**
  * "01 Лента": the root screen of the "Лента" tab.
  *
- * The search bar is a button: it opens the search screen of the chosen scope. The project search
- * does not exist yet, so [onSearchProjectsClick] is `null` and that bar stays inactive.
+ * The search bar is a button: it opens the search screen of the chosen scope ([onSearchPeopleClick]
+ * for people, [onSearchProjectsClick] for projects). While [onSearchProjectsClick] is `null` the
+ * bar of the "Projects" mode stays inactive.
  */
 @Composable
 fun FeedRoute(

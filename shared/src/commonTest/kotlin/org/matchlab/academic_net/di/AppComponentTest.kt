@@ -5,12 +5,14 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirement
+import org.matchlab.academic_net.feature.projectsearch.domain.ProjectQuery
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
+import kotlin.test.assertTrue
 
 class AppComponentTest {
     @Test
@@ -21,6 +23,7 @@ class AppComponentTest {
         assertNotNull(dependencies.chats)
         assertNotNull(dependencies.collaborators)
         assertNotNull(dependencies.feed)
+        assertNotNull(dependencies.projectSearch)
     }
 
     @Test
@@ -37,6 +40,13 @@ class AppComponentTest {
             RoleRequirement("Цифровой двойник лаборатории", "DevOps", listOf("Docker")),
             component.roleRequirements.getRoleRequirement(projectId, role.id),
         )
+    }
+
+    @Test
+    fun projectSearchFindsTheMockCatalog() = runTest {
+        val found = createAppComponent().dependencies.projectSearch.searchProjects(ProjectQuery()).getOrThrow()
+
+        assertTrue(found.isNotEmpty())
     }
 
     @Test
