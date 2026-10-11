@@ -33,9 +33,9 @@ data class ProfileHeaderCardUiModel(
     val subtitle: String,
     val avatar: DrawableResource,
     val isVerified: Boolean = false,
-    /** Chips under the name, e.g. "На проверке" or "Открыт к сотрудничеству". */
+    /** Chips under the name, e.g. "Профиль подтверждён". */
     val statuses: List<ProfileStatusUiModel> = emptyList(),
-    /** Main button, e.g. "Пригласить" on someone else's profile; hidden when null. */
+    /** Main button, e.g. "Написать" on someone else's profile; hidden when null. */
     val actionText: String? = null,
     val showChatButton: Boolean = false,
 )

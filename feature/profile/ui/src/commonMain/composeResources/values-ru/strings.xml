@@ -1,4 +1,147 @@
 <resources>
-    <string name="profile_verified">Подтверждено</string>
-    <string name="profile_rejected">Не подтверждено</string>
+    <!-- Verification marks of works and documents (content descriptions of the icons) -->
+    <string name="profile_mark_verified">Подтверждено</string>
+    <string name="profile_mark_pending">На проверке</string>
+    <string name="profile_mark_unverified">Не подтверждено</string>
+
+    <!-- Common -->
+    <string name="profile_title">Профиль</string>
+    <string name="profile_retry">Повторить</string>
+    <string name="profile_cancel">Отмена</string>
+    <string name="profile_close">Закрыть</string>
+    <string name="profile_load_error">Не удалось загрузить</string>
+    <string name="profile_not_found_title">Профиль не найден</string>
+    <string name="profile_not_found_text">Возможно, он был удалён</string>
+
+    <!-- Profile of another person -->
+    <string name="profile_message">Написать</string>
+    <string name="profile_status_verified">Профиль подтверждён</string>
+    <string name="profile_status_unverified">Профиль не подтверждён</string>
+
+    <!-- Sections of a profile -->
+    <string name="profile_about">О себе</string>
+    <string name="profile_interests">Интересы</string>
+    <string name="profile_interest_scientific">Научные проекты</string>
+    <string name="profile_interest_practical">Практические проекты</string>
+    <string name="profile_skills">Навыки</string>
+    <string name="profile_education">Образование и документы</string>
+    <string name="profile_works">Работы и публикации</string>
+    <string name="profile_portfolio">Портфолио</string>
+    <string name="profile_works_empty">Работ пока нет</string>
+    <string name="profile_reviews">Отзывы</string>
+    <!-- 1: the rating, already formatted: ★ 4.8 -->
+    <string name="profile_reviews_rated">Отзывы · %1$s</string>
+    <string name="profile_no_reviews">Отзывов пока нет</string>
+    <string name="profile_not_filled">Не заполнено</string>
+    <string name="profile_see_all">Все</string>
+    <!-- 1: how many there are -->
+    <string name="profile_see_all_count">Все %1$d</string>
+
+    <!-- Subtitles of cards. 1: the university or organization, 2: the year -->
+    <string name="profile_document_graduation">%1$s · выпуск %2$d</string>
+    <string name="profile_document_year">%1$s · %2$d</string>
+    <string name="profile_work_scientific">Научная работа</string>
+    <string name="profile_work_practical">Проектная работа</string>
+    <string name="profile_role_initiator">Инициатор</string>
+    <string name="profile_role_participant">Участник</string>
+
+    <!-- Reviews -->
+    <plurals name="profile_reviews_count">
+        <item quantity="one">%1$d отзыв</item>
+        <item quantity="few">%1$d отзыва</item>
+        <item quantity="many">%1$d отзывов</item>
+        <item quantity="other">%1$d отзыва</item>
+    </plurals>
+    <plurals name="profile_reviews_positive">
+        <item quantity="one">%1$d положительный</item>
+        <item quantity="few">%1$d положительных</item>
+        <item quantity="many">%1$d положительных</item>
+        <item quantity="other">%1$d положительных</item>
+    </plurals>
+    <string name="profile_reviews_hint">Оставляют участники и инициаторы завершённых проектов</string>
+    <string name="profile_review_title">Отзыв</string>
+    <!-- 1: the month the project ended: мар 2026 -->
+    <string name="profile_review_project_finished">Проект завершён · %1$s</string>
+    <string name="profile_review_not_found_title">Отзыв не найден</string>
+    <string name="profile_review_not_found_text">Возможно, он был удалён</string>
+
+    <!-- My profile -->
+    <string name="profile_my_title">Мой профиль</string>
+    <string name="profile_edit">Редактировать</string>
+    <string name="profile_settings">Настройки</string>
+    <string name="profile_verification_title">Верификация профиля</string>
+    <string name="profile_verification_rejected">Нужны доказательства</string>
+    <!-- 1: the title of the work or document -->
+    <string name="profile_result_verified">Подтверждено: %1$s</string>
+    <string name="profile_result_rejected">Отклонено: %1$s</string>
+
+    <!-- Editing of the profile -->
+    <string name="profile_edit_title">Редактирование профиля</string>
+    <string name="profile_field_about">О себе</string>
+    <string name="profile_field_about_hint">Чем занимаетесь и какие проекты ищете</string>
+    <string name="profile_field_interest_types">Типы проектов</string>
+    <string name="profile_field_interests">Интересы</string>
+    <string name="profile_field_skills">Навыки</string>
+    <string name="profile_tags_hint">Введите тег и нажмите Enter</string>
+    <string name="profile_add_document">Добавить документ</string>
+    <string name="profile_add_work">Добавить работу</string>
+    <string name="profile_save">Сохранить</string>
+    <string name="profile_saving">Сохраняем…</string>
+    <string name="profile_save_error">Не удалось сохранить. Попробуйте ещё раз</string>
+    <!-- 1: the limit -->
+    <string name="profile_error_about_too_long">Не больше %1$d символов</string>
+    <string name="profile_error_too_many_interests">Не больше %1$d интересов</string>
+    <string name="profile_error_too_many_skills">Не больше %1$d навыков</string>
+
+    <!-- New work -->
+    <string name="profile_work_new_title">Новая работа</string>
+    <string name="profile_work_field_type">Тип работы</string>
+    <string name="profile_work_type_scientific">Научная</string>
+    <string name="profile_work_type_practical">Проектная</string>
+    <string name="profile_work_field_title">Название *</string>
+    <string name="profile_work_field_title_hint">Как называется работа</string>
+    <string name="profile_work_field_description">Описание *</string>
+    <string name="profile_work_field_description_hint">Кратко: что сделали и какой ваш вклад</string>
+    <string name="profile_work_field_link">Ссылка на публикацию или репозиторий</string>
+    <string name="profile_work_field_link_hint">https://</string>
+    <string name="profile_work_banner">Работа со ссылкой на публикацию или репозиторий проходит верификацию и получает значок доверия. Без подтверждения работа видна, но помечается как неподтверждённая.</string>
+
+    <!-- New document -->
+    <string name="profile_document_new_title">Новый документ</string>
+    <string name="profile_document_field_kind">Вид документа</string>
+    <string name="profile_document_kind_education">Образование</string>
+    <string name="profile_document_kind_certificate">Сертификат</string>
+    <string name="profile_document_field_title">Название *</string>
+    <string name="profile_document_field_title_hint">Например, B.S. Computer Science</string>
+    <string name="profile_document_field_issuer">Вуз или организация *</string>
+    <string name="profile_document_field_issuer_hint">Например, Stanford University</string>
+    <string name="profile_document_field_year">Год</string>
+    <string name="profile_document_field_year_hint">Например, 2027</string>
+    <string name="profile_document_banner">Документ проверяет модератор. Подтверждённый документ об образовании добавляет значок доверия к вашему профилю.</string>
+
+    <!-- Forms -->
+    <string name="profile_submit">Отправить на проверку</string>
+    <string name="profile_submit_unverified">Добавить без подтверждения</string>
+    <string name="profile_submitting">Отправляем…</string>
+    <string name="profile_send_error">Не удалось отправить. Попробуйте ещё раз</string>
+    <string name="profile_error_required">Заполните поле</string>
+    <string name="profile_error_title_too_long">Не больше %1$d символов</string>
+    <string name="profile_error_description_too_long">Не больше %1$d символов</string>
+    <string name="profile_error_issuer_too_long">Не больше %1$d символов</string>
+    <string name="profile_error_link">Введите ссылку, которая начинается с http:// или https://</string>
+    <!-- 1: the earliest year, 2: the latest -->
+    <string name="profile_error_year">Введите год от %1$d до %2$d</string>
+    <string name="profile_error_proof_missing">Приложите подтверждение</string>
+
+    <!-- Proof of a work or a document: a link to the file until the app has a file picker -->
+    <string name="profile_proof_title">Загрузить подтверждение</string>
+    <string name="profile_proof_attached">Подтверждение добавлено</string>
+    <string name="profile_proof_subtitle">PDF или скриншот с указанием авторства</string>
+    <string name="profile_proof_sheet_title">Ссылка на файл</string>
+    <string name="profile_proof_sheet_field">Ссылка на файл</string>
+    <string name="profile_proof_sheet_hint">Файл должен открываться по ссылке, например на облачном диске</string>
+    <string name="profile_proof_hint">https://</string>
+    <string name="profile_proof_attach">Прикрепить</string>
+    <string name="profile_proof_remove">Убрать подтверждение</string>
+    <string name="profile_proof_error_link">Введите ссылку, которая начинается с http:// или https://</string>
 </resources>

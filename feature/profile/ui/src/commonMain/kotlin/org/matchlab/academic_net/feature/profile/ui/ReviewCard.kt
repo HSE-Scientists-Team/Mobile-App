@@ -1,5 +1,6 @@
 package org.matchlab.academic_net.feature.profile.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.AppCard
@@ -26,16 +29,34 @@ data class ReviewCardUiModel(
     val text: String,
 )
 
-/** "Card/Review": review about the user after a project. */
+/**
+ * "Card/Review": review about the user after a project.
+ *
+ * @param onClick the whole card, e.g. to open the review in full
+ * @param onAuthorClick the author line only, e.g. to open the author's profile; use it on a card
+ *  that is not clickable itself
+ * @param maxTextLines the review text is cut with an ellipsis after this many lines; the list of
+ *  reviews shows a short text, the page of one review all of it
+ */
 @Composable
 fun ReviewCard(
     model: ReviewCardUiModel,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onAuthorClick: (() -> Unit)? = null,
+    maxTextLines: Int = Int.MAX_VALUE,
 ) {
     val colors = MaterialTheme.colorScheme
     AppCard(modifier, onClick = onClick, spacing = 8.dp) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = if (onAuthorClick != null) {
+                Modifier.clickable(role = Role.Button, onClick = onAuthorClick)
+            } else {
+                Modifier
+            },
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Avatar(model.authorAvatar, contentDescription = null, size = 32.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(model.authorName, style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
@@ -51,6 +72,12 @@ fun ReviewCard(
             )
             Text("${model.rating}★", style = MaterialTheme.typography.titleMedium, color = colors.primary)
         }
-        Text(model.text, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text(
+            text = model.text,
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+            maxLines = maxTextLines,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

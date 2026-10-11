@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,10 +24,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
@@ -49,6 +52,7 @@ import org.matchlab.academic_net.components.AppNavigationBarItem
 import org.matchlab.academic_net.components.AppRadioButton
 import org.matchlab.academic_net.components.AppSearchBar
 import org.matchlab.academic_net.components.AppSearchBarButton
+import org.matchlab.academic_net.components.AppSnackbarHost
 import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppStatusChip
@@ -81,6 +85,7 @@ import org.matchlab.academic_net.components.RoleApplyCard
 import org.matchlab.academic_net.components.RoleApplyCardUiModel
 import org.matchlab.academic_net.components.RoleCardTitle
 import org.matchlab.academic_net.components.SearchTopBar
+import org.matchlab.academic_net.components.SecurityNote
 import org.matchlab.academic_net.components.SectionHeader
 import org.matchlab.academic_net.components.SettingListItem
 import org.matchlab.academic_net.components.SheetHeader
@@ -91,6 +96,7 @@ import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.ToggleListItem
 import org.matchlab.academic_net.components.UploadCard
 import org.matchlab.academic_net.components.person.personStatsText
+import org.matchlab.academic_net.components.person.ratingText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
 import org.matchlab.academic_net.components.project.ProjectHeader
 import org.matchlab.academic_net.components.project.ProjectPeriodCard
@@ -110,10 +116,9 @@ import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCardUiModel
 import org.matchlab.academic_net.feature.profile.ui.ProfileStatusUiModel
 import org.matchlab.academic_net.feature.profile.ui.ReviewCard
 import org.matchlab.academic_net.feature.profile.ui.ReviewCardUiModel
-import org.matchlab.academic_net.feature.profile.ui.VerificationStatus
+import org.matchlab.academic_net.feature.profile.ui.VerificationMark
 import org.matchlab.academic_net.feature.profile.ui.WorkCard
 import org.matchlab.academic_net.feature.profile.ui.WorkCardUiModel
-import org.matchlab.academic_net.feature.profile.ui.WorkType
 import org.matchlab.academic_net.feature.projects.ui.CandidateCard
 import org.matchlab.academic_net.feature.projects.ui.CandidateCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.ParticipantManageCard
@@ -259,8 +264,19 @@ private fun BaseComponents() {
         SettingListItem("Название настройки", AppIcons.Lock, onClick = {}, subtitle = "Пояснение к настройке")
         var visible by remember { mutableStateOf(true) }
         ToggleListItem("Показывать меня в поиске", visible, { visible = it }, subtitle = "Пояснение к переключателю")
+        // Saving: the row ignores taps and the switch is dimmed until the new value is stored.
+        ToggleListItem("Показывать контакты", true, {}, subtitle = "Пояснение к переключателю", enabled = false)
         InfoCard("Окт 2026 — Март 2027", AppIcons.Calendar)
         UploadCard("Загрузить подтверждение", "PDF или скриншот с указанием авторства", {})
+        SecurityNote("Данные входа хранятся на устройстве в зашифрованном виде")
+        val snackbars = remember { SnackbarHostState() }
+        val coroutineScope = rememberCoroutineScope()
+        AppButton(
+            text = "Показать сообщение",
+            onClick = { coroutineScope.launch { snackbars.showSnackbar("Не удалось сохранить настройку. Попробуйте ещё раз") } },
+            variant = AppButtonVariant.Outlined,
+        )
+        AppSnackbarHost(snackbars)
     }
 }
 
@@ -284,6 +300,19 @@ private fun SharedFeatureComponents() {
             outlined = true,
         )
         NotificationListItem(NotificationListItemUiModel("Новый отклик на роль ML Engineer", "2 часа назад"))
+        // The decisions of a moderator on the own profile.
+        NotificationListItem(
+            NotificationListItemUiModel("Подтверждено: Сертификат Deep Learning", "10:22", AppIcons.ShieldCheck),
+        )
+        NotificationListItem(
+            NotificationListItemUiModel("Отклонено: Прототип AR-навигации", "Вчера", AppIcons.ShieldX),
+        )
+        // The rating on its own, as in the title of the reviews: "Отзывы · ★ 4.8".
+        Text(
+            text = "Отзывы · " + ratingText(4.8),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         ProjectCard(
             ProjectCardUiModel(
                 title = "AI-навигация по кампусу",
@@ -475,32 +504,85 @@ private fun ProjectsComponents() {
     }
 }
 
+/**
+ * The cards of "09 Профиль коллаборатора", "10 Мой профиль" and the lists of works and reviews,
+ * in the states the screens use: the verification marks, the two kinds of work, the review cards
+ * of a list (with the date) and of the page of one review (a tap on the author).
+ */
 @Composable
 private fun ProfileComponents() {
     Section(":feature:profile:ui") {
+        // Someone else's profile: the verification chip and one wide button.
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = "Арджун Мехта",
                 subtitle = "Stanford University · 3 курс · Computer Science",
                 avatar = Elena,
                 isVerified = true,
-                statuses = listOf(ProfileStatusUiModel("На проверке", AppStatusChipTone.Pending)),
-                actionText = "Пригласить",
-                showChatButton = true,
+                statuses = listOf(ProfileStatusUiModel("Профиль подтверждён", AppStatusChipTone.Success)),
+                actionText = "Написать",
             ),
         )
-        EducationCard(EducationCardUiModel("B.S. Computer Science", "Stanford University · выпуск 2027", VerificationStatus.Verified))
-        WorkCard(WorkCardUiModel("Localized CV Pipelines on Edge Devices", "Описание работы от пользователя одной строкой", status = VerificationStatus.Verified))
-        WorkCard(WorkCardUiModel("Прототип AR-навигации", "Прототип маршрутов в AR по коридорам корпуса", WorkType.Project, VerificationStatus.Rejected))
+        // Own profile: no chip, no button.
+        ProfileHeaderCard(
+            ProfileHeaderCardUiModel(
+                name = "Алексей Морозов",
+                subtitle = "Stanford University · 3 курс · Computer Science",
+                avatar = Arjun,
+                isVerified = true,
+            ),
+        )
+        // The three marks: confirmed, being checked (only the owner sees it) and not confirmed.
+        EducationCard(EducationCardUiModel("B.S. Computer Science", "Stanford University · выпуск 2027", VerificationMark.Verified))
+        EducationCard(EducationCardUiModel("Сертификат Deep Learning", "Coursera · 2025", VerificationMark.Pending))
+        WorkCard(
+            WorkCardUiModel(
+                title = "Localized CV Pipelines on Edge Devices",
+                subtitle = "Пайплайн распознавания помещений по кадрам с телефона, точность 92%",
+                mark = VerificationMark.Verified,
+            ),
+        )
+        WorkCard(
+            WorkCardUiModel(
+                title = "Прототип AR-навигации",
+                subtitle = "Проектная работа · ссылка на демо",
+                type = ProjectType.Practical,
+                mark = VerificationMark.Unverified,
+            ),
+        )
+        WorkCard(
+            WorkCardUiModel(
+                title = "Сегментация коридоров на Raspberry Pi",
+                subtitle = "Проектная работа · GitHub",
+                type = ProjectType.Practical,
+                mark = VerificationMark.Pending,
+            ),
+            onClick = {},
+        )
         ReviewCard(
             ReviewCardUiModel(
                 authorName = "Проф. Елена Васкес",
-                authorRole = "Инициатор · AI-навигация",
+                authorRole = "Инициатор · AI-навигация по кампусу · мар 2026",
                 authorAvatar = Elena,
                 title = "Довёл модели до демо",
                 rating = 5,
-                text = "«Короткий текст отзыва о совместной работе.»",
+                text = "«Взял на себя обучение моделей и довёл до демо. Сроки соблюдал, писал понятные отчёты.»",
             ),
+            onClick = {},
+            maxTextLines = 3,
+        )
+        // The page of one review: the whole text, the author line leads to their profile.
+        ReviewCard(
+            ReviewCardUiModel(
+                authorName = "Лина Ковач",
+                authorRole = "Участник · AI-навигация по кампусу",
+                authorAvatar = Arjun,
+                title = "Помогал команде с данными",
+                rating = 5,
+                text = "«Сильный инженер, помогал команде с пайплайном данных. Разобрался в предметной области за " +
+                    "неделю, предложил свой метод разметки и защитил его перед командой.»",
+            ),
+            onAuthorClick = {},
         )
     }
 }
