@@ -8,6 +8,8 @@ import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaborato
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirementProvider
 import org.matchlab.academic_net.feature.feed.data.FeedDataSource
 import org.matchlab.academic_net.feature.feed.data.mock.MockFeedDataSource
+import org.matchlab.academic_net.feature.projectdetails.data.MockProjectDetailsDataSource
+import org.matchlab.academic_net.feature.projectdetails.data.ProjectDetailsDataSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
 import org.matchlab.academic_net.feature.projectsearch.data.MockProjectSearchDataSource
@@ -26,6 +28,10 @@ internal interface MockDataSourcesModule {
     @Provides
     @AppScope
     fun chatsDataSource(): ChatsDataSource = MockChatsDataSource()
+
+    @Provides
+    @AppScope
+    fun projectDetailsDataSource(): ProjectDetailsDataSource = MockProjectDetailsDataSource()
 
     @Provides
     @AppScope

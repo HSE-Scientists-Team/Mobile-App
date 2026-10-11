@@ -18,6 +18,7 @@ internal abstract class AppComponent :
     ChatsModule,
     CollaboratorsModule,
     ProjectSearchModule,
+    ProjectDetailsModule,
     FeedModule {
     /** What `AppNavHost` hands to the screens of every feature. */
     abstract val dependencies: AppDependencies

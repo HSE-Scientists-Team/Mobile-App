@@ -5,6 +5,7 @@ import org.matchlab.academic_net.di.AppScope
 import org.matchlab.academic_net.feature.chats.ui.ChatsUiDependencies
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorsUiDependencies
 import org.matchlab.academic_net.feature.feed.ui.FeedUiDependencies
+import org.matchlab.academic_net.feature.projectdetails.ui.ProjectDetailsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projectsearch.ui.ProjectSearchUiDependencies
 
@@ -17,4 +18,5 @@ class AppDependencies(
     val collaborators: CollaboratorsUiDependencies,
     val feed: FeedUiDependencies,
     val projectSearch: ProjectSearchUiDependencies,
+    val projectDetails: ProjectDetailsUiDependencies,
 )

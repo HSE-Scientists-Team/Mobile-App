@@ -44,8 +44,8 @@ import org.matchlab.academic_net.feature.projectsearch.ui.generated.resources.pr
  * "02 Поиск проектов" with the "03 Фильтры" sheet: finding a published project to join. The
  * screen is opened over the tabs (from the feed's search field), so it has its own back arrow.
  *
- * @param onProjectClick opening a project belongs to the block "Оценить проект"; while it is
- *  `null` the cards are not clickable
+ * @param onProjectClick opens the page of the project the card shows; while it is `null` the
+ *  cards are not clickable
  * @param autoFocusSearch puts the cursor in the search bar, for when the user came from the
  *  search field of the feed
  */

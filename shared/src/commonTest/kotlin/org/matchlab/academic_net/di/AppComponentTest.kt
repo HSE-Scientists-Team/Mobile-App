@@ -5,6 +5,7 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirement
+import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetailsResult
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectQuery
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import kotlin.test.Test
@@ -24,6 +25,7 @@ class AppComponentTest {
         assertNotNull(dependencies.collaborators)
         assertNotNull(dependencies.feed)
         assertNotNull(dependencies.projectSearch)
+        assertNotNull(dependencies.projectDetails)
     }
 
     @Test
@@ -47,6 +49,16 @@ class AppComponentTest {
         val found = createAppComponent().dependencies.projectSearch.searchProjects(ProjectQuery()).getOrThrow()
 
         assertTrue(found.isNotEmpty())
+    }
+
+    @Test
+    fun aFoundProjectOpensAsAProjectPage() = runTest {
+        val dependencies = createAppComponent().dependencies
+        val hit = dependencies.projectSearch.searchProjects(ProjectQuery()).getOrThrow().first()
+
+        val page = dependencies.projectDetails.getProjectDetails(hit.project.id)
+
+        assertIs<ProjectDetailsResult.Found>(page)
     }
 
     @Test

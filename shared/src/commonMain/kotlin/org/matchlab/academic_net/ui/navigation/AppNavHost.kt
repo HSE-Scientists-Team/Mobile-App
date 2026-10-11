@@ -19,6 +19,7 @@ import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorSearchRoute
 import org.matchlab.academic_net.feature.feed.ui.FeedRoute
+import org.matchlab.academic_net.feature.projectdetails.ui.ProjectDetailsRoute
 import org.matchlab.academic_net.feature.projects.ui.create.CreateProjectRoute
 import org.matchlab.academic_net.feature.projects.ui.list.MyProjectsRoute
 import org.matchlab.academic_net.feature.projects.ui.management.ProjectManagementRoute
@@ -33,12 +34,14 @@ private object Routes {
     const val ConversationArgument = "conversationId"
 
     const val Project = "project/{$ProjectArgument}"
+    const val ProjectDetails = "project_details/{$ProjectArgument}"
     const val Collaborators = "collaborators/{$ProjectArgument}/{$RoleArgument}"
     const val Chat = "chat/{$ConversationArgument}"
     const val PeopleSearch = "people_search"
     const val ProjectSearch = "project_search"
 
     fun project(id: ProjectId) = "project/${id.value}"
+    fun projectDetails(id: ProjectId) = "project_details/${id.value}"
     fun collaborators(projectId: ProjectId, roleId: RoleId) = "collaborators/${projectId.value}/${roleId.value}"
     fun chat(id: ConversationId) = "chat/${id.value}"
 }
@@ -146,12 +149,28 @@ fun AppNavHost(dependencies: AppDependencies) {
         }
         composable(Routes.ProjectSearch) {
             // Opened from the search bar of the feed in the "Projects" mode: every published project, with
-            // the cursor in the search bar. A card leads nowhere until the project details exist.
+            // the cursor in the search bar. A card opens the page of the project.
             ProjectSearchRoute(
                 dependencies = dependencies.projectSearch,
                 autoFocusSearch = true,
                 onNavigateBack = { navController.popBackStack() },
+                onProjectClick = { id -> navController.navigate(Routes.projectDetails(id)) },
             )
+        }
+        composable(
+            route = Routes.ProjectDetails,
+            arguments = listOf(navArgument(Routes.ProjectArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.ProjectArgument) }
+            if (id != null) {
+                // The initiator's profile is a story of the next block; until then "contact" starts the chat.
+                ProjectDetailsRoute(
+                    dependencies = dependencies.projectDetails,
+                    projectId = ProjectId(id),
+                    onNavigateBack = { navController.popBackStack() },
+                    onContactInitiator = openChatWith,
+                )
+            }
         }
         composable(
             route = Routes.Chat,
