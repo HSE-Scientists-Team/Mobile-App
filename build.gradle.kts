@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+    alias(libs.plugins.ksp) apply false
     // The root project merges the coverage of every module: `./gradlew :koverHtmlReport`.
     alias(libs.plugins.kover)
 }

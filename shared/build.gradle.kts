@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.kover)
 }
 
@@ -60,6 +61,7 @@ kotlin {
             implementation(project(":feature:feed:ui"))
             implementation(project(":feature:feed:domain"))
             implementation(project(":feature:feed:data"))
+            implementation(libs.kotlin.inject.runtime)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -79,4 +81,9 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+
+    // kotlin-inject generates the component per target; KSP lives only here, the features know nothing of it.
+    add("kspAndroid", libs.kotlin.inject.compiler)
+    add("kspIosArm64", libs.kotlin.inject.compiler)
+    add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
 }

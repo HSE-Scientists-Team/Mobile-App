@@ -2,6 +2,7 @@ package org.matchlab.academic_net
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import org.matchlab.academic_net.di.AppGraph
 import org.matchlab.academic_net.theme.AcademicNetTheme
 import org.matchlab.academic_net.ui.navigation.AppNavHost
 
@@ -9,6 +10,6 @@ import org.matchlab.academic_net.ui.navigation.AppNavHost
 @Preview
 fun App() {
     AcademicNetTheme {
-        AppNavHost(AppContainer.dependencies)
+        AppNavHost(AppGraph.component.dependencies)
     }
 }

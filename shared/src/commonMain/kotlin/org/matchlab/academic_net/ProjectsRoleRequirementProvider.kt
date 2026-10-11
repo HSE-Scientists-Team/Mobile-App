@@ -1,5 +1,6 @@
 package org.matchlab.academic_net
 
+import me.tatarka.inject.annotations.Inject
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirement
@@ -10,6 +11,7 @@ import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
  * Tells the collaborators feature what a role of a project asks for. The two features do not
  * know each other: this adapter, living in the app, is the only place that connects them.
  */
+@Inject
 internal class ProjectsRoleRequirementProvider(
     private val projects: ProjectsRepository,
 ) : RoleRequirementProvider {
