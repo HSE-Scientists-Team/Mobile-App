@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
@@ -76,6 +77,33 @@ fun AppSearchBar(
             }
         },
     )
+}
+
+/**
+ * "Search bar" that is a button: looks like [AppSearchBar] but does not take input; tapping it
+ * opens the search screen (the feed). With `onClick = null` it is a plain, inactive bar.
+ */
+@Composable
+fun AppSearchBarButton(
+    placeholder: String,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(colors.surface, CircleShape)
+            .border(1.dp, colors.outlineVariant, CircleShape)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .padding(horizontal = 17.dp, vertical = 13.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppIcon(AppIcons.Search, contentDescription = null, size = 20.dp, tint = colors.onSurfaceVariant)
+        Placeholder(placeholder)
+    }
 }
 
 /** "Text field/Outlined": label above a 12dp-rounded outlined box. */

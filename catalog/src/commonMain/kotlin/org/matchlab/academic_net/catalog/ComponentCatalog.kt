@@ -40,6 +40,8 @@ import org.matchlab.academic_net.components.AppNavigationBar
 import org.matchlab.academic_net.components.AppNavigationBarItem
 import org.matchlab.academic_net.components.AppRadioButton
 import org.matchlab.academic_net.components.AppSearchBar
+import org.matchlab.academic_net.components.AppSearchBarButton
+import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppStatusChipTone
@@ -163,6 +165,9 @@ private fun BaseComponents() {
         }
         var query by remember { mutableStateOf("") }
         AppSearchBar(query, { query = it }, placeholder = "Поиск проектов и людей")
+        AppSearchBarButton(placeholder = "Поиск людей по навыкам и интересам", onClick = {})
+        var scope by remember { mutableIntStateOf(0) }
+        AppSegmentedControl(listOf("Проекты", "Люди"), scope, { scope = it })
         var title by remember { mutableStateOf("") }
         AppTextField(title, { title = it }, label = "Название проекта", placeholder = "Введите текст")
         AppTextField("", {}, label = "Цель", placeholder = "Что хотите получить на выходе", errorText = "Заполните поле")
