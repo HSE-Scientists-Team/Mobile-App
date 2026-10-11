@@ -1,0 +1,17 @@
+<resources>
+    <string name="chats_message_placeholder">Сообщение…</string>
+    <string name="chats_send">Отправить</string>
+    <string name="chats_attach">Прикрепить файл</string>
+
+    <string name="chats_title">Чаты</string>
+    <string name="chats_empty_title">Пока нет переписок</string>
+    <string name="chats_empty_text">Напишите кандидату из поиска коллабораторов</string>
+    <string name="chats_load_error">Не удалось загрузить чаты</string>
+    <string name="chats_back">Назад</string>
+    <string name="chats_yesterday">Вчера</string>
+    <string name="chat_empty_title">Сообщений пока нет</string>
+    <string name="chat_empty_text">Напишите первое сообщение</string>
+    <string name="chat_not_found">Чат не найден</string>
+    <string name="chat_send_error">Не удалось отправить сообщение. Попробуйте ещё раз</string>
+    <string name="chat_message_too_long">Сообщение длиннее %1$d символов</string>
+</resources>

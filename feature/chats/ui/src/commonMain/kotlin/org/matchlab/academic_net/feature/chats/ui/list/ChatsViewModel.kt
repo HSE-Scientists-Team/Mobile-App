@@ -13,14 +13,16 @@ import kotlinx.datetime.TimeZone
 import org.matchlab.academic_net.feature.chats.domain.Conversation
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.domain.usecase.ObserveConversationsUseCase
-import org.matchlab.academic_net.utils.formatChatListTime
+import org.matchlab.academic_net.utils.ChatListTime
+import org.matchlab.academic_net.utils.chatListTime
 
 @Immutable
 data class ChatItem(
     val id: ConversationId,
     val name: String,
     val lastMessage: String,
-    val time: String,
+    /** Which day the last message belongs to; the text of it depends on the app language. */
+    val time: ChatListTime,
     /** Key of the peer's avatar illustration. */
     val avatarKey: String,
     val unreadCount: Int,
@@ -59,7 +61,7 @@ private fun Conversation.toItem(now: kotlin.time.Instant, zone: TimeZone): ChatI
         id = id,
         name = peer.name,
         lastMessage = last.text,
-        time = formatChatListTime(last.sentAt, now, zone),
+        time = chatListTime(last.sentAt, now, zone),
         avatarKey = peer.id.value,
         unreadCount = unreadCount,
     )

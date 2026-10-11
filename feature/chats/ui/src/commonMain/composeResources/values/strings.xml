@@ -1,16 +1,17 @@
 <resources>
-    <string name="chats_message_placeholder">Сообщение…</string>
-    <string name="chats_send">Отправить</string>
-    <string name="chats_attach">Прикрепить файл</string>
+    <string name="chats_message_placeholder">Message…</string>
+    <string name="chats_send">Send</string>
+    <string name="chats_attach">Attach a file</string>
 
-    <string name="chats_title">Чаты</string>
-    <string name="chats_empty_title">Пока нет переписок</string>
-    <string name="chats_empty_text">Напишите кандидату из поиска коллабораторов</string>
-    <string name="chats_load_error">Не удалось загрузить чаты</string>
-    <string name="chats_back">Назад</string>
-    <string name="chat_empty_title">Сообщений пока нет</string>
-    <string name="chat_empty_text">Напишите первое сообщение</string>
-    <string name="chat_not_found">Чат не найден</string>
-    <string name="chat_send_error">Не удалось отправить сообщение. Попробуйте ещё раз</string>
-    <string name="chat_message_too_long">Сообщение длиннее %1$d символов</string>
+    <string name="chats_title">Chats</string>
+    <string name="chats_empty_title">No conversations yet</string>
+    <string name="chats_empty_text">Message a candidate from the collaborator search</string>
+    <string name="chats_load_error">Could not load chats</string>
+    <string name="chats_back">Back</string>
+    <string name="chats_yesterday">Yesterday</string>
+    <string name="chat_empty_title">No messages yet</string>
+    <string name="chat_empty_text">Write the first message</string>
+    <string name="chat_not_found">Chat not found</string>
+    <string name="chat_send_error">Could not send the message. Please try again</string>
+    <string name="chat_message_too_long">The message is longer than %1$d characters</string>
 </resources>

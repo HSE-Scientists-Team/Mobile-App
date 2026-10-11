@@ -27,6 +27,7 @@ import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.ChatListItem
 import org.matchlab.academic_net.feature.chats.ui.ChatListItemUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatsUiDependencies
+import org.matchlab.academic_net.feature.chats.ui.chatListTimeText
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_empty_text
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_empty_title
@@ -71,7 +72,7 @@ internal fun ChatsScreen(
                         model = ChatListItemUiModel(
                             name = chat.name,
                             lastMessage = chat.lastMessage,
-                            time = chat.time,
+                            time = chatListTimeText(chat.time),
                             avatar = AppAvatars.forKey(chat.avatarKey),
                             unreadCount = chat.unreadCount,
                         ),
