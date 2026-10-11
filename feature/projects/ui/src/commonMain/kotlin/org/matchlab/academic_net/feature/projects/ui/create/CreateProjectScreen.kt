@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.YearMonth
 import kotlinx.datetime.todayIn
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectId
@@ -35,6 +36,7 @@ import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppTagsField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.format.yearMonthText
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
 import org.matchlab.academic_net.feature.projects.domain.ProjectLimits
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
@@ -72,7 +74,6 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_title
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_start_sheet_title
 import org.matchlab.academic_net.feature.projects.ui.label
-import org.matchlab.academic_net.utils.fieldLabel
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
@@ -293,7 +294,7 @@ internal fun CreateProjectScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppSelectField(
                     label = stringResource(Res.string.projects_field_start),
-                    value = draft.start?.fieldLabel(),
+                    value = draft.start?.let { monthFieldText(it) },
                     placeholder = stringResource(Res.string.projects_field_month_hint),
                     onClick = onStartFieldClick,
                     modifier = Modifier.weight(1f),
@@ -305,7 +306,7 @@ internal fun CreateProjectScreen(
                 )
                 AppSelectField(
                     label = stringResource(Res.string.projects_field_end),
-                    value = draft.end?.fieldLabel(),
+                    value = draft.end?.let { monthFieldText(it) },
                     placeholder = stringResource(Res.string.projects_field_month_hint),
                     onClick = onEndFieldClick,
                     modifier = Modifier.weight(1f),
@@ -344,3 +345,7 @@ internal fun CreateProjectScreen(
         }
     }
 }
+
+/** "Окт 2026" | "Oct 2026": a month as the value of a field, which starts with a capital letter. */
+@Composable
+private fun monthFieldText(value: YearMonth): String = yearMonthText(value).replaceFirstChar { it.uppercase() }

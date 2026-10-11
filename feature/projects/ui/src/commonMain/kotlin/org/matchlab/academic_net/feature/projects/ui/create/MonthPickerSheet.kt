@@ -25,10 +25,10 @@ import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppIconButton
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.SheetHeader
+import org.matchlab.academic_net.components.format.monthShortName
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_next_year
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_prev_year
-import org.matchlab.academic_net.utils.shortName
 
 /**
  * Choice of a month: the year with arrows and the twelve months below it. The design shows only
@@ -83,7 +83,7 @@ internal fun MonthPickerSheet(
                     val month = YearMonth(year, number)
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         AppFilterChip(
-                            text = month.month.shortName().replaceFirstChar { it.uppercase() },
+                            text = monthShortName(month.month).replaceFirstChar { it.uppercase() },
                             selected = month == selected,
                             onClick = { onSelect(month) },
                         )

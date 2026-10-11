@@ -46,6 +46,7 @@ import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
+import org.matchlab.academic_net.components.format.monthRangeText
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
@@ -75,7 +76,6 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.completedProjectsText
 import org.matchlab.academic_net.feature.projects.ui.label
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
-import org.matchlab.academic_net.utils.formatMonthRange
 
 /**
  * "07 Управление проектом" for the initiator. Editing the project and the lifecycle actions
@@ -229,7 +229,7 @@ private fun OverviewTab(project: ProjectDetails) {
         TagsBlock(stringResource(Res.string.projects_block_tags), project.tags)
     }
     InfoCard(
-        text = formatMonthRange(project.period.start, project.period.end),
+        text = monthRangeText(project.period.start, project.period.end),
         icon = AppIcons.Calendar,
     )
 }
