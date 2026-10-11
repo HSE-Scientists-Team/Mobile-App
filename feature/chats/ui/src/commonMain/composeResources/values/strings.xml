@@ -8,9 +8,9 @@
     <string name="chats_empty_text">Message a candidate from the collaborator search</string>
     <string name="chats_load_error">Could not load chats</string>
     <string name="chats_back">Back</string>
-    <string name="chats_yesterday">Yesterday</string>
     <string name="chat_empty_title">No messages yet</string>
     <string name="chat_empty_text">Write the first message</string>
+    <string name="chat_security_note">Only you and the other person can see these messages</string>
     <string name="chat_not_found">Chat not found</string>
     <string name="chat_send_error">Could not send the message. Please try again</string>
     <string name="chat_message_too_long">The message is longer than %1$d characters</string>

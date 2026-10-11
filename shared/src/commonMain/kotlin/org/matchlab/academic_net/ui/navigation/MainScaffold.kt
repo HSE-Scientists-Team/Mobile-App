@@ -33,10 +33,12 @@ private const val TabFadeInMillis = 210
 
 /**
  * Root screen: the selected tab's [content] above the bottom navigation bar. The content gets
- * `selectTab` to switch to another tab (e.g. the feed's avatar opens the profile).
+ * `selectTab` to switch to another tab (e.g. the feed's avatar opens the profile). Tabs in [badges]
+ * show the dot.
  */
 @Composable
 fun MainScaffold(
+    badges: Set<TopLevelDestination> = emptySet(),
     content: @Composable (destination: TopLevelDestination, selectTab: (TopLevelDestination) -> Unit) -> Unit,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(TopLevelDestination.Feed) }
@@ -57,6 +59,7 @@ fun MainScaffold(
                         onClick = { currentDestination = destination },
                         icon = destination.icon,
                         label = stringResource(destination.label),
+                        badge = destination in badges,
                     )
                 }
             }

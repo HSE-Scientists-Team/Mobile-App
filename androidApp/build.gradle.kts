@@ -12,6 +12,7 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":securestore"))
     // Component catalog screen (src/debug).
     debugImplementation(project(":catalog"))
 

@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppTopBar
@@ -50,6 +51,7 @@ import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.p
  * Read-only: applying to a role ("Откликнуться"), sharing and reporting belong to later stories.
  *
  * @param onNavigateBack the back arrow of the app bar
+ * @param onInitiatorClick the initiator card itself, which leads to the initiator's profile
  * @param onContactInitiator the chat button of the initiator card; it is not shown on the
  *  viewer's own project
  */
@@ -58,6 +60,7 @@ fun ProjectDetailsRoute(
     dependencies: ProjectDetailsUiDependencies,
     projectId: ProjectId,
     onNavigateBack: () -> Unit,
+    onInitiatorClick: (UserId) -> Unit,
     onContactInitiator: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -69,6 +72,9 @@ fun ProjectDetailsRoute(
     ProjectDetailsScreen(
         state = state,
         onNavigateBack = onNavigateBack,
+        onInitiatorClick = {
+            (state as? ProjectDetailsUiState.Content)?.project?.initiator?.user?.id?.let(onInitiatorClick)
+        },
         onContactInitiatorClick = {
             (state as? ProjectDetailsUiState.Content)?.project?.initiator?.user?.let(onContactInitiator)
         },
@@ -81,6 +87,7 @@ fun ProjectDetailsRoute(
 internal fun ProjectDetailsScreen(
     state: ProjectDetailsUiState,
     onNavigateBack: () -> Unit,
+    onInitiatorClick: () -> Unit,
     onContactInitiatorClick: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
@@ -101,13 +108,17 @@ internal fun ProjectDetailsScreen(
                 actionText = stringResource(Res.string.projectdetails_retry),
                 onAction = onRetry,
             )
-            is ProjectDetailsUiState.Content -> ProjectContent(state.project, onContactInitiatorClick)
+            is ProjectDetailsUiState.Content -> ProjectContent(state.project, onInitiatorClick, onContactInitiatorClick)
         }
     }
 }
 
 @Composable
-private fun ColumnScope.ProjectContent(project: ProjectDetailsUiModel, onContactInitiatorClick: () -> Unit) {
+private fun ColumnScope.ProjectContent(
+    project: ProjectDetailsUiModel,
+    onInitiatorClick: () -> Unit,
+    onContactInitiatorClick: () -> Unit,
+) {
     Column(
         Modifier
             .weight(1f)
@@ -117,8 +128,11 @@ private fun ColumnScope.ProjectContent(project: ProjectDetailsUiModel, onContact
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ProjectHeader(project.title, project.type, project.status, project.sphere)
-        // The card itself does nothing yet: the profile of the initiator is a later story.
-        PersonCard(project.initiator.toCardUiModel(), onChatClick = onContactInitiatorClick)
+        PersonCard(
+            model = project.initiator.toCardUiModel(),
+            onClick = onInitiatorClick,
+            onChatClick = onContactInitiatorClick,
+        )
         ProjectDescriptionBlocks(project.problem, project.goal, project.tags)
         RolesSection(project)
         ProjectPeriodCard(project.period)

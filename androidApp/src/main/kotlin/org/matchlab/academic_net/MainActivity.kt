@@ -8,6 +8,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import org.matchlab.academic_net.securestore.AndroidSecureStore
+import org.matchlab.academic_net.securestore.InMemorySecureStore
 
 // Same value as the androidx.activity default dark scrim.
 private val LegacyNavigationBarScrim = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
@@ -23,7 +25,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App()
+            // The session is kept encrypted with a key of the Android Keystore.
+            App(secureStore = { AndroidSecureStore(applicationContext) })
         }
     }
 }
@@ -31,5 +34,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App()
+    App(secureStore = { InMemorySecureStore() })
 }

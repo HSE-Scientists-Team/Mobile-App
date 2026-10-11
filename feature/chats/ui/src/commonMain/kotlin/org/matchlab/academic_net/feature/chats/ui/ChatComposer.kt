@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -22,6 +21,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.AppBasicTextField
 import org.matchlab.academic_net.components.AppIcon
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.Res
@@ -53,7 +53,7 @@ fun ChatComposer(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BasicTextField(
+        AppBasicTextField(
             value = model.message,
             onValueChange = onMessageChange,
             modifier = Modifier.weight(1f),

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.chats.domain.ChatMessage
 import org.matchlab.academic_net.feature.chats.domain.Conversation
@@ -34,6 +35,8 @@ data class MessageItem(
 
 @Immutable
 data class ChatPeer(
+    /** Whose profile a tap on the header of the chat opens. */
+    val userId: UserId,
     val name: String,
     val isVerified: Boolean,
     /** Key of the peer's avatar illustration. */
@@ -121,6 +124,7 @@ class ChatViewModel(
 }
 
 private fun Conversation.toPeer() = ChatPeer(
+    userId = peer.id,
     name = peer.name,
     isVerified = peer.isVerified,
     avatarKey = peer.id.value,

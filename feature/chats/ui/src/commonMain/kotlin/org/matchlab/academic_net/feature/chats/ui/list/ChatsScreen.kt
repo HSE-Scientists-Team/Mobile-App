@@ -23,11 +23,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.format.chatListTimeText
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.ChatListItem
 import org.matchlab.academic_net.feature.chats.ui.ChatListItemUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatsUiDependencies
-import org.matchlab.academic_net.feature.chats.ui.chatListTimeText
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_empty_text
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_empty_title

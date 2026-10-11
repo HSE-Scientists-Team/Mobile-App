@@ -10,6 +10,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.feature.chats.domain.ChatLimits
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.FailingSendDataSource
@@ -46,6 +47,8 @@ class ChatViewModelTest {
         val peer = assertNotNull(state.peer)
         assertEquals("Проф. Елена Васкес", peer.name)
         assertTrue(peer.isVerified)
+        // The header of the chat leads to this person's profile.
+        assertEquals(UserId("user-elena"), peer.userId)
         assertEquals(listOf(false, false, true, false), state.messages.map { it.isOutgoing })
         assertEquals(listOf("10:40", "10:41", "10:52", "11:57"), state.messages.map { it.time })
         assertEquals("Отлично. Готовы созвониться завтра в 15:00?", state.messages.last().text)
