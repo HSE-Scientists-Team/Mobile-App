@@ -53,13 +53,15 @@ class CollaboratorSearchViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel(repository: CollaboratorsRepository? = null): CollaboratorSearchViewModel {
+    private fun viewModel(
+        repository: CollaboratorsRepository? = null,
+        role: RoleReference? = RoleReference(projectId, roleId),
+    ): CollaboratorSearchViewModel {
         val backend = repository ?: CollaboratorsRepositoryImpl(
             MockCollaboratorsDataSource(requirement, latencyMillis = 0),
         )
         return CollaboratorSearchViewModel(
-            projectId,
-            roleId,
+            role,
             CollaboratorsUiDependencies(
                 getRoleRequirement = GetRoleRequirementUseCase(requirement),
                 searchCollaborators = SearchCollaboratorsUseCase(backend),
@@ -120,6 +122,28 @@ class CollaboratorSearchViewModelTest {
             state.names(),
         )
         assertEquals(listOf(100, 100, 100, 50, 50, 50, 50), state.results.map { it.matchPercent })
+    }
+
+    @Test
+    fun withoutARoleItFindsEveryoneWithoutScores() = runTest {
+        val backend = RecordingBackend()
+
+        val state = viewModel(backend, role = null).uiState.value
+
+        assertFalse(state.isLoading)
+        assertNull(state.roleTitle)
+        assertEquals("", state.query)
+        assertEquals(listOf(CollaboratorQuery()), backend.queries)
+    }
+
+    @Test
+    fun withoutARoleTheMockServerReturnsEveryoneVerifiedFirstThenByName() = runTest {
+        val state = viewModel(role = null).uiState.value
+
+        assertEquals(10, state.results.size)
+        assertTrue(state.results.all { it.matchPercent == null })
+        val verified = state.results.map { it.user.isVerified }
+        assertEquals(verified.sortedDescending(), verified)
     }
 
     @Test

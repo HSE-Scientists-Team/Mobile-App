@@ -16,16 +16,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.common.model.ProjectId
-import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppBadgeDot
@@ -37,6 +39,7 @@ import org.matchlab.academic_net.components.AppSearchBar
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
+import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_back
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_empty_search
@@ -53,20 +56,22 @@ import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.co
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_one
 
 /**
- * "08 Поиск коллабораторов" for one vacant role. Opening a person leads to their profile, which
- * is a story of the next block; until it exists [onCollaboratorClick] starts a chat.
+ * "08 Поиск коллабораторов": for one vacant [role], or for everyone when it is `null` (opened from
+ * the feed; [autoFocusSearch] then puts the cursor in the search bar). Opening a person leads to
+ * their profile, which is a story of the next block; until it exists [onCollaboratorClick] starts
+ * a chat.
  */
 @Composable
 fun CollaboratorSearchRoute(
     dependencies: CollaboratorsUiDependencies,
-    projectId: ProjectId,
-    roleId: RoleId,
+    role: RoleReference?,
     onNavigateBack: () -> Unit,
     onCollaboratorClick: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
+    autoFocusSearch: Boolean = false,
 ) {
-    val viewModel = viewModel(key = "${projectId.value}/${roleId.value}") {
-        CollaboratorSearchViewModel(projectId, roleId, dependencies)
+    val viewModel = viewModel(key = role?.let { "${it.projectId.value}/${it.roleId.value}" } ?: "everyone") {
+        CollaboratorSearchViewModel(role, dependencies)
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -78,6 +83,7 @@ fun CollaboratorSearchRoute(
         onFiltersClick = viewModel::onFiltersClick,
         onRetry = viewModel::onRetry,
         onCollaboratorClick = onCollaboratorClick,
+        autoFocusSearch = autoFocusSearch,
         modifier = modifier,
     )
 
@@ -102,8 +108,13 @@ internal fun CollaboratorSearchScreen(
     onRetry: () -> Unit,
     onCollaboratorClick: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
+    autoFocusSearch: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
+    val searchFocus = remember { FocusRequester() }
+    LaunchedEffect(autoFocusSearch) {
+        if (autoFocusSearch) searchFocus.requestFocus()
+    }
     Column(
         modifier
             .fillMaxSize()
@@ -139,7 +150,7 @@ internal fun CollaboratorSearchScreen(
                 query = state.query,
                 onQueryChange = onQueryChange,
                 placeholder = stringResource(Res.string.collaborators_search_hint),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(searchFocus),
                 onSearch = onSearchSubmit,
             )
         }

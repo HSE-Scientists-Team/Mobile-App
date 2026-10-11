@@ -10,8 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.matchlab.academic_net.common.model.ProjectId
-import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorFilters
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
@@ -48,19 +46,18 @@ data class CollaboratorSearchUiState(
 )
 
 /**
- * "08 Поиск коллабораторов": "искать людей в проект на роль по фильтрам". The search bar starts
- * with the role's skills. The view model only sends what the user typed and chose: matching,
- * scoring and ordering are the server's. Recommendations of people are not here but on the feed.
+ * "08 Поиск коллабораторов": "искать людей в проект на роль по фильтрам". For a [role] the
+ * search bar starts with the role's skills; without one (opened from the feed) it starts empty
+ * and finds everyone. The view model only sends what the user typed and chose: matching, scoring
+ * and ordering are the server's. Recommendations of people are not here but on the feed.
  */
 class CollaboratorSearchViewModel(
-    private val projectId: ProjectId,
-    private val roleId: RoleId,
+    private val role: RoleReference?,
     private val dependencies: CollaboratorsUiDependencies,
 ) : ViewModel() {
     private val state = MutableStateFlow(CollaboratorSearchUiState())
     val uiState: StateFlow<CollaboratorSearchUiState> = state.asStateFlow()
 
-    private val role = RoleReference(projectId, roleId)
     private var searchJob: Job? = null
     private var previewJob: Job? = null
 
@@ -114,7 +111,11 @@ class CollaboratorSearchViewModel(
     private fun load() {
         state.update { it.copy(isLoading = true, hasError = false) }
         viewModelScope.launch {
-            dependencies.getRoleRequirement(projectId, roleId).fold(
+            if (role == null) {
+                refresh()
+                return@launch
+            }
+            dependencies.getRoleRequirement(role.projectId, role.roleId).fold(
                 onSuccess = { found ->
                     val query = found.skills.joinToString(", ")
                     state.update { it.copy(roleTitle = found.roleTitle, query = query) }

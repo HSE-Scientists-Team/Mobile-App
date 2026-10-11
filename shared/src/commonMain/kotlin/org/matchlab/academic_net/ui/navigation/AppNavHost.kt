@@ -15,6 +15,7 @@ import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.chat.ChatRoute
 import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
+import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorSearchRoute
 import org.matchlab.academic_net.feature.projects.ui.create.CreateProjectRoute
 import org.matchlab.academic_net.feature.projects.ui.list.MyProjectsRoute
@@ -105,8 +106,7 @@ fun AppNavHost(dependencies: AppDependencies) {
             if (projectId != null && roleId != null) {
                 CollaboratorSearchRoute(
                     dependencies = dependencies.collaborators,
-                    projectId = ProjectId(projectId),
-                    roleId = RoleId(roleId),
+                    role = RoleReference(ProjectId(projectId), RoleId(roleId)),
                     onNavigateBack = { navController.popBackStack() },
                     // The person's profile is a story of the next block; until then a tap
                     // starts the conversation with them.
