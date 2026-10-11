@@ -1,11 +1,11 @@
 package org.matchlab.academic_net.feature.collaborators.data.mock
 
 import kotlinx.coroutines.delay
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsDataSource
-import org.matchlab.academic_net.feature.collaborators.domain.Collaborator
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirementProvider
 import org.matchlab.academic_net.feature.collaborators.domain.ScoredCollaborator

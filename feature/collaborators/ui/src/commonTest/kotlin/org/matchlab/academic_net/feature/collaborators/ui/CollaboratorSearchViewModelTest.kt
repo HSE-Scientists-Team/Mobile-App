@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
@@ -23,7 +24,6 @@ import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsRepositoryImpl
 import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaboratorsDataSource
-import org.matchlab.academic_net.feature.collaborators.domain.Collaborator
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorFilters
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorsRepository

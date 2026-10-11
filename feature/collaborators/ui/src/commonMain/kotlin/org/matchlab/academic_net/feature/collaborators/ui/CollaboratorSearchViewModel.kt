@@ -166,8 +166,6 @@ class CollaboratorSearchViewModel(
 
 private fun ScoredCollaborator.toItem() = CollaboratorItem(
     user = collaborator.user,
-    subtitle = listOf(collaborator.university, collaborator.studyInfo, collaborator.field)
-        .filter { it.isNotBlank() }
-        .joinToString(" · "),
+    subtitle = collaborator.subtitle,
     matchPercent = matchPercent,
 )

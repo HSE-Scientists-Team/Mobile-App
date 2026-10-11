@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
@@ -14,7 +15,6 @@ import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaborato
 import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaboratorsDataSource
 import org.matchlab.academic_net.feature.collaborators.data.mock.MockPerson
 import org.matchlab.academic_net.feature.collaborators.data.mock.matchPercent
-import org.matchlab.academic_net.feature.collaborators.domain.Collaborator
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorFilters
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference

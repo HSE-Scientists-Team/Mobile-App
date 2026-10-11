@@ -1,22 +1,9 @@
 package org.matchlab.academic_net.feature.collaborators.domain
 
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
-import org.matchlab.academic_net.common.model.UserSummary
-
-/**
- * A person found for a role, as a row of the result list shows them. What the search looks at
- * (skills, works, the "open to collaboration" flag) stays on the server.
- */
-data class Collaborator(
-    val user: UserSummary,
-    val university: String,
-    /** Year and level, or status: "3 курс бакалавриата", "аспирантка". */
-    val studyInfo: String,
-    /** Field of study: "Computer Science". */
-    val field: String,
-)
 
 /** The filters of "08b Фильтры коллабораторов". Everything off means "no restriction". */
 data class CollaboratorFilters(

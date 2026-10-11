@@ -1,5 +1,6 @@
 package org.matchlab.academic_net.feature.collaborators.domain
 
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
