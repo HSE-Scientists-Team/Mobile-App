@@ -1,0 +1,39 @@
+<resources>
+    <!-- Sign in -->
+    <string name="auth_sign_in_title">Sign in to MatchLab</string>
+    <string name="auth_sign_in_subtitle">Sign in with your university email</string>
+    <string name="auth_email_label">University email</string>
+    <string name="auth_email_hint">name@university.edu</string>
+    <string name="auth_get_code">Get a code</string>
+    <string name="auth_getting_code">Sending…</string>
+    <string name="auth_secure_note">Your sign-in data is stored on this device in encrypted form</string>
+    <string name="auth_error_email_empty">Enter your email</string>
+    <string name="auth_error_email_malformed">Check the address: it should look like name@university.edu</string>
+    <string name="auth_error_untrusted_domain">Your university email was not found in the registry. Check the address or contact your university support</string>
+    <!-- 1: seconds to wait -->
+    <string name="auth_error_too_many_requests_seconds">Too many requests. Try again in %1$d s</string>
+    <!-- 1: minutes to wait -->
+    <string name="auth_error_too_many_requests_minutes">Too many requests. Try again in %1$d min</string>
+    <string name="auth_error_network">Could not reach the server. Check your connection and try again</string>
+
+    <!-- Email confirmation -->
+    <string name="auth_verify_title">Confirm your email</string>
+    <!-- 1: the email the code was sent to -->
+    <string name="auth_verify_subtitle">We sent a 6-digit code to %1$s</string>
+    <string name="auth_code_label">Code from the email</string>
+    <string name="auth_code_hint">6 digits</string>
+    <string name="auth_confirm">Confirm</string>
+    <string name="auth_confirming">Checking…</string>
+    <string name="auth_resend">Send the code again</string>
+    <string name="auth_resending">Sending…</string>
+    <!-- 1: the time left as m:ss -->
+    <string name="auth_resend_in">Resend in %1$s</string>
+    <string name="auth_error_wrong_code">Wrong code</string>
+    <plurals name="auth_error_wrong_code_attempts">
+        <item quantity="one">Wrong code. %1$d attempt left</item>
+        <item quantity="other">Wrong code. %1$d attempts left</item>
+    </plurals>
+    <string name="auth_error_expired">The code has expired. Request a new one</string>
+    <string name="auth_error_too_many_attempts">Too many wrong attempts. Request a new code</string>
+    <string name="auth_error_resend_too_many">Too many codes were requested. Wait a little before the next one</string>
+</resources>

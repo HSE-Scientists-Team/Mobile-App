@@ -1,0 +1,41 @@
+<resources>
+    <!-- Sign in -->
+    <string name="auth_sign_in_title">Вход в MatchLab</string>
+    <string name="auth_sign_in_subtitle">Войдите через почту вашего вуза</string>
+    <string name="auth_email_label">Почта вуза</string>
+    <string name="auth_email_hint">name@university.ru</string>
+    <string name="auth_get_code">Получить код</string>
+    <string name="auth_getting_code">Отправляем…</string>
+    <string name="auth_secure_note">Данные входа хранятся на устройстве в зашифрованном виде</string>
+    <string name="auth_error_email_empty">Введите почту</string>
+    <string name="auth_error_email_malformed">Проверьте адрес: он должен выглядеть как name@university.ru</string>
+    <string name="auth_error_untrusted_domain">Почта вуза не найдена в реестре. Проверьте адрес или обратитесь в поддержку вуза</string>
+    <!-- 1: seconds to wait -->
+    <string name="auth_error_too_many_requests_seconds">Слишком много запросов. Повторите через %1$d с</string>
+    <!-- 1: minutes to wait -->
+    <string name="auth_error_too_many_requests_minutes">Слишком много запросов. Повторите через %1$d мин</string>
+    <string name="auth_error_network">Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз</string>
+
+    <!-- Email confirmation -->
+    <string name="auth_verify_title">Подтверждение почты</string>
+    <!-- 1: the email the code was sent to -->
+    <string name="auth_verify_subtitle">Отправили 6-значный код на %1$s</string>
+    <string name="auth_code_label">Код из письма</string>
+    <string name="auth_code_hint">6 цифр</string>
+    <string name="auth_confirm">Подтвердить</string>
+    <string name="auth_confirming">Проверяем…</string>
+    <string name="auth_resend">Отправить код повторно</string>
+    <string name="auth_resending">Отправляем…</string>
+    <!-- 1: the time left as m:ss -->
+    <string name="auth_resend_in">Повторно через %1$s</string>
+    <string name="auth_error_wrong_code">Неверный код</string>
+    <plurals name="auth_error_wrong_code_attempts">
+        <item quantity="one">Неверный код. Осталась %1$d попытка</item>
+        <item quantity="few">Неверный код. Осталось %1$d попытки</item>
+        <item quantity="many">Неверный код. Осталось %1$d попыток</item>
+        <item quantity="other">Неверный код. Осталось %1$d попытки</item>
+    </plurals>
+    <string name="auth_error_expired">Код истёк, запросите новый</string>
+    <string name="auth_error_too_many_attempts">Слишком много неверных попыток. Запросите новый код</string>
+    <string name="auth_error_resend_too_many">Запрошено слишком много кодов. Подождите немного перед следующим</string>
+</resources>
