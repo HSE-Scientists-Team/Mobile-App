@@ -24,8 +24,10 @@ data class PersonCardUiModel(
 )
 
 /**
- * "Card/Person" and "Card/Initiator" in one: a person (project initiator, report subject, review
- * author) with an optional chat button.
+ * "Card/Person", the universal person card (it was "Card/Initiator" before the design update):
+ * avatar, name with the verification shield, subtitle and, when asked, the rating line and the
+ * chat button. For a project initiator or member, a report subject, a review author. The user's
+ * own card "Card/Self" (avatar, name, subtitle) is not used by any screen yet.
  */
 @Composable
 fun PersonCard(
@@ -50,7 +52,7 @@ fun PersonSummary(
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        // With the chat button the row is bottom-aligned ("Card/Initiator"), otherwise centered.
+        // With the chat button the row is bottom-aligned, otherwise centered.
         verticalAlignment = if (model.showChatButton) Alignment.Bottom else Alignment.CenterVertically,
     ) {
         Avatar(model.avatar, contentDescription = null, size = 48.dp)
