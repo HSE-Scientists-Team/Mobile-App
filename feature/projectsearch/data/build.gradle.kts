@@ -27,6 +27,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":feature:projectsearch:domain"))
+            // MockProjectSearchDataSource takes the mock server's projects in its constructor.
+            api(project(":mockserver"))
             implementation(project(":utils"))
             implementation(libs.kotlinx.coroutines.core)
         }

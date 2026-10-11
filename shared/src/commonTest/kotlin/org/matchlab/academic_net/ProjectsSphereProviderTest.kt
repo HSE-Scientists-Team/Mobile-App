@@ -4,7 +4,7 @@ import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.feature.projects.data.ProjectsRepositoryImpl
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsData
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
-import org.matchlab.academic_net.feature.projectsearch.data.MockProjectCatalog
+import org.matchlab.academic_net.mockserver.MockProjectCatalog
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

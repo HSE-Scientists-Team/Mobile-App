@@ -104,7 +104,7 @@ class ProjectSearchViewModelTest {
 
         assertEquals("Проф. Елена Васкес", item.initiatorName)
         assertEquals("Stanford", item.initiatorUniversity)
-        assertEquals("user-elena-vasquez", item.initiatorAvatarKey)
+        assertEquals("user-elena", item.initiatorAvatarKey)
         assertTrue(item.isInitiatorVerified)
         assertEquals(ProjectType.Scientific, item.type)
         assertEquals("Computer Science", item.sphere)

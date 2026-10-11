@@ -1,4 +1,4 @@
-package org.matchlab.academic_net.feature.projectsearch.data
+package org.matchlab.academic_net.mockserver
 
 import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.Project
@@ -14,12 +14,28 @@ import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 
 /**
+ * A project as the server's database has it: what the app shows ([project]) plus what the project
+ * itself does not carry, the facts about its initiator.
+ */
+data class MockServerProject(
+    val project: Project,
+    /** The initiator's university, as the server writes it ("Stanford", "ИТМО"). */
+    val initiatorUniversity: String,
+    /** Average of the initiator's reviews, `null` while there are none. */
+    val initiatorRating: Double?,
+    /** How many projects the initiator has finished. */
+    val initiatorCompletedProjects: Int,
+)
+
+/**
  * The published projects of other people on the mock server, the newest first. The first three
  * are the cards of "02 Поиск проектов"; the rest give the filters something to filter: periods of
  * 1 to 12 months (some across the new year), both types and different spheres.
  *
  * The spheres have the ids of the projects feature's `MockProjectsData.spheres`, which the app
- * offers in the sphere filter.
+ * offers in the sphere filter. The people who also exist in the mock chats and collaborators
+ * (Елена Васкес, Мария Соколова, Тимур Алиев) have the same ids there, so that "message the
+ * initiator" opens the existing chat instead of creating a second one.
  */
 object MockProjectCatalog {
     private val computerScience = Sphere("computer-science", "Computer Science")
@@ -59,7 +75,9 @@ object MockProjectCatalog {
         university: String,
         roles: List<Role>,
         period: ProjectPeriod,
-    ) = MockSearchProject(
+        rating: Double? = null,
+        completedProjects: Int = 0,
+    ) = MockServerProject(
         project = Project(
             id = ProjectId("project-$id"),
             title = title,
@@ -75,9 +93,11 @@ object MockProjectCatalog {
             viewerIsInitiator = false,
         ),
         initiatorUniversity = university,
+        initiatorRating = rating,
+        initiatorCompletedProjects = completedProjects,
     )
 
-    val all: List<MockSearchProject> = listOf(
+    val all: List<MockServerProject> = listOf(
         // The three cards of the Figma screen "02 Поиск проектов". 6 months.
         project(
             id = "found-campus-navigation",
@@ -89,15 +109,18 @@ object MockProjectCatalog {
             goal = "Собрать систему компьютерного зрения, которая распознаёт помещения и " +
                 "строит маршрут внутри корпусов в реальном времени.",
             tags = listOf("Machine Learning", "Computer Vision", "Mobile Dev"),
-            initiator = user("elena-vasquez", "Проф. Елена Васкес"),
+            initiator = user("elena", "Проф. Елена Васкес"),
             university = "Stanford",
+            // Two of the four roles are taken: "2 из 4 занято" on "04 Проект".
             roles = listOf(
-                role("campus-ml", "ML Engineer", "TensorFlow", "Python"),
+                role("campus-ml", "ML Engineer", "TensorFlow", "Python", member = user("kirill", "Кирилл Назаров")),
                 role("campus-mobile", "Mobile Developer", "Kotlin", "Android"),
-                role("campus-data", "Data Analyst", "SQL", "Pandas"),
+                role("campus-data", "Data Analyst", "SQL", "Pandas", member = user("sofia", "София Лебедева")),
                 role("campus-ux", "UX Researcher", "Interviews", "Figma"),
             ),
             period = period(2026, 10, 2027, 3),
+            rating = 4.9,
+            completedProjects = 12,
         ),
         // 7 months.
         project(
@@ -188,7 +211,7 @@ object MockProjectCatalog {
             problem = "Расписание факультета публикуется таблицей, в которой тяжело найти свою группу.",
             goal = "Запустить бота, который присылает расписание группы и уведомляет об изменениях.",
             tags = listOf("Telegram", "Kotlin", "Backend"),
-            initiator = user("ilyas-karimov", "Ильяс Каримов", verified = false),
+            initiator = user("ilyas", "Ильяс Каримов", verified = false),
             university = "КФУ",
             roles = listOf(
                 role("bot-backend", "Backend Developer", "Kotlin", "Docker"),
@@ -243,7 +266,7 @@ object MockProjectCatalog {
                 "выборках и противоречива.",
             goal = "Собрать образцы у студентов в течение семестра и оценить изменения состава микробиома.",
             tags = listOf("Микробиом", "Биоинформатика", "Статистика"),
-            initiator = user("maria-sokolova", "Мария Соколова"),
+            initiator = user("maria", "Мария Соколова"),
             university = "МГУ",
             roles = listOf(
                 role("microbiome-bioinformatician", "Bioinformatician", "Python", "R", "16S"),
@@ -262,7 +285,7 @@ object MockProjectCatalog {
                 "по дням недели и сессиям.",
             goal = "Построить прогноз продаж по блюдам и показать его в простой панели для персонала.",
             tags = listOf("машинное обучение", "Time Series", "Dashboards"),
-            initiator = user("lina-kovach", "Лина Ковач"),
+            initiator = user("lina", "Лина Ковач"),
             university = "ВШЭ",
             roles = listOf(
                 role("demand-ml", "Data Scientist", "Python", "Pandas", "Time Series"),

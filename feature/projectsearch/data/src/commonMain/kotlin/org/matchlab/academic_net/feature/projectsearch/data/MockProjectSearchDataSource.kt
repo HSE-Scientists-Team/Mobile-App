@@ -9,22 +9,16 @@ import org.matchlab.academic_net.feature.projectsearch.domain.FoundProject
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectDuration
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectFilters
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectQuery
+import org.matchlab.academic_net.mockserver.MockProjectCatalog
+import org.matchlab.academic_net.mockserver.MockServerProject
 import org.matchlab.academic_net.utils.occursIn
 import org.matchlab.academic_net.utils.searchTerms
 
 /**
- * A project as the server's database has it: what the app shows ([project]) plus the initiator's
- * university, which the project itself does not carry.
- */
-data class MockSearchProject(
-    val project: Project,
-    val initiatorUniversity: String,
-)
-
-/**
  * In-memory stand-in for the project-search server. All the searching happens here, as it will on
  * the real backend: the visibility rules, matching the text and the filters, and ordering.
- * Answers after [latencyMillis], like a network call.
+ * Answers after [latencyMillis], like a network call. The projects are the [catalog], the mock
+ * server's database from `:mockserver`; the initiator's rating is not used here.
  *
  * Rules of this mock (the contract for the backend):
  * - only projects that are [ProjectStatus.Recruiting] and not the viewer's own
@@ -38,7 +32,7 @@ data class MockSearchProject(
  * - the order is the catalog's order, the newest first.
  */
 class MockProjectSearchDataSource(
-    private val catalog: List<MockSearchProject> = MockProjectCatalog.all,
+    private val catalog: List<MockServerProject> = MockProjectCatalog.all,
     private val latencyMillis: Long = DefaultLatencyMillis,
 ) : ProjectSearchDataSource {
     override suspend fun search(query: ProjectQuery): List<FoundProject> {
@@ -58,11 +52,11 @@ class MockProjectSearchDataSource(
 }
 
 /** Published and somebody else's: the only projects a search may return. */
-private fun MockSearchProject.isSearchable(): Boolean =
+private fun MockServerProject.isSearchable(): Boolean =
     project.status == ProjectStatus.Recruiting && !project.viewerIsInitiator
 
 /** Everything the text search looks at, lowercase, one field per line. */
-private fun MockSearchProject.haystack(): String = buildList {
+private fun MockServerProject.haystack(): String = buildList {
     add(project.title)
     add(project.problem)
     add(project.goal)
@@ -76,7 +70,7 @@ private fun MockSearchProject.haystack(): String = buildList {
     }
 }.joinToString(separator = "\n").lowercase()
 
-private fun MockSearchProject.matches(query: ProjectQuery): Boolean {
+private fun MockServerProject.matches(query: ProjectQuery): Boolean {
     val haystack = haystack()
     val terms = searchTerms(query.text)
     if (terms.isNotEmpty() && terms.none { it.occursIn(haystack) }) return false

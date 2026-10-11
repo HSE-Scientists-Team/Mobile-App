@@ -20,6 +20,8 @@ import org.matchlab.academic_net.feature.projectsearch.domain.FoundProject
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectDuration
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectFilters
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectQuery
+import org.matchlab.academic_net.mockserver.MockProjectCatalog
+import org.matchlab.academic_net.mockserver.MockServerProject
 
 private val ComputerScience = Sphere("computer-science", "Computer Science")
 private val Biology = Sphere("biology", "Биология")
@@ -42,7 +44,7 @@ private fun record(
     period: ProjectPeriod = period(2026, 10, 2026, 12),
     status: ProjectStatus = ProjectStatus.Recruiting,
     own: Boolean = false,
-) = MockSearchProject(
+) = MockServerProject(
     project = Project(
         id = ProjectId(id),
         title = title,
@@ -58,11 +60,13 @@ private fun record(
         viewerIsInitiator = own,
     ),
     initiatorUniversity = university,
+    initiatorRating = null,
+    initiatorCompletedProjects = 0,
 )
 
 private fun role(title: String, vararg skills: String) = Role(RoleId("r-$title"), title, skills.toList())
 
-private fun searchOf(vararg projects: MockSearchProject) =
+private fun searchOf(vararg projects: MockServerProject) =
     MockProjectSearchDataSource(projects.toList(), latencyMillis = 0)
 
 private suspend fun MockProjectSearchDataSource.ids(query: ProjectQuery = ProjectQuery()) =
@@ -454,44 +458,9 @@ class MockProjectSearchVisibilityTest {
     }
 }
 
-class MockProjectCatalogTest {
+/** The search over the real seeded catalog of `:mockserver` (the catalog's own data is tested there). */
+class MockProjectSearchCatalogTest {
     private val catalog = MockProjectCatalog.all
-
-    @Test
-    fun startsWithTheThreeCardsOfTheDesign() {
-        val first = catalog.take(3)
-
-        assertEquals(
-            listOf("AI-навигация по кампусу", "Обнаружение аномалий в МРТ", "Цифровой двойник лаборатории"),
-            first.map { it.project.title },
-        )
-        assertEquals(
-            listOf("Проф. Елена Васкес", "Д-р Анна Петрова", "Иван Орлов"),
-            first.map { it.project.initiator.name },
-        )
-        assertEquals(listOf("Stanford", "Сеченовский", "ИТМО"), first.map { it.initiatorUniversity })
-        assertEquals(listOf(4, 3, 5), first.map { it.project.roles.size })
-        assertEquals(
-            listOf(
-                period(2026, 10, 2027, 3),
-                period(2026, 11, 2027, 5),
-                period(2026, 9, 2027, 3),
-            ),
-            first.map { it.project.period },
-        )
-    }
-
-    @Test
-    fun hasAboutTwelveProjectsWithUniqueIds() {
-        assertEquals(12, catalog.size)
-        assertEquals(catalog.size, catalog.map { it.project.id }.toSet().size)
-    }
-
-    @Test
-    fun everyProjectIsPublishedAndNotTheViewers() {
-        assertTrue(catalog.all { it.project.status == ProjectStatus.Recruiting })
-        assertTrue(catalog.none { it.project.viewerIsInitiator })
-    }
 
     @Test
     fun coversBothTypesAndEveryDuration() {
@@ -500,38 +469,6 @@ class MockProjectCatalogTest {
             ProjectDuration.entries.toSet(),
             catalog.map { it.project.period.duration() }.toSet(),
         )
-    }
-
-    @Test
-    fun hasProjectsAcrossTheNewYear() {
-        assertTrue(catalog.any { it.project.period.start.year != it.project.period.end.year })
-    }
-
-    @Test
-    fun sphereIdsAreTheProjectsFeaturesIds() {
-        val known = setOf(
-            "computer-science", "data-science", "engineering", "mathematics", "physics", "chemistry",
-            "biology", "medicine", "economics", "social-sciences", "linguistics", "design",
-        )
-
-        assertTrue(catalog.all { it.project.sphere.id in known })
-    }
-
-    @Test
-    fun everySphereIdHasOneName() {
-        val namesById = catalog.groupBy({ it.project.sphere.id }, { it.project.sphere.name })
-
-        assertTrue(namesById.values.all { it.toSet().size == 1 })
-    }
-
-    @Test
-    fun hasSeveralSpheres() {
-        assertTrue(catalog.map { it.project.sphere.id }.toSet().size >= 8)
-    }
-
-    @Test
-    fun rolesOfAProjectHaveUniqueIds() {
-        assertTrue(catalog.all { found -> found.project.roles.let { r -> r.map { it.id }.toSet().size == r.size } })
     }
 
     @Test

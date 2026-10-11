@@ -16,6 +16,7 @@ dependencies {
     kover(project(":theme"))
     kover(project(":utils"))
     kover(project(":common"))
+    kover(project(":mockserver"))
     kover(project(":components"))
     kover(project(":catalog"))
     kover(project(":feature:projects:domain"))
