@@ -1,33 +1,35 @@
 <resources>
-    <string name="collaborators_title">Коллабораторы</string>
-    <string name="collaborators_back">Назад</string>
-    <string name="collaborators_filters">Фильтры</string>
-    <string name="collaborators_search_hint">Навык, вуз или имя</string>
-    <string name="collaborators_found_one">Найден %1$d человек</string>
-    <string name="collaborators_found_few">Найдено %1$d человека</string>
-    <string name="collaborators_found_many">Найдено %1$d человек</string>
-    <string name="collaborators_empty_title">Никого не нашли</string>
-    <string name="collaborators_empty_search">Измените запрос или фильтры</string>
-    <string name="collaborators_error">Не удалось загрузить список. Попробуйте ещё раз</string>
-    <string name="collaborators_retry">Повторить</string>
+    <string name="collaborators_title">Collaborators</string>
+    <string name="collaborators_back">Back</string>
+    <string name="collaborators_filters">Filters</string>
+    <string name="collaborators_search_hint">Skill, university or name</string>
+    <plurals name="collaborators_found">
+        <item quantity="one">%1$d person found</item>
+        <item quantity="other">%1$d people found</item>
+    </plurals>
+    <string name="collaborators_empty_title">No one found</string>
+    <string name="collaborators_empty_search">Change your query or filters</string>
+    <string name="collaborators_error">Could not load the list. Please try again</string>
+    <string name="collaborators_retry">Retry</string>
 
     <!-- Filters sheet -->
-    <string name="collaborators_filters_title">Фильтры коллабораторов</string>
-    <string name="collaborators_group_status">Статус</string>
-    <string name="collaborators_filter_verified">Верифицированный профиль</string>
-    <string name="collaborators_group_works">Подтверждённые работы</string>
-    <string name="collaborators_filter_verified_projects">Есть верифицированные проекты</string>
-    <string name="collaborators_filter_publications">Есть публикации</string>
-    <string name="collaborators_group_work_type">Тип работы</string>
-    <string name="collaborators_filter_scientific">Научные проекты</string>
-    <string name="collaborators_filter_practical">Практические проекты</string>
-    <string name="collaborators_field_university">Вуз</string>
-    <string name="collaborators_field_university_hint">Название вуза, например МГУ</string>
-    <string name="collaborators_field_keywords">Ключевые слова</string>
-    <string name="collaborators_field_keywords_hint">Введите слово и нажмите Enter</string>
-    <string name="collaborators_reset">Сбросить</string>
-    <string name="collaborators_show">Показать</string>
-    <string name="collaborators_show_count_one">Показать %1$d человека</string>
-    <string name="collaborators_show_count_few">Показать %1$d человека</string>
-    <string name="collaborators_show_count_many">Показать %1$d человек</string>
+    <string name="collaborators_filters_title">Collaborator filters</string>
+    <string name="collaborators_group_status">Status</string>
+    <string name="collaborators_filter_verified">Verified profile</string>
+    <string name="collaborators_group_works">Verified work</string>
+    <string name="collaborators_filter_verified_projects">Has verified projects</string>
+    <string name="collaborators_filter_publications">Has publications</string>
+    <string name="collaborators_group_work_type">Type of work</string>
+    <string name="collaborators_filter_scientific">Scientific projects</string>
+    <string name="collaborators_filter_practical">Practical projects</string>
+    <string name="collaborators_field_university">University</string>
+    <string name="collaborators_field_university_hint">University name, e.g. MSU</string>
+    <string name="collaborators_field_keywords">Keywords</string>
+    <string name="collaborators_field_keywords_hint">Type a word and press Enter</string>
+    <string name="collaborators_reset">Reset</string>
+    <string name="collaborators_show">Show</string>
+    <plurals name="collaborators_show_count">
+        <item quantity="one">Show %1$d person</item>
+        <item quantity="other">Show %1$d people</item>
+    </plurals>
 </resources>

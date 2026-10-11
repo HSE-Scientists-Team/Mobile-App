@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppAvatars
@@ -46,14 +47,10 @@ import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.co
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_empty_title
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_error
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filters
+import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_retry
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_search_hint
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_title
-import org.matchlab.academic_net.utils.RussianPluralForm
-import org.matchlab.academic_net.utils.russianPluralForm
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_few
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_many
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_one
 
 /**
  * "08 Поиск коллабораторов": for one vacant [role], or for everyone when it is `null` (opened from
@@ -218,14 +215,7 @@ internal fun CollaboratorSearchScreen(
 
 @Composable
 private fun ResultsHeader(count: Int) {
-    val text = stringResource(
-        when (russianPluralForm(count)) {
-            RussianPluralForm.One -> Res.string.collaborators_found_one
-            RussianPluralForm.Few -> Res.string.collaborators_found_few
-            RussianPluralForm.Many -> Res.string.collaborators_found_many
-        },
-        count,
-    )
+    val text = pluralStringResource(Res.plurals.collaborators_found, count, count)
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,

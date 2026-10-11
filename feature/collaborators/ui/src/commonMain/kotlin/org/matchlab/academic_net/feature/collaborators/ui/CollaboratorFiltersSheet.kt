@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.components.AppBottomSheet
@@ -40,11 +41,7 @@ import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.co
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_group_works
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_reset
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_show
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_show_count_few
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_show_count_many
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_show_count_one
-import org.matchlab.academic_net.utils.RussianPluralForm
-import org.matchlab.academic_net.utils.russianPluralForm
+import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_show_count
 import org.matchlab.academic_net.utils.withTag
 import org.matchlab.academic_net.utils.withoutTag
 
@@ -128,14 +125,7 @@ internal fun CollaboratorFiltersSheet(
 @Composable
 private fun showLabel(count: Int?): String {
     if (count == null) return stringResource(Res.string.collaborators_show)
-    return stringResource(
-        when (russianPluralForm(count)) {
-            RussianPluralForm.One -> Res.string.collaborators_show_count_one
-            RussianPluralForm.Few -> Res.string.collaborators_show_count_few
-            RussianPluralForm.Many -> Res.string.collaborators_show_count_many
-        },
-        count,
-    )
+    return pluralStringResource(Res.plurals.collaborators_show_count, count, count)
 }
 
 @Composable
