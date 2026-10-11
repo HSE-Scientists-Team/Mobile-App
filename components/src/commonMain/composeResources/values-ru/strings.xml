@@ -7,6 +7,23 @@
     <string name="components_message">Написать</string>
     <string name="components_report">Пожаловаться</string>
     <string name="components_verified">Подтверждён</string>
+    <string name="components_retry">Повторить</string>
+
+    <!-- Project type and status; the project card and every list of projects use them -->
+    <string name="components_project_type_scientific">Научный</string>
+    <string name="components_project_type_practical">Проектный</string>
+    <string name="components_project_status_recruiting">Поиск соавторов</string>
+    <string name="components_project_status_unpublished">Снят с публикации</string>
+    <plurals name="components_project_roles_count">
+        <item quantity="one">%1$d роль</item>
+        <item quantity="few">%1$d роли</item>
+        <item quantity="many">%1$d ролей</item>
+        <item quantity="other">%1$d роли</item>
+    </plurals>
+
+    <!-- Sphere picker -->
+    <string name="components_sphere_picker_title">Сфера проекта</string>
+    <string name="components_sphere_picker_error">Не удалось загрузить сферы</string>
 
     <!-- Dates: month names are abbreviated and used on their own ("окт"), before a year or after a day. -->
     <string-array name="date_months_short">

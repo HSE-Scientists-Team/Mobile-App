@@ -7,6 +7,21 @@
     <string name="components_message">Message</string>
     <string name="components_report">Report</string>
     <string name="components_verified">Verified</string>
+    <string name="components_retry">Retry</string>
+
+    <!-- Project type and status; the project card and every list of projects use them -->
+    <string name="components_project_type_scientific">Scientific</string>
+    <string name="components_project_type_practical">Practical</string>
+    <string name="components_project_status_recruiting">Recruiting</string>
+    <string name="components_project_status_unpublished">Unpublished</string>
+    <plurals name="components_project_roles_count">
+        <item quantity="one">%1$d role</item>
+        <item quantity="other">%1$d roles</item>
+    </plurals>
+
+    <!-- Sphere picker -->
+    <string name="components_sphere_picker_title">Project field</string>
+    <string name="components_sphere_picker_error">Could not load fields</string>
 
     <!-- Dates: month names are abbreviated and used on their own ("Oct"), before a year or after a day. -->
     <string-array name="date_months_short">

@@ -2,6 +2,7 @@ package org.matchlab.academic_net.catalog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +27,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
+import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.components.ActionListItem
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppBadgeCount
@@ -52,8 +60,13 @@ import org.matchlab.academic_net.components.AppTagsField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.FilterChipGroup
+import org.matchlab.academic_net.components.FiltersButton
+import org.matchlab.academic_net.components.FiltersSheet
 import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.InfoCard
+import org.matchlab.academic_net.components.LoadingState
+import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.NotificationListItem
 import org.matchlab.academic_net.components.NotificationListItemUiModel
 import org.matchlab.academic_net.components.PersonCard
@@ -64,13 +77,17 @@ import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.RadioListItem
 import org.matchlab.academic_net.components.ReportIconButton
+import org.matchlab.academic_net.components.SearchTopBar
 import org.matchlab.academic_net.components.SectionHeader
 import org.matchlab.academic_net.components.SettingListItem
 import org.matchlab.academic_net.components.SheetHeader
+import org.matchlab.academic_net.components.SpherePickerSheet
 import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.ToggleListItem
 import org.matchlab.academic_net.components.UploadCard
+import org.matchlab.academic_net.components.project.label
+import org.matchlab.academic_net.components.project.projectCardUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatBubble
 import org.matchlab.academic_net.feature.chats.ui.ChatBubbleUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatComposer
@@ -117,6 +134,7 @@ fun ComponentCatalog() {
         ) {
             item { BaseComponents() }
             item { SharedFeatureComponents() }
+            item { SearchComponents() }
             item { ProjectsComponents() }
             item { ProfileComponents() }
             item { ChatsComponents() }
@@ -270,6 +288,110 @@ private fun SharedFeatureComponents() {
                 showInvitationActions = true,
             ),
         )
+        // Built the way every list of projects does: labels and plurals follow the app language.
+        ProjectCard(
+            projectCardUiModel(
+                title = "Обнаружение аномалий в МРТ",
+                author = "Д-р Анна Петрова · Сеченовский",
+                avatarKey = "u-anna",
+                isAuthorVerified = true,
+                type = ProjectType.Scientific,
+                status = ProjectStatus.Recruiting,
+                sphere = "Медицина",
+                rolesCount = 3,
+                period = ProjectPeriod(YearMonth(2026, 11), YearMonth(2027, 5)),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun SearchComponents() {
+    Section(":components — поиск и фильтры") {
+        SearchTopBar(
+            query = "машинное обучение",
+            onQueryChange = {},
+            placeholder = "Название, навык или вуз",
+            onNavigateBack = {},
+            backContentDescription = "Назад",
+            filtersActive = true,
+            onFiltersClick = {},
+            filtersContentDescription = "Фильтры",
+            windowInsets = NoInsets,
+        )
+        var emptyQuery by remember { mutableStateOf("") }
+        SearchTopBar(
+            query = emptyQuery,
+            onQueryChange = { emptyQuery = it },
+            placeholder = "Название, навык или вуз",
+            onNavigateBack = {},
+            backContentDescription = "Назад",
+            filtersActive = false,
+            onFiltersClick = {},
+            filtersContentDescription = "Фильтры",
+            windowInsets = NoInsets,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            FiltersButton(active = false, onClick = {}, contentDescription = "Фильтры")
+            FiltersButton(active = true, onClick = {}, contentDescription = "Фильтры")
+        }
+        FilterChipGroup("Тип проекта") {
+            ProjectType.entries.forEachIndexed { index, type ->
+                AppFilterChip(type.label(), selected = index == 0, onClick = {})
+            }
+        }
+        FilterChipGroup("Сроки") {
+            AppFilterChip("до 3 мес", selected = false, onClick = {})
+            AppFilterChip("3–6 мес", selected = true, onClick = {})
+            AppFilterChip("6+ мес", selected = false, onClick = {})
+        }
+        var filtersOpen by remember { mutableStateOf(false) }
+        AppButton("Открыть FiltersSheet", { filtersOpen = true }, variant = AppButtonVariant.Outlined)
+        if (filtersOpen) {
+            FiltersSheet(
+                title = "Фильтры",
+                onDismiss = { filtersOpen = false },
+                secondaryText = "Отмена",
+                onSecondary = { filtersOpen = false },
+                primaryText = "Применить",
+                onPrimary = { filtersOpen = false },
+                headerActionText = "Сбросить",
+                onHeaderAction = {},
+            ) {
+                FilterChipGroup("Тип проекта") {
+                    AppFilterChip("Научный", selected = true, onClick = {})
+                    AppFilterChip("Проектный", selected = false, onClick = {})
+                }
+                AppSelectField("Сфера", "Computer Science", "Любая сфера", onClick = {})
+            }
+        }
+        val spheres = remember {
+            listOf(Sphere("cs", "Computer Science"), Sphere("med", "Медицина"), Sphere("iot", "IoT"))
+        }
+        var pickerOpen by remember { mutableStateOf(false) }
+        var picked by remember { mutableStateOf<Sphere?>(null) }
+        AppButton("Открыть SpherePickerSheet", { pickerOpen = true }, variant = AppButtonVariant.Outlined)
+        if (pickerOpen) {
+            SpherePickerSheet(
+                spheres = spheres,
+                selected = picked,
+                loadFailed = false,
+                onSelect = { picked = it; pickerOpen = false },
+                onRetry = {},
+                onDismiss = { pickerOpen = false },
+                anyOptionLabel = "Любая сфера",
+                onSelectAny = { picked = null; pickerOpen = false },
+            )
+        }
+        Box(Modifier.fillMaxWidth().height(120.dp)) { LoadingState() }
+        Box(Modifier.fillMaxWidth().height(240.dp)) {
+            MessageState(
+                title = "Ничего не найдено",
+                text = "Измените запрос или фильтры",
+                actionText = "Сбросить фильтры",
+                onAction = {},
+            )
+        }
     }
 }
 
