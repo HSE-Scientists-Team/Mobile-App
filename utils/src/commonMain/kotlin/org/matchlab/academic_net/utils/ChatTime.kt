@@ -7,10 +7,6 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.minus
 import kotlin.time.Instant
 
-private val ShortMonths = listOf(
-    "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
-)
-
 /** Time under a message bubble: "10:22". */
 fun formatMessageTime(sentAt: Instant, zone: TimeZone): String {
     val time = sentAt.toLocalDateTime(zone).time
@@ -27,7 +23,7 @@ fun formatChatListTime(sentAt: Instant, now: Instant, zone: TimeZone): String {
     return when (sentDate) {
         today -> formatMessageTime(sentAt, zone)
         today.minus(DatePeriod(days = 1)) -> "Вчера"
-        else -> "${sentDate.day} ${ShortMonths[sentDate.month.ordinal]}"
+        else -> "${sentDate.day} ${RussianShortMonths[sentDate.month.ordinal]}"
     }
 }
 
