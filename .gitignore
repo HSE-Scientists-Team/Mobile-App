@@ -33,3 +33,10 @@ replay_pid*.log
 
 # Claude Code personal settings (shared settings live in .claude/settings.json)
 .claude/settings.local.json
+/.claude/agents/architect.md
+/CLAUDE.md
+/.claude/agents/compose-ui.md
+/.claude/agents/designer.md
+/.claude/agents/domain-data.md
+/.claude/agents/reviewer.md
+/.claude/agents/tester.md
