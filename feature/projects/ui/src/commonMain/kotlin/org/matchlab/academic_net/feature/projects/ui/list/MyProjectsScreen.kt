@@ -46,6 +46,7 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_you_initiator
 import org.matchlab.academic_net.feature.projects.ui.label
 import org.matchlab.academic_net.feature.projects.ui.rolesCountText
+import org.matchlab.academic_net.utils.formatMonthRange
 
 /** "06 Мои проекты": the root screen of the "Проекты" tab. */
 @Composable
@@ -133,7 +134,7 @@ private fun MyProjectItem.toCardUiModel(): ProjectCardUiModel = ProjectCardUiMod
     author = stringResource(Res.string.projects_you_initiator),
     authorAvatar = AppAvatars.forKey(avatarKey),
     type = type.label(),
-    footer = rolesCountText(rolesCount),
+    footer = "${rolesCountText(rolesCount)} · ${formatMonthRange(period.start, period.end)}",
     tags = listOf(status.label(), sphere),
     isAuthorVerified = isInitiatorVerified,
 )

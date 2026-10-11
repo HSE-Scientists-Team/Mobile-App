@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsData
@@ -41,6 +42,7 @@ class MyProjectsViewModelTest {
         assertEquals(ProjectStatus.Recruiting, first.status)
         assertEquals("Computer Science", first.sphere)
         assertEquals(4, first.rolesCount)
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), first.period)
         assertTrue(first.isInitiatorVerified)
         assertEquals(MockProjectsData.currentUser.id.value, first.avatarKey)
     }
@@ -76,6 +78,7 @@ class MyProjectsViewModelTest {
         assertEquals(before + 1, projects.size)
         assertEquals("Новый", projects.first().title)
         assertEquals(2, projects.first().rolesCount)
+        assertEquals(ProjectPeriod(YearMonth(2026, 11), YearMonth(2027, 2)), projects.first().period)
     }
 
     @Test

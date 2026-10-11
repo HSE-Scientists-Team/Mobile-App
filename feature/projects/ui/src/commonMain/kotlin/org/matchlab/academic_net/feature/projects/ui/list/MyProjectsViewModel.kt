@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
@@ -23,6 +24,7 @@ data class MyProjectItem(
     val status: ProjectStatus,
     val sphere: String,
     val rolesCount: Int,
+    val period: ProjectPeriod,
     val isInitiatorVerified: Boolean,
     /** Key of the initiator's avatar illustration. */
     val avatarKey: String,
@@ -55,6 +57,7 @@ internal fun Project.toItem() = MyProjectItem(
     status = status,
     sphere = sphere.name,
     rolesCount = roles.size,
+    period = period,
     isInitiatorVerified = initiator.isVerified,
     avatarKey = initiator.id.value,
 )

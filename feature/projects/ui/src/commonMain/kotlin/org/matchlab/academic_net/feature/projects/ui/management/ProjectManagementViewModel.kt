@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
@@ -53,6 +54,7 @@ data class ProjectDetails(
     val problem: String,
     val goal: String,
     val tags: List<String>,
+    val period: ProjectPeriod,
     val occupiedRoles: List<OccupiedRoleItem>,
     val vacantRoles: List<VacantRoleItem>,
 ) {
@@ -164,6 +166,7 @@ internal fun Project.toDetails() = ProjectDetails(
     problem = problem,
     goal = goal,
     tags = tags,
+    period = period,
     occupiedRoles = roles.mapNotNull { role ->
         val member = role.member ?: return@mapNotNull null
         OccupiedRoleItem(

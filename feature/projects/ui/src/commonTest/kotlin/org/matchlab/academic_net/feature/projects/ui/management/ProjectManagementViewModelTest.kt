@@ -9,6 +9,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.RoleId
@@ -52,6 +54,7 @@ class ProjectManagementViewModelTest {
         val project = assertNotNull(viewModel.uiState.value.project)
 
         assertEquals("AI-навигация по кампусу", project.title)
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), project.period)
         assertEquals(listOf("ML Engineer", "Data Analyst"), project.occupiedRoles.map { it.roleTitle })
         assertEquals("Арджун Мехта", project.occupiedRoles.first().memberName)
         assertEquals(4.8, project.occupiedRoles.first().rating)

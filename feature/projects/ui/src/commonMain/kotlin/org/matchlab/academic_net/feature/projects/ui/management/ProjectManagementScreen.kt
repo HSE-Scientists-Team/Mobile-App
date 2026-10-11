@@ -41,6 +41,7 @@ import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.InfoBanner
+import org.matchlab.academic_net.components.InfoCard
 import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.TagsBlock
@@ -74,6 +75,7 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.completedProjectsText
 import org.matchlab.academic_net.feature.projects.ui.label
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
+import org.matchlab.academic_net.utils.formatMonthRange
 
 /**
  * "07 Управление проектом" for the initiator. Editing the project and the lifecycle actions
@@ -203,7 +205,7 @@ internal fun ProjectManagementScreen(
     }
 }
 
-/** "07 … Обзор". The design's dates card comes with the dates story of the second sprint. */
+/** "07 … Обзор". */
 @Composable
 private fun OverviewTab(project: ProjectDetails) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -226,6 +228,10 @@ private fun OverviewTab(project: ProjectDetails) {
     if (project.tags.isNotEmpty()) {
         TagsBlock(stringResource(Res.string.projects_block_tags), project.tags)
     }
+    InfoCard(
+        text = formatMonthRange(project.period.start, project.period.end),
+        icon = AppIcons.Calendar,
+    )
 }
 
 /**
