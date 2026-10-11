@@ -14,20 +14,6 @@ fun formatMessageTime(sentAt: Instant, zone: TimeZone): String {
 }
 
 /**
- * Time of the last message in the chat list: "10:22" for today, "Вчера", or "9 мар" for earlier
- * days (the app is Russian-only, like [russianPluralForm]).
- */
-fun formatChatListTime(sentAt: Instant, now: Instant, zone: TimeZone): String {
-    val sentDate: LocalDate = sentAt.toLocalDateTime(zone).date
-    val today: LocalDate = now.toLocalDateTime(zone).date
-    return when (sentDate) {
-        today -> formatMessageTime(sentAt, zone)
-        today.minus(DatePeriod(days = 1)) -> "Вчера"
-        else -> "${sentDate.day} ${RussianShortMonths[sentDate.month.ordinal]}"
-    }
-}
-
-/**
  * Which day the last message of a chat belongs to, relative to "now".
  *
  * It carries no localized words: the UI maps each case to text with its own resources, so the
