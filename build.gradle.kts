@@ -6,4 +6,44 @@ plugins {
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+    // The root project merges the coverage of every module: `./gradlew :koverHtmlReport`.
+    alias(libs.plugins.kover)
+}
+
+dependencies {
+    kover(project(":shared"))
+    kover(project(":theme"))
+    kover(project(":utils"))
+    kover(project(":common"))
+    kover(project(":components"))
+    kover(project(":catalog"))
+    kover(project(":feature:projects:domain"))
+    kover(project(":feature:projects:data"))
+    kover(project(":feature:projects:ui"))
+    kover(project(":feature:profile:ui"))
+    kover(project(":feature:chats:domain"))
+    kover(project(":feature:chats:data"))
+    kover(project(":feature:chats:ui"))
+    kover(project(":feature:responses:ui"))
+    kover(project(":feature:collaborators:domain"))
+    kover(project(":feature:collaborators:data"))
+    kover(project(":feature:collaborators:ui"))
+    kover(project(":feature:feed:domain"))
+    kover(project(":feature:feed:data"))
+    kover(project(":feature:feed:ui"))
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                // Generated code has no behaviour of its own to test.
+                classes(
+                    "*.generated.resources.*",
+                    "*ComposableSingletons*",
+                    "*.BuildConfig",
+                )
+            }
+        }
+    }
 }
