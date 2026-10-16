@@ -197,9 +197,9 @@ class AuthRepositoryImplTest {
     fun refusedRequestsLeaveNoChallenge() = runTest {
         val repository = repository()
 
-        assertEquals(CodeRequestOutcome.UntrustedDomain, repository.requestCode("student@gmail.com"))
+        assertEquals(CodeRequestOutcome.UntrustedDomain, repository.requestCode("student@example.com"))
 
-        assertNull(repository.lastChallenge("student@gmail.com"))
+        assertNull(repository.lastChallenge("student@example.com"))
     }
 
     @Test

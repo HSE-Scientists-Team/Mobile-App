@@ -17,5 +17,6 @@ object MockTrustedDomains {
         "mipt.ru",
         "urfu.ru",
         "stanford.edu",
+        "gmail.com",
     )
 }

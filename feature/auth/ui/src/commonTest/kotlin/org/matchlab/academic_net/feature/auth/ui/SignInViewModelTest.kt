@@ -58,7 +58,7 @@ class SignInViewModelTest {
     fun emailOfAnotherDomainIsRefusedByTheServer() {
         val viewModel = harness.signInViewModel()
 
-        viewModel.onEmailChange("anna@gmail.com")
+        viewModel.onEmailChange("anna@example.com")
         viewModel.onGetCodeClick()
 
         val state = viewModel.uiState.value
@@ -92,7 +92,7 @@ class SignInViewModelTest {
     @Test
     fun typingRemovesTheError() {
         val viewModel = harness.signInViewModel()
-        viewModel.onEmailChange("anna@gmail.com")
+        viewModel.onEmailChange("anna@example.com")
         viewModel.onGetCodeClick()
 
         viewModel.onEmailChange("anna@hse.ru")

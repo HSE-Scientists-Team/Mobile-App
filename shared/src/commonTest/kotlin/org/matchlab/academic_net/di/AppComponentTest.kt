@@ -108,7 +108,7 @@ class AppComponentTest {
     fun anAddressOutsideTheRegistryGetsNoCode() = runTest {
         val auth = createAppComponent(InMemorySecureStore()).dependencies.auth
 
-        val result = auth.requestCode("someone@gmail.com")
+        val result = auth.requestCode("someone@example.com")
 
         val outcome = assertIs<SubmitResult.Success<CodeRequestOutcome>>(result).value
         assertIs<CodeRequestOutcome.UntrustedDomain>(outcome)

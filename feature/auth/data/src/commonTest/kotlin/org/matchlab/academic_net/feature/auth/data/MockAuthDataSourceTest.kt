@@ -261,7 +261,8 @@ class MockAuthDataSourceTest {
         val default = MockAuthDataSource(latencyMillis = 0, timeSource = time)
 
         assertIs<CodeRequestOutcome.Sent>(default.requestCode("a@student.msu.ru"))
-        assertEquals(CodeRequestOutcome.UntrustedDomain, default.requestCode("a@gmail.com"))
+        assertIs<CodeRequestOutcome.Sent>(default.requestCode("a@gmail.com"))
+        assertEquals(CodeRequestOutcome.UntrustedDomain, default.requestCode("a@example.com"))
     }
 
     @Test
