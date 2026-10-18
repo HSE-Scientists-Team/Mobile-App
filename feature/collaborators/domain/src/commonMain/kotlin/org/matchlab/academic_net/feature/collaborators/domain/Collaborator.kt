@@ -19,7 +19,11 @@ data class CollaboratorFilters(
     /** "Ключевые слова": sent as the skills the server looks for. */
     val keywords: List<String> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = this == CollaboratorFilters()
+    /**
+     * No filter restricts the result: the filter button has no dot. It is not "equal to the default filters": a
+     * university of blanks restricts nothing (it is not sent, see [activeCount]) and the filters are empty then too.
+     */
+    val isEmpty: Boolean get() = activeCount == 0
 
     /** How many filters restrict the result: the dot on the filter button. */
     val activeCount: Int
