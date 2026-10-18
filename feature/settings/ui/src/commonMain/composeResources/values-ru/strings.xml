@@ -2,7 +2,7 @@
     <string name="settings_title">Настройки</string>
     <string name="settings_privacy_title">Приватность и безопасность</string>
     <string name="settings_open_to_collaboration">Открыт к сотрудничеству</string>
-    <string name="settings_open_to_collaboration_hint">Вас смогут находить в поиске людей и в рекомендациях</string>
+    <string name="settings_open_to_collaboration_hint">Вас будут показывать в рекомендациях людей</string>
     <string name="settings_profile_missing_hint">Сначала заполните профиль: укажите имя</string>
     <string name="settings_save_error">Не удалось сохранить настройку. Попробуйте ещё раз</string>
     <string name="settings_load_error">Не удалось загрузить настройки</string>
