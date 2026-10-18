@@ -14,7 +14,9 @@ import kotlin.time.Instant
 /**
  * The person as an author, a member or an owner is shown: the id, the name and whether the server verified them.
  * The name is as the person wrote it and may be empty (a new account has none yet; the UI writes the placeholder).
- * API-GAP G18: there is no avatar, the app draws a placeholder from the id.
+ * API-GAP G18: there is no avatar, the app draws a placeholder from the id. API-GAP G55: the schema does not require
+ * `user_id`, so the id is empty when the server left it out; whoever asked for a person by id gives the profile that
+ * id (`copy(id = …)`), as the profile data layer does.
  */
 fun UserProfileDto.toUserSummary(): UserSummary =
     UserSummary(id = UserId(userId), name = details.displayName.trim(), avatarUrl = null, isVerified = verified)
@@ -48,8 +50,15 @@ fun UserProfileDto.ratingOrNull(): Double? = rating.takeIf { reviewCount > 0 }
 
 /**
  * The moment that is [seconds] after the start of the epoch (1970-01-01T00:00:00Z), the way the API writes its
- * `*_unix` fields; `null` when the server left the field out (`0`, protobuf JSON leaves zeros out) or sent a
- * negative number: a date of 1970 is not a date of this app's data.
+ * `*_unix` fields; `null` when the field is not a date of this app's data:
+ * - `0`, the server left the field out (protobuf JSON leaves zeros out), or a negative number: a date of 1970 or
+ *   before is not a date of this app's data;
+ * - a number past the end of the year 9999 ([MaxUnixSeconds]), such as `Long.MAX_VALUE`: the calendar cannot turn a
+ *   moment like that into a month and a year, and a garbage number of the server must not fail the mapping of the
+ *   whole page it came with. It is "unknown", like a field that was not there.
  */
 fun instantOfUnixSeconds(seconds: Long): Instant? =
-    if (seconds > 0) Instant.fromEpochSeconds(seconds) else null
+    if (seconds in 1..MaxUnixSeconds) Instant.fromEpochSeconds(seconds) else null
+
+/** The last second of the year 9999 (9999-12-31T23:59:59Z) in seconds since the epoch: the latest date accepted. */
+private const val MaxUnixSeconds = 253_402_300_799L

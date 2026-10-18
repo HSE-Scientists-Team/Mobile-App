@@ -191,6 +191,15 @@ class ProfileDtoTest {
     }
 
     @Test
+    fun aProfileThatLeavesOutTheUserIdIsASummaryWithTheEmptyIdAndTheNameStays() {
+        // API-GAP G55: the schema does not require `user_id`; whoever asked for the person gives the profile its id.
+        val summary = profile("""{"details":{"display_name":" Елена "}}""").toUserSummary()
+
+        assertEquals(UserId(""), summary.id)
+        assertEquals("Елена", summary.name)
+    }
+
+    @Test
     fun aCollaboratorTakesTheUniversityTheStudyAndTheField() {
         val collaborator = profile(ProfileSpec.Profile).toCollaborator()
 
@@ -250,5 +259,32 @@ class ProfileDtoTest {
         assertNull(instantOfUnixSeconds(0))
         assertNull(instantOfUnixSeconds(-1))
         assertNull(instantOfUnixSeconds(Long.MIN_VALUE))
+    }
+
+    // API-GAP G57: the `*_unix` fields have no bounds in the schema, so a number the calendar cannot hold is "unknown".
+
+    @Test
+    fun aUnixTimeIsKnownFromTheFirstSecondOfTheEpochToTheLastSecondOfTheYear9999() {
+        assertEquals(Instant.parse("1970-01-01T00:00:01Z"), instantOfUnixSeconds(1))
+        assertEquals(Instant.parse("9999-12-31T23:59:59Z"), instantOfUnixSeconds(253_402_300_799))
+    }
+
+    @Test
+    fun aUnixTimePastTheYear9999IsUnknownAndDoesNotThrow() {
+        assertNull(instantOfUnixSeconds(253_402_300_800), "the first second of the year 10000")
+        assertNull(instantOfUnixSeconds(253_402_300_801))
+        assertNull(instantOfUnixSeconds(Long.MAX_VALUE))
+        assertNull(instantOfUnixSeconds(Long.MAX_VALUE - 1))
+        // What a server writes for "forever" or for an overflowed counter.
+        assertNull(instantOfUnixSeconds(Int.MAX_VALUE.toLong() * 1_000_000))
+    }
+
+    @Test
+    fun theBoundsAreTheSameForEveryNumberThatIsNotARealDate() {
+        // Zero and the negatives are below the range, the huge numbers above it; nothing in between is lost.
+        val unknown = listOf(Long.MIN_VALUE, -1_000_000_000_000, -1, 0, 253_402_300_800, 1_000_000_000_000_000, Long.MAX_VALUE)
+        for (seconds in unknown) assertNull(instantOfUnixSeconds(seconds), "$seconds")
+        val known = listOf(1L, 86_400, 1_760_000_000, 4_102_444_800 /* 2100-01-01 */, 253_402_300_799)
+        for (seconds in known) assertEquals(Instant.fromEpochSeconds(seconds), instantOfUnixSeconds(seconds), "$seconds")
     }
 }
