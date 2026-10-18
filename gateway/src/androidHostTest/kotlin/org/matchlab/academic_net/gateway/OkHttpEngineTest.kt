@@ -15,6 +15,8 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -87,6 +89,81 @@ class OkHttpEngineTest {
                     }
                     Reply.HangUp -> client.close()
                     Reply.Silent -> Unit // the socket stays open until the server is closed
+                }
+            } catch (_: IOException) {
+                // The client went away.
+            }
+        }
+
+        private fun readLine(input: InputStream): String? {
+            val line = StringBuilder()
+            while (true) {
+                val next = input.read()
+                if (next < 0) return if (line.isEmpty()) null else line.toString()
+                if (next == '\n'.code) return line.toString().trimEnd('\r')
+                line.append(next.toChar())
+            }
+        }
+
+        override fun close() {
+            clients.forEach { runCatching { it.close() } }
+            server.close()
+        }
+    }
+
+    /**
+     * A server that keeps its connection open after the first answer (HTTP/1.1 keep-alive) and from then on takes every
+     * request it gets and hangs up without an answer. To a client that reuses the connection from its pool, this is
+     * what a connection that died while it was idle looks like: the request goes out, and the answer never comes.
+     */
+    private class DroppingServer : AutoCloseable {
+        private val server = ServerSocket(0, 50, InetAddress.getLoopbackAddress())
+        private val clients = CopyOnWriteArrayList<Socket>()
+        private val answeredOnce = AtomicBoolean(false)
+
+        /** The request line of every request that arrived, in the order of arrival (kept before the hang-up). */
+        val requests = CopyOnWriteArrayList<String>()
+        val port: Int get() = server.localPort
+
+        init {
+            thread(isDaemon = true, name = "dropping-accept") {
+                while (true) {
+                    val client = try {
+                        server.accept()
+                    } catch (_: IOException) {
+                        return@thread
+                    }
+                    clients += client
+                    thread(isDaemon = true, name = "dropping-client") { serve(client) }
+                }
+            }
+        }
+
+        private fun serve(client: Socket) {
+            try {
+                val input = client.getInputStream()
+                while (true) {
+                    val line = readLine(input) ?: return
+                    var length = 0
+                    while (true) {
+                        val header = readLine(input) ?: return
+                        if (header.isEmpty()) break
+                        if (header.substringBefore(':').equals("content-length", ignoreCase = true)) {
+                            length = header.substringAfter(':').trim().toInt()
+                        }
+                    }
+                    input.readNBytes(length)
+                    requests += line
+                    if (!answeredOnce.compareAndSet(false, true)) {
+                        client.close() // the request is taken and the connection dropped, no answer
+                        return
+                    }
+                    val body = Spec.UserIdAnswer.toByteArray(Charsets.UTF_8)
+                    val head = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${body.size}\r\n\r\n"
+                    client.getOutputStream().apply {
+                        write(head.toByteArray(Charsets.UTF_8) + body)
+                        flush()
+                    }
                 }
             } catch (_: IOException) {
                 // The client went away.
@@ -289,6 +366,54 @@ class OkHttpEngineTest {
 
                 assertEquals(Spec.UserId, gateway.account.currentSession("tok-1").userId)
             }
+        }
+    }
+
+    // ---- a POST is never sent twice behind the back of the caller (API-GAP G48) ----
+
+    @Test
+    fun aPostOnAKeptConnectionThatTheServerDropsIsSentOnceAndNotAgainBehindTheBack() = runTest {
+        DroppingServer().use { server ->
+            withRealGateway(server.port) { gateway ->
+                // The first call leaves its connection in the pool of the engine.
+                gateway.account.currentSession("tok-1")
+
+                // The login goes out on that connection; the server takes it and hangs up. OkHttp, left to itself, would
+                // send it again on a new connection, and a second sign-in (a second session) would be made.
+                failureOf<RemoteFailure.NoConnection> { gateway.account.login(Spec.credentials) }
+            }
+
+            assertEquals(
+                listOf("GET /api/v1/sessions/current HTTP/1.1", "POST /api/v1/auth/login HTTP/1.1"),
+                server.requests,
+                "the POST arrived once",
+            )
+        }
+    }
+
+    @Test
+    fun aPostToAServerThatHangsUpOnTheNewConnectionIsSentOnce() = runTest {
+        LoopbackServer { Reply.HangUp }.use { server ->
+            withRealGateway(server.port) { gateway ->
+                failureOf<RemoteFailure.NoConnection> { gateway.account.login(Spec.credentials) }
+            }
+
+            assertEquals(listOf("POST /api/v1/auth/login HTTP/1.1"), server.received.map { it.line })
+        }
+    }
+
+    @Test
+    fun theRetryOfTheUserIsAnotherRequestAndGoesOut() = runTest {
+        // The refusal to repeat is the engine's; a second try of the user (the button "Повторить") is a new call.
+        val attempts = AtomicInteger()
+        LoopbackServer { if (attempts.incrementAndGet() == 1) Reply.HangUp else json(Spec.LoginAnswer) }.use { server ->
+            withRealGateway(server.port) { gateway ->
+                failureOf<RemoteFailure.NoConnection> { gateway.account.login(Spec.credentials) }
+
+                assertEquals(Spec.UserId, gateway.account.login(Spec.credentials).userId)
+            }
+
+            assertEquals(2, server.received.size)
         }
     }
 }
