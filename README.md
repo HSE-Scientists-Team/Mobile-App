@@ -19,6 +19,30 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
 - Android app: `./gradlew :androidApp:assembleDebug`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
 
+### Режимы приложения: сервер или мок
+
+Приложение работает в одном из двух режимов (`Backend` в `:shared`), на процесс:
+
+- **Gateway** (по умолчанию): вход, регистрация и проверка сессии идут на сервер MatchLab Gateway (`docs/openapi.yaml`). Остальные
+  экраны пока отдают моки. iOS всегда запускается в этом режиме.
+- **Mock**: всё работает в памяти, сеть не нужна. Нужен, чтобы смотреть экраны: в режиме Gateway при недоступном сервере видны только
+  экраны ошибок. Зарегистрироваться можно любой почтой доверенного домена (например, `student@hse.ru`, список — в
+  `:mockserver`), ссылка из письма — `123456`.
+
+Режим Android выбирается при сборке Gradle-свойствами:
+
+```
+./gradlew :androidApp:assembleDebug                                   # Gateway, продовый адрес
+./gradlew :androidApp:assembleDebug -Pmatchlab.backend=mock           # мок
+./gradlew :androidApp:assembleDebug -Pmatchlab.gatewayUrl=http://10.0.2.2:8080   # свой Gateway, например Docker Compose
+                                                                      # бэкенда на машине разработки (адрес хоста из эмулятора)
+```
+
+`matchlab.backend` — `gateway` или `mock`, `matchlab.gatewayUrl` — адрес с `http://` или `https://` (пусто — продовый сервер). Значения
+попадают в `BuildConfig` (`MOCK_BACKEND`, `GATEWAY_URL`); неверное значение останавливает сборку. Открытый HTTP разрешён только в
+отладочной сборке и только для `10.0.2.2` и `localhost`; отладочная сборка пишет в лог метод, адрес и статус вызовов (без тел и токенов).
+Превью работает на моке, каталог компонентов от режима не зависит (он не использует `App`).
+
 ### Running tests
 
 Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:

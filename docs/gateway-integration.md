@@ -174,6 +174,37 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   для `POST /projects` и отправки достижений (блоки 2 и 4) возможен дубль: решение за этими блоками (например,
   `retryOnConnectionFailure(false)` в `platformHttpEngine`).
 
+### Реализация `:shared` и `androidApp` (шаг 6c): что вышло иначе или уточнилось
+
+- **Дочерний компонент kotlin-inject 0.9.0 работает и на iOS.** `@Component val app: AppComponent` в конструкторе `SessionComponent` и
+  `@KmpComponentCreate expect fun createSessionComponent(app, session)` компилируются для `iosArm64` и `iosSimulatorArm64`, сгенерированный
+  код совпадает с Android. Типы с областью родителя ребёнок берёт из `app._scoped` и из открытых свойств родителя (`app.authRepository`),
+  второго `AuthRepository` не появляется. Запуск на iOS не проверялся (Xcode не установлен).
+- **`GatewayFactory`** — третий параметр `createAppComponent` (по умолчанию движок платформы): через него тесты строят Gateway на
+  `MockEngine`, и режим Gateway запускается без сети. В режиме Mock клиент не создаётся, а запрос его у графа — `IllegalStateException`,
+  а не клиент, который звонил бы на продовый адрес.
+- **`AppGraph.get(secureStore, backend)`** отдаёт `AppGraphs(app, sessions)` и запускает восстановление сессии в процессном
+  `CoroutineScope` (`AppGraphs.start`), а не в `LaunchedEffect` корня: проверка токена на старте не обрывается поворотом экрана или
+  пересозданием активности. `SessionGraphs` реализует `ComponentSessionGraphs` (тот же `Session` — тот же граф; другая сессия закрывает
+  открытую; `close()` не делает ничего, если ничего не открыто).
+- **Корень разложен на проверяемые функции:** `toRootScreen()` (`RootScreen.kt`: заставка, вход, вкладки — только по `AuthState`),
+  `GraphViewModelStores.release(state, sessions)` (при `SignedIn` чистит ViewModel входа, при `SignedOut` сначала ViewModel вкладок, потом
+  закрывает граф), `AuthFlow` (почта и флаг «почта подтверждена» между экранами входа, в `rememberSaveable`; пароля в нём нет), граф
+  входа — `AuthNavHost.kt`, маршруты — `AuthRoutes`. Событие экрана, который пользователь уже покинул, не меняет `AuthFlow`.
+- **Возврат с подтверждения на вход** — `navigateOnce(entry, auth/sign_in) { popUpTo(auth/sign_in) { inclusive = true } }`. В передаче 6b
+  `popUpTo` был без `inclusive`: в стеке остались бы два экрана входа, старый под новым (по исходникам
+  `NavControllerImpl.navigate` библиотеки: после `popUpTo` целевой экран без `launchSingleTop` добавляется ещё раз).
+- **`SessionResources`** — `@Inject @SessionScope`: сессионный `CoroutineScope` и закрываемые ресурсы; `close()` отменяет scope, затем
+  закрывает ресурсы в обратном порядке, сбой одного не мешает остальным (первый сбой бросается в конце), повторный вызов ничего не делает;
+  ресурс, зарегистрированный после `close()`, закрывается сразу (поздний `Lazy<GatewaySession>` не оставляет клиента без хозяина).
+  Потокобезопасен (атомарная ссылка), как и `InMemorySecureStore`.
+- **Мок-источники остаются на своём зрителе** (`MockAccounts.viewer`, `user-me`) в обоих режимах: мок-мир знает людей только под своими id, и
+  `session.userId` сервера дал бы пустой профиль. В режиме Mock они совпадают. Gateway-источники блоков 2–5 берут `session.userId`.
+  `MockChatsDataSource(seed = backend == Backend.Mock)` — демо-чатов в режиме Gateway нет.
+- **Android:** свойства `matchlab.backend` и `matchlab.gatewayUrl` проверяются при конфигурации сборки (неверное значение останавливает
+  её с понятным сообщением), в `BuildConfig` идут `MOCK_BACKEND` и `GATEWAY_URL`; `network_security_config` с открытым HTTP только к
+  `10.0.2.2` и `localhost` лежит в `src/debug`. `Backend.Gateway` проверяет адрес сразу при создании, а не при первом входе.
+
 ### Моки и `:mockserver`
 
 Моки остаются для трёх задач: `Backend.Mock`, фикстуры тестов ViewModel (по соглашению CLAUDE.md) и чаты, которых в API
