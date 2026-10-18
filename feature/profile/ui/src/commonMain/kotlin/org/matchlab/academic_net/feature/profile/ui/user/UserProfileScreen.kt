@@ -33,7 +33,6 @@ import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiModel
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_load_error
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_message
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_found_text
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_found_title
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_retry
@@ -45,10 +44,10 @@ import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
 /**
  * "09 Профиль коллаборатора": the profile of another person, read-only. The actions of the
  * design that belong to later stories (invite, open to collaboration, report, block) are not
- * shown; one wide "Написать" stands for the invite and the chat.
+ * shown; the chat icon in the header stands for the invite and the chat.
  *
  * @param onNavigateBack the back arrow of the app bar
- * @param onMessageClick "Написать"; not shown on the viewer's own page
+ * @param onMessageClick the chat icon of the header ("Написать"); not shown on the viewer's own page
  * @param onAllWorksClick "Все" of the works
  * @param onAllReviewsClick "Все N" of the reviews
  * @param onReviewClick a review card
@@ -147,9 +146,9 @@ private fun ColumnScope.ProfileContent(
                 isVerified = profile.user.isVerified,
                 // Verification status of the person; on their own page it is not needed.
                 statuses = if (profile.canMessage) listOf(verificationStatus(profile.user.isVerified)) else emptyList(),
-                actionText = if (profile.canMessage) stringResource(Res.string.profile_message) else null,
+                showChatButton = profile.canMessage,
             ),
-            onActionClick = onMessageClick,
+            onChatClick = onMessageClick,
         )
         ProfileSections(
             profile = profile,

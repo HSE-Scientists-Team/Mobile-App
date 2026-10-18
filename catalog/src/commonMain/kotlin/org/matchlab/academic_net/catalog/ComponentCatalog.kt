@@ -581,7 +581,7 @@ private fun ProjectsComponents() {
 @Composable
 private fun ProfileComponents() {
     Section(":feature:profile:ui") {
-        // Someone else's profile: the verification chip and one wide button.
+        // Someone else's profile: the verification chip and the chat icon at the end of the first row.
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = "Арджун Мехта",
@@ -589,16 +589,27 @@ private fun ProfileComponents() {
                 avatar = Elena,
                 isVerified = true,
                 statuses = listOf(ProfileStatusUiModel("Профиль подтверждён", AppStatusChipTone.Success)),
-                actionText = "Написать",
+                showChatButton = true,
             ),
         )
-        // Own profile: no chip, no button.
+        // Own profile: no chip, no chat icon.
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = "Алексей Морозов",
                 subtitle = "Stanford University · 3 курс · Computer Science",
                 avatar = Arjun,
                 isVerified = true,
+            ),
+        )
+        // The text column is narrow next to the icon: a long name takes two lines, the subtitle wraps.
+        ProfileHeaderCard(
+            ProfileHeaderCardUiModel(
+                name = "Александра Константинопольская-Вишневецкая",
+                subtitle = "Московский государственный университет имени М. В. Ломоносова · аспирантка · биоинформатика",
+                avatar = Elena,
+                isVerified = true,
+                statuses = listOf(ProfileStatusUiModel("Профиль не подтверждён", AppStatusChipTone.Off)),
+                showChatButton = true,
             ),
         )
         // The three marks: confirmed, being checked (only the owner sees it) and not confirmed.
