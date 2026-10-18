@@ -145,6 +145,10 @@ internal fun ConfirmEmailScreen(
                     autoCorrectEnabled = false,
                 ),
                 keyboardActions = KeyboardActions(onDone = { onConfirmLinkClick() }),
+                // The link of the letter holds a one-time token: it must not be written to the saved state of the
+                // system (the Bundle that goes to disk). The text lives in the view model, so a recreated activity
+                // shows it anyway.
+                saveState = false,
                 errorText = state.linkProblem?.text(),
             )
             FormButton(
