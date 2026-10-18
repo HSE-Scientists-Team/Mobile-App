@@ -56,6 +56,10 @@ data class EditProfileUiState(
  *
  * **One save at a time**: [onSaveClick] does nothing while the form is being saved and after it has been (the screen is
  * about to close), so a double tap cannot save twice.
+ *
+ * **The form waits while it is saved** ([EditProfileUiState.isSaving]): the fields are switched off, and a change that
+ * comes all the same (a late key, a tap on a chip) is ignored, as the forms of a work and of a document do. The save
+ * has its own copy of the form, so such a change would be shown on the screen and never reach the server.
  */
 class EditProfileViewModel(
     private val observeMyProfile: ObserveMyProfileUseCase,
@@ -156,6 +160,8 @@ class EditProfileViewModel(
 
     private fun editDraft(transform: (ProfileDraft) -> ProfileDraft) {
         state.update { current ->
+            // The form is being saved, or has been and is about to close: the save has its own copy of it.
+            if (current.isSaving) return@update current
             val draft = transform(current.draft)
             current.copy(
                 draft = draft,

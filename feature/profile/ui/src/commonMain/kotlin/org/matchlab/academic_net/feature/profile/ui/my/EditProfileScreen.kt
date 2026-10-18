@@ -233,6 +233,8 @@ private fun EditForm(
     val draft = state.draft
     val errors = state.errors
     val required = stringResource(Res.string.profile_error_required)
+    // What is typed while the form is being saved would be lost (the save has its own copy), so the fields wait.
+    val fieldsEnabled = !state.isSaving
     Column(
         modifier
             .verticalScroll(rememberScrollState())
@@ -243,6 +245,7 @@ private fun EditForm(
             value = draft.name,
             onValueChange = onNameChange,
             label = stringResource(Res.string.profile_field_name),
+            enabled = fieldsEnabled,
             errorText = when {
                 ProfileDraftError.NameEmpty in errors -> required
                 ProfileDraftError.NameTooLong in errors ->
@@ -254,6 +257,7 @@ private fun EditForm(
             value = draft.university,
             onValueChange = onUniversityChange,
             label = stringResource(Res.string.profile_field_university),
+            enabled = fieldsEnabled,
             errorText = if (ProfileDraftError.UniversityTooLong in errors) {
                 stringResource(Res.string.profile_error_text_too_long, ProfileLimits.MaxUniversityLength)
             } else {
@@ -267,6 +271,7 @@ private fun EditForm(
                 onValueChange = onStudyLevelChange,
                 label = stringResource(Res.string.profile_field_study_level),
                 modifier = Modifier.weight(1f),
+                enabled = fieldsEnabled,
                 errorText = if (ProfileDraftError.StudyLevelTooLong in errors) {
                     stringResource(Res.string.profile_error_text_too_long, ProfileLimits.MaxStudyLevelLength)
                 } else {
@@ -278,6 +283,7 @@ private fun EditForm(
                 onValueChange = onStudyYearChange,
                 label = stringResource(Res.string.profile_field_study_year),
                 modifier = Modifier.weight(1f),
+                enabled = fieldsEnabled,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 errorText = if (ProfileDraftError.StudyYearInvalid in errors) {
                     stringResource(Res.string.profile_error_study_year, ProfileLimits.MinStudyYear, ProfileLimits.MaxStudyYear)
@@ -290,6 +296,7 @@ private fun EditForm(
             value = draft.field,
             onValueChange = onFieldChange,
             label = stringResource(Res.string.profile_field_field),
+            enabled = fieldsEnabled,
             errorText = if (ProfileDraftError.FieldTooLong in errors) {
                 stringResource(Res.string.profile_error_text_too_long, ProfileLimits.MaxFieldLength)
             } else {
@@ -302,6 +309,7 @@ private fun EditForm(
             label = stringResource(Res.string.profile_field_about),
             placeholder = stringResource(Res.string.profile_field_about_hint),
             singleLine = false,
+            enabled = fieldsEnabled,
             errorText = if (ProfileDraftError.AboutTooLong in errors) {
                 stringResource(Res.string.profile_error_about_too_long, ProfileLimits.MaxAboutLength)
             } else {
@@ -322,7 +330,8 @@ private fun EditForm(
                         AppFilterChip(
                             text = type.interestLabel(),
                             selected = type in draft.interestTypes,
-                            onClick = { onInterestTypeToggle(type) },
+                            // A chip without a tap is a plain label: it waits while the form is saved.
+                            onClick = if (fieldsEnabled) ({ onInterestTypeToggle(type) }) else null,
                         )
                     }
                 }
@@ -335,6 +344,7 @@ private fun EditForm(
                 onAddTag = onAddInterest,
                 onRemoveTag = onRemoveInterest,
                 placeholder = stringResource(Res.string.profile_tags_hint),
+                enabled = fieldsEnabled,
             )
             if (ProfileDraftError.TooManyInterests in errors) {
                 FormErrorText(stringResource(Res.string.profile_error_too_many_interests, ProfileLimits.MaxTags))
@@ -347,6 +357,7 @@ private fun EditForm(
                 onAddTag = onAddSkill,
                 onRemoveTag = onRemoveSkill,
                 placeholder = stringResource(Res.string.profile_tags_hint),
+                enabled = fieldsEnabled,
             )
             if (ProfileDraftError.TooManySkills in errors) {
                 FormErrorText(stringResource(Res.string.profile_error_too_many_skills, ProfileLimits.MaxTags))

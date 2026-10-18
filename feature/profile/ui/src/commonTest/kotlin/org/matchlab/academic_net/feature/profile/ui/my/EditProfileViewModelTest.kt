@@ -312,4 +312,138 @@ class EditProfileViewModelTest {
         assertEquals("аспирантура", sent.studyLevel)
         assertEquals(3, sent.studyYearNumber)
     }
+
+    // ---- the form while it is saved ----
+
+    /**
+     * Every edit the screen has, each with a value that differs from what the form of [myProfile] holds (the name, the
+     * university, the study, the field, the text, the interest "ML", the skill "Kotlin", no type of interest).
+     */
+    private fun EditProfileViewModel.editEverything() {
+        onNameChange("Другое имя")
+        onUniversityChange("МГУ")
+        onStudyLevelChange("Аспирантура")
+        onStudyYearChange("2")
+        onFieldChange("Biology")
+        onAboutChange("Другой текст")
+        onInterestTypeToggle(ProjectType.Scientific)
+        onAddInterest("NLP")
+        onRemoveInterest("ML")
+        onAddSkill("Rust")
+        onRemoveSkill("Kotlin")
+    }
+
+    @Test
+    fun editsWhileTheFormIsBeingSavedChangeNothing() {
+        val gate = CompletableDeferred<Unit>()
+        repository.onUpdateProfile = { gate.await(); repository.profile.value }
+        val viewModel = viewModel()
+        val inTheSave = viewModel.uiState.value.draft
+
+        viewModel.onSaveClick()
+        assertTrue(viewModel.uiState.value.isSaving)
+        viewModel.editEverything()
+
+        val busy = viewModel.uiState.value
+        assertEquals(inTheSave, busy.draft, "the save has its own copy of the form: the screen must not show more")
+        assertEquals(emptySet(), busy.errors, "an ignored edit cannot bring a problem of the form up")
+        assertTrue(busy.isSaving)
+        gate.complete(Unit)
+        assertEquals(inTheSave, viewModel.uiState.value.draft)
+        assertEquals(inTheSave.normalized(), repository.updatedProfiles.single(), "what is shown is what was sent")
+    }
+
+    @Test
+    fun anEditThatWouldBreakTheFormIsIgnoredWhileItIsBeingSaved() {
+        val gate = CompletableDeferred<Unit>()
+        repository.onUpdateProfile = { gate.await(); repository.profile.value }
+        val viewModel = viewModel()
+        viewModel.onSaveClick() // showErrors is on from now
+
+        viewModel.onNameChange("")
+        viewModel.onStudyYearChange("9")
+
+        val busy = viewModel.uiState.value
+        assertEquals("Арджун Мехта", busy.draft.name)
+        assertEquals("3", busy.draft.studyYear)
+        assertEquals(emptySet(), busy.errors)
+        gate.complete(Unit)
+        assertEquals("Арджун Мехта", repository.updatedProfiles.single().name)
+    }
+
+    @Test
+    fun editsAfterASuccessfulSaveChangeNothingWhileTheScreenCloses() {
+        val viewModel = viewModel()
+        viewModel.onNameChange("Сохранённое имя")
+        viewModel.onSaveClick()
+        val saved = viewModel.uiState.value
+        assertTrue(saved.isSaved)
+        assertTrue(saved.isSaving, "the form stays busy until it has faded out")
+
+        viewModel.editEverything()
+
+        val after = viewModel.uiState.value
+        assertEquals(saved.draft, after.draft)
+        assertEquals("Сохранённое имя", after.draft.name)
+        assertEquals(saved, after, "nothing of the state moves once the changes are saved")
+        assertEquals("Сохранённое имя", repository.updatedProfiles.single().name)
+    }
+
+    @Test
+    fun afterAFailedSaveTheEditsWorkAgainAndWhatWasIgnoredStaysIgnored() {
+        val gate = CompletableDeferred<Unit>()
+        repository.onUpdateProfile = { gate.await(); throw IllegalStateException("no network") }
+        val viewModel = viewModel()
+        val inTheSave = viewModel.uiState.value.draft
+        viewModel.onSaveClick()
+        viewModel.editEverything() // ignored: the form is busy
+        gate.complete(Unit)
+        with(viewModel.uiState.value) {
+            assertFalse(isSaving)
+            assertTrue(saveFailed)
+            assertEquals(inTheSave, draft, "the failed save leaves the form as the save saw it")
+        }
+
+        viewModel.onNameChange("Новое имя")
+        viewModel.onAddSkill("Rust")
+        viewModel.onInterestTypeToggle(ProjectType.Practical)
+
+        with(viewModel.uiState.value) {
+            assertEquals("Новое имя", draft.name)
+            assertEquals(listOf("Kotlin", "Rust"), draft.skills)
+            assertEquals(setOf(ProjectType.Practical), draft.interestTypes)
+            assertEquals(inTheSave.university, draft.university, "the ignored edit of the university did not come back")
+            assertFalse(saveFailed, "an edit hides the failure")
+        }
+
+        // The next save sends what was typed after the failure, nothing of what was ignored.
+        repository.onUpdateProfile = { repository.profile.value }
+        viewModel.onSaveClick()
+        val sent = repository.updatedProfiles.last()
+        assertEquals(2, repository.updatedProfiles.size)
+        assertEquals("Новое имя", sent.name)
+        assertEquals(listOf("Kotlin", "Rust"), sent.skills)
+        assertEquals(setOf(ProjectType.Practical), sent.interestTypes)
+        assertEquals(inTheSave.university, sent.university)
+        assertEquals(inTheSave.about, sent.about)
+        assertTrue(viewModel.uiState.value.isSaved)
+    }
+
+    @Test
+    fun anInvalidFormThatIsNotSentLeavesTheFormOpenForEdits() {
+        val viewModel = viewModel()
+        viewModel.onNameChange("")
+        viewModel.onSaveClick()
+        assertEquals(setOf(ProfileDraftError.NameEmpty), viewModel.uiState.value.errors)
+        assertFalse(viewModel.uiState.value.isSaving, "nothing was sent: the form is not busy")
+
+        viewModel.onNameChange("Имя")
+        viewModel.onAddSkill("Rust")
+
+        with(viewModel.uiState.value) {
+            assertEquals("Имя", draft.name)
+            assertEquals(listOf("Kotlin", "Rust"), draft.skills)
+            assertEquals(emptySet(), errors)
+        }
+    }
 }
