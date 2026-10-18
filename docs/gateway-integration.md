@@ -1,7 +1,7 @@
 # Подключение к MatchLab Gateway: архитектура
 
-Статус на 2026-10-18: **реализованы шаги 5 (`:gateway`) и 6 (вход по почте и паролю, граф сессии); профили, поиск и проекты — по планам `docs/gateway-block2-profiles.md`, `docs/gateway-blocks3-5-search-and-projects.md` с поправкой «без догадок по API» (`docs/api-gaps.md`).** Контракт API —
-`docs/openapi.yaml` (Gateway API v2.4.0). Список правок интерфейса и багов — `docs/plan-ui-and-backend.md`.
+Статус на 2026-10-18: **реализованы шаги 5 (`:gateway`) и 6 (вход по почте и паролю, граф сессии) и блоки 2 (профили, отзывы, правка работ и документов, настройки), 3 (поиск людей, лента) и «Проекты, сторона чтения» (поиск проектов, страница проекта, добавление роли; блоки 4–5 объединены) — по планам `docs/gateway-block2-profiles.md`, `docs/gateway-blocks3-5-search-and-projects.md` с поправкой «без догадок по API»: где планы предлагают «лучшее предположение» (значения `type`/`status`/`action`/`mine`/`duration`, формат `planned_*`, `GatewayVocabulary`), действует `docs/api-gaps.md`. Создание проекта, «Мои проекты» и «Снять с публикации» отключены пробелами G40–G44.** Межслойные контракты блоков — `docs/contract-b3.md`, `docs/contract-p45.md`. Контракт API —
+`docs/openapi.yaml` (Gateway API v2.5.0). Список правок интерфейса и багов — `docs/plan-ui-and-backend.md`.
 
 Живой сервер с машины разработки недоступен (TLS зависает), поэтому всё сверяется с примерами спецификации через
 `ktor-client-mock`; приёмка на устройстве — за пользователем.
@@ -48,9 +48,10 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
 - `SignedIn(session)` → `AppGraph.open(session)` (для той же сессии тот же компонент: переживает поворот). `SignedOut` →
   очистка `stores.main` и `AppGraph.close()`: кэши, мок-чаты, корутины и клиент прежнего аккаунта уничтожаются
   (закрывает ограничение «Мок-данные между аккаунтами» из `sprint-1.md`).
-- `DataSourcesModule` (бывший `MockDataSourcesModule`, все провайдеры `@SessionScope`) решает через `when (backend)`;
-  Gateway-зависимости приходят как `Lazy<GatewaySession>`, чтобы в режиме mock клиент не создавался. Фичи до своего блока
-  работают на моке в обоих режимах.
+- `DataSourcesModule` (бывший `MockDataSourcesModule`, все провайдеры `@SessionScope`) выбирает источники: подключённые фичи (профили,
+  настройки, поиск людей, лента, проекты) берут `GatewaySession` и `session.userId` напрямую, без `Lazy` и без `when (backend)`;
+  `when (backend)` остался у чатов (`MockChatsDataSource`, G50) и у входа (`AuthModule`, мок-вход). Поэтому в режиме Mock граф сессии не
+  собирается: `Gateway` там — `IllegalStateException` (режим Mock удалит tester).
 - Альтернатива: один граф, `ViewerIdProvider` в `:common` и ручной сброс кэшей в `signOut`. DI проще, но viewerId
   становится nullable, а забытый кэш покажет данные прежнего аккаунта.
 
@@ -110,7 +111,8 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
   `network_security_config` с cleartext только для `10.0.2.2` и `localhost`. **В манифесте нет `INTERNET` — добавить.**
 - Движки: `expect fun platformHttpEngine(config)` — OkHttp на Android, Darwin на iOS, `MockEngine` в тестах.
 - iOS: `MainViewController()` не меняется (берёт `Backend.Gateway()`), `iosApp/` не трогаем.
-- Режим mock нужен, чтобы проверять UI на эмуляторе: в режиме Gateway при недоступном сервере видны только экраны ошибок.
+- Режим mock остался только ради мок-входа и будет удалён: профилям, настройкам, поиску, ленте и проектам нужен сервер, граф сессии из мока
+  не собирается; проверять UI запуском на эмуляторе запрещено пользователем.
 
 ### Версии (проверены на Maven Central 2026-10-17)
 
@@ -198,18 +200,20 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   закрывает ресурсы в обратном порядке, сбой одного не мешает остальным (первый сбой бросается в конце), повторный вызов ничего не делает;
   ресурс, зарегистрированный после `close()`, закрывается сразу (поздний `Lazy<GatewaySession>` не оставляет клиента без хозяина).
   Потокобезопасен (атомарная ссылка), как и `InMemorySecureStore`.
-- **Мок-источники остаются на своём зрителе** (`MockAccounts.viewer`, `user-me`) в обоих режимах: мок-мир знает людей только под своими id, и
-  `session.userId` сервера дал бы пустой профиль. В режиме Mock они совпадают. Gateway-источники блоков 2–5 берут `session.userId`.
-  `MockChatsDataSource(seed = backend == Backend.Mock)` — демо-чатов в режиме Gateway нет.
+- **Зритель.** Мок-вход сажает любого на `MockAccounts.viewer` (`user-me`); у остальных фич моков больше нет (мок-мир людей и проектов удалён),
+  их Gateway-источники берут `session.userId`. `MockChatsDataSource(seed = backend == Backend.Mock)` — демо-чатов в режиме Gateway нет.
 - **Android:** свойства `matchlab.backend` и `matchlab.gatewayUrl` проверяются при конфигурации сборки (неверное значение останавливает
   её с понятным сообщением), в `BuildConfig` идут `MOCK_BACKEND` и `GATEWAY_URL`; `network_security_config` с открытым HTTP только к
   `10.0.2.2` и `localhost` лежит в `src/debug`. `Backend.Gateway` проверяет адрес сразу при создании, а не при первом входе.
 
 ### Моки и `:mockserver`
 
-Моки остаются для трёх задач: `Backend.Mock`, фикстуры тестов ViewModel (по соглашению CLAUDE.md) и чаты, которых в API
-нет. `:mockserver` не удаляется (фразу «С бэкендом модуль удаляется целиком» в `sprint-1.md` заменить). В режиме Gateway
-демо-чатов нет (`seed = false`).
+Правило «заменил мок — удали мок»: когда фича переходит на API, её `Mock…DataSource`, мок-данные в `:mockserver` и тесты мока
+удаляются в том же шаге. Моки профилей, настроек, поиска людей, ленты, проектов, поиска проектов и страницы проекта удалены; на
+моках остались чаты (в API их нет, G50) и мок-вход `MockAuthDataSource` (`Backend.Mock`; его удаляет tester, вместе с
+`Backend.Mock`). `:mockserver` хранит только аккаунт мок-входа (`MockAccounts`) и реестр доменов (`MockTrustedDomains`) и исчезнет
+вместе с мок-входом. Тесты ViewModel подключённых фич идут на fake'ах из `commonTest`; `Mock…DataSource` нужны только тестам чатов и входа.
+В режиме Gateway демо-чатов нет (`seed = false`).
 
 ### Тесты
 
@@ -219,7 +223,8 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   `NoConnection`, битый JSON → `Malformed`, отмена проходит насквозь; 401 сессии вызывает слушателя ровно один раз с её
   токеном, 401 логина — ни разу; `FlexibleLongSerializer`, `null` вместо массивов, `ConfirmationLinks`.
 - data фич: фейки интерфейсов API без Ktor (перевод кодов в исходы домена, кэши, ревизии).
-- ViewModel: против `Mock…DataSource(latencyMillis = 0)`.
+- ViewModel: против fake-репозиториев и fake-источников из `commonTest` своего модуля (`Mock…DataSource(latencyMillis = 0)` остались только у
+  чатов и мок-входа).
 - `:shared`: режим mock — регистрация → подтверждение → вход → граф сессии → выход (после повторного входа граф — другой
   экземпляр); восстановление новым компонентом на том же `InMemorySecureStore`; режим Gateway — граф собирается без сети.
 - Kover: `kover(project(":gateway"))`; код в `iosMain` Kover не видит.
@@ -584,7 +589,8 @@ internal abstract class SessionComponent(@Component val app: AppComponent, @get:
 // SessionGatewayModule (SessionScope)
 @Provides @SessionScope fun gatewaySession(gateway: Gateway, session: Session, auth: AuthRepository, resources: SessionResources): GatewaySession =
     gateway.openSession(session.accessToken.value) { rejected -> auth.expireSession(AccessToken(rejected)) }.also(resources::closeOnEnd)
-// DataSourcesModule (was MockDataSourcesModule; all @SessionScope)
+// DataSourcesModule (was MockDataSourcesModule; all @SessionScope). A snapshot of step 6: the profile, settings, people search,
+// feed and projects are on the Gateway now (no `when (backend)`), only the chats keep a mock; see di/DataSourcesModule.kt.
 @Provides @SessionScope fun chatsDataSource(backend: Backend): ChatsDataSource = MockChatsDataSource(seed = backend == Backend.Mock)
 @Provides @SessionScope fun profileDataSource(resources: SessionResources): ProfileDataSource = MockProfileDataSource(scope = resources.scope)
 
