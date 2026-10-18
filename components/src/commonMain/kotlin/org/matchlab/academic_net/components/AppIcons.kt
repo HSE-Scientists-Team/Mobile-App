@@ -11,6 +11,7 @@ import academicnet.components.generated.resources.ic_calendar
 import academicnet.components.generated.resources.ic_check
 import academicnet.components.generated.resources.ic_chevron_right
 import academicnet.components.generated.resources.ic_clock
+import academicnet.components.generated.resources.ic_eye
 import academicnet.components.generated.resources.ic_eye_off
 import academicnet.components.generated.resources.ic_file_text
 import academicnet.components.generated.resources.ic_filter
@@ -50,6 +51,9 @@ object AppIcons {
     val Check: DrawableResource = Res.drawable.ic_check
     val ChevronRight: DrawableResource = Res.drawable.ic_chevron_right
     val Clock: DrawableResource = Res.drawable.ic_clock
+
+    /** "Show password": the pair of [EyeOff] ("hide password"). */
+    val Eye: DrawableResource = Res.drawable.ic_eye
     val EyeOff: DrawableResource = Res.drawable.ic_eye_off
     val FileText: DrawableResource = Res.drawable.ic_file_text
     val Filter: DrawableResource = Res.drawable.ic_filter

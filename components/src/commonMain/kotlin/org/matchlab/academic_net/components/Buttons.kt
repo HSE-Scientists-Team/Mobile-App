@@ -17,11 +17,13 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
@@ -44,13 +46,29 @@ enum class AppButtonVariant {
     /** Outlined in the error color, e.g. "Выгнать" on participant cards. */
     OutlinedError,
     Text,
+
+    /** [Text] in the error color, e.g. "Удалить работу" under a form or "Удалить" in a confirmation dialog. */
+    TextError,
 }
 
 /**
- * "Button/Filled", "Button/Tonal", "Button/Outlined" and "Button/Text": 40dp, full-round.
+ * "Button/Filled", "Button/Tonal", "Button/Outlined" and "Button/Text" (and their variants in the
+ * error color): 40dp, full-round.
  *
  * A burst of taps runs [onClick] once (see [rememberOnceClick]): a double tap cannot start the
  * action twice.
+ *
+ * With [enabled] `false` the button is dimmed and takes no taps. A [Text][AppButtonVariant.Text] button
+ * then writes its label in `onSurface` at 38% ("Отправить через 0:45" while the countdown runs).
+ *
+ * With [loading] the label is replaced by an arc that turns (2dp thick with round ends, 16dp across its
+ * center line as in the design, so 18dp with the stroke) in the color of the label of the variant
+ * (`onPrimary` on [Filled][AppButtonVariant.Filled]), and the taps do not pass. The button keeps its size,
+ * as the label stays in the layout invisible, and its colors: it is not dimmed like a disabled one, as it has
+ * not given up, it is busy (the "Войти" of a form while the request is on its way). The label stays for a
+ * screen reader, which also hears the progress.
+ *
+ * @param loading whether the action started by the button is in progress; it wins over [enabled]
  */
 @Composable
 fun AppButton(
@@ -59,49 +77,57 @@ fun AppButton(
     modifier: Modifier = Modifier,
     variant: AppButtonVariant = AppButtonVariant.Filled,
     enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val onceClick = rememberOnceClick(onClick)
-    val label: @Composable RowScope.() -> Unit = {
-        Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
+    // A loading button is switched off for taps, but keeps the colors of an enabled one: they are given
+    // to the disabled state too. Otherwise the default dimmed colors of the disabled state stay.
+    val canClick = enabled && !loading
+    val label: @Composable RowScope.() -> Unit = { ButtonLabel(text, loading) }
     when (variant) {
         AppButtonVariant.Filled -> Button(
             onClick = onceClick,
             modifier = modifier,
-            enabled = enabled,
+            enabled = canClick,
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = colors.primary,
                 contentColor = colors.onPrimary,
+                disabledContainerColor = colors.primary.keptWhile(loading),
+                disabledContentColor = colors.onPrimary.keptWhile(loading),
             ),
             content = label,
         )
         AppButtonVariant.Tonal -> FilledTonalButton(
             onClick = onceClick,
             modifier = modifier,
-            enabled = enabled,
+            enabled = canClick,
             shape = CircleShape,
             colors = ButtonDefaults.filledTonalButtonColors(
                 containerColor = colors.primaryContainer,
                 contentColor = colors.onPrimaryContainer,
+                disabledContainerColor = colors.primaryContainer.keptWhile(loading),
+                disabledContentColor = colors.onPrimaryContainer.keptWhile(loading),
             ),
             content = label,
         )
         AppButtonVariant.Outlined, AppButtonVariant.OutlinedError -> {
             val isError = variant == AppButtonVariant.OutlinedError
+            val content = if (isError) colors.error else colors.primary
             OutlinedButton(
                 onClick = onceClick,
                 modifier = modifier,
-                enabled = enabled,
+                enabled = canClick,
                 shape = CircleShape,
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = if (isError) colors.error else colors.primary,
+                    contentColor = content,
+                    disabledContentColor = content.keptWhile(loading),
                 ),
                 border = BorderStroke(
                     width = 1.dp,
                     color = when {
-                        !enabled -> colors.outlineVariant
+                        !enabled && !loading -> colors.outlineVariant
                         isError -> colors.error
                         else -> colors.outline
                     },
@@ -109,16 +135,53 @@ fun AppButton(
                 content = label,
             )
         }
-        AppButtonVariant.Text -> TextButton(
-            onClick = onceClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = CircleShape,
-            colors = ButtonDefaults.textButtonColors(contentColor = colors.primary),
-            // Same 24dp side padding as the other buttons in the design.
-            contentPadding = ButtonDefaults.ContentPadding,
-            content = label,
+        AppButtonVariant.Text, AppButtonVariant.TextError -> {
+            val content = if (variant == AppButtonVariant.TextError) colors.error else colors.primary
+            TextButton(
+                onClick = onceClick,
+                modifier = modifier,
+                enabled = canClick,
+                shape = CircleShape,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = content,
+                    disabledContentColor = if (loading) {
+                        content
+                    } else {
+                        colors.onSurface.copy(alpha = DisabledContentAlpha)
+                    },
+                ),
+                // Same 24dp side padding as the other buttons in the design.
+                contentPadding = ButtonDefaults.ContentPadding,
+                content = label,
+            )
+        }
+    }
+}
+
+/** The opacity of the content of a disabled component in Material 3 and in the design ("Button/Text", disabled). */
+private const val DisabledContentAlpha = 0.38f
+
+/**
+ * This color for the disabled state of a button while [loading], and "no color" (the button then falls
+ * back to the dimmed colors of Material 3) otherwise.
+ */
+private fun Color.keptWhile(loading: Boolean): Color = if (loading) this else Color.Unspecified
+
+/**
+ * The label of [AppButton], or the arc that replaces it while [loading]. The label is always laid out, in
+ * the loading state transparent, so the button is as wide as with the label and does not jump.
+ */
+@Composable
+private fun ButtonLabel(text: String, loading: Boolean) {
+    Box(contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            color = if (loading) Color.Transparent else Color.Unspecified,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
+        // The color of the label, whatever the variant and the state of the button are.
+        if (loading) InlineSpinner(color = LocalContentColor.current)
     }
 }
 

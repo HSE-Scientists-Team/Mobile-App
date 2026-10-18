@@ -9,6 +9,16 @@
     <string name="components_verified">Verified</string>
     <string name="components_retry">Retry</string>
 
+    <!-- The toggle of the password field says what a tap does -->
+    <string name="components_show_password">Show password</string>
+    <string name="components_hide_password">Hide password</string>
+
+    <!-- Why a call to the server failed, see failureText -->
+    <string name="components_failure_no_connection">No connection to the server</string>
+    <string name="components_failure_timeout">The server didn't answer</string>
+    <string name="components_failure_unavailable">The service is temporarily unavailable</string>
+    <string name="components_failure_other">Something went wrong</string>
+
     <!-- Project type and status; the project card and every list of projects use them -->
     <string name="components_project_type_scientific">Scientific</string>
     <string name="components_project_type_practical">Practical</string>

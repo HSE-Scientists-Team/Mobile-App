@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -15,7 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 
 /**
  * Unstyled text input over a plain [String] that keeps the caret and the selection across
@@ -37,8 +40,18 @@ import androidx.compose.ui.text.input.TextFieldValue
  * All the styling (outline, placeholder, padding) is up to the caller via [decorationBox]; use this
  * instead of `BasicTextField(value: String)` for every text input in the app.
  *
+ * The field keeps its [TextFieldValue] in `rememberSaveable`, and what is saved this way ends up in the
+ * `Bundle` that the system writes to disk when the app goes to the background. That is fine for a name or
+ * a search query and not for a secret: pass `saveState = false` to a field that takes a password, and the
+ * value lives in a plain `remember` instead (see [AppPasswordField]).
+ *
  * @param value the text shown in the field.
  * @param onValueChange called with the new text when the user edits it.
+ * @param visualTransformation changes how the text looks, e.g. [PasswordVisualTransformation] shows dots
+ * instead of characters; the text that [onValueChange] receives is not changed.
+ * @param saveState whether the caret, the selection and the text survive a recreation of the activity and
+ * the death of the process (`rememberSaveable`); `false` keeps them in memory only (`remember`), so
+ * nothing of the field reaches the saved state of the system. It must not change while the field is shown.
  * @param decorationBox draws the field around [innerTextField]; must call it exactly once.
  */
 @Composable
@@ -54,13 +67,19 @@ fun AppBasicTextField(
     cursorBrush: Brush = SolidColor(Color.Black),
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     interactionSource: MutableInteractionSource? = null,
+    saveState: Boolean = true,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() },
 ) {
-    var stored by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+    val initial = { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
+    val storedState = if (saveState) {
+        rememberSaveable(stateSaver = TextFieldValue.Saver) { initial() }
+    } else {
+        remember { initial() }
     }
+    var stored by storedState
     // Derived, not written back during composition: while the texts differ, the caller's text wins.
     val shown = if (stored.text == value) stored else TextFieldValue(text = value, selection = TextRange(value.length))
     BasicTextField(
@@ -78,6 +97,7 @@ fun AppBasicTextField(
         singleLine = singleLine,
         maxLines = maxLines,
         minLines = minLines,
+        visualTransformation = visualTransformation,
         interactionSource = interactionSource,
         cursorBrush = cursorBrush,
         decorationBox = decorationBox,

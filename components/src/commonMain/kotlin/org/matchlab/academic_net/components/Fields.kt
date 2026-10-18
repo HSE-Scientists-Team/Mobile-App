@@ -2,6 +2,8 @@ package org.matchlab.academic_net.components
 
 import academicnet.components.generated.resources.Res
 import academicnet.components.generated.resources.components_add
+import academicnet.components.generated.resources.components_hide_password
+import academicnet.components.generated.resources.components_show_password
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,14 +33,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.interaction.onceClickable
 
 // In the design the 1dp outline adds to the component size, so the inner padding is 1dp larger
 // than the Figma padding (the text stays exactly where Figma puts it).
-// The text inputs are built on AppBasicTextField, so the caret and the selection survive rotation.
+// The text inputs are built on AppBasicTextField, so the caret and the selection survive rotation
+// (the password field is the one that deliberately does not, see AppPasswordField).
 
 /**
  * "Search bar": full-round field with a search icon. The caret survives configuration changes
@@ -160,6 +168,105 @@ fun AppTextField(
             },
         )
         if (errorText != null) FieldError(errorText)
+    }
+}
+
+/**
+ * "Input/Password": the text field of [AppTextField] for a password. The text is shown as dots, and the
+ * eye at the end of the box (24dp, `onSurfaceVariant`) shows it and hides it again: the open eye
+ * ([AppIcons.Eye]) while the password is hidden, the crossed one ([AppIcons.EyeOff]) while it is shown, and
+ * a screen reader says "Показать пароль" / "Скрыть пароль" for them. The box is the same 50dp tall, 12dp
+ * rounded outlined box as that of [AppTextField] (the primary outline while focused, `error` with
+ * [errorText]); the eye is a button of 48dp that fits into the box.
+ *
+ * What a password needs, and the other fields do not get:
+ *
+ * - the field keeps nothing in the saved state of the system (`saveState = false` of [AppBasicTextField]),
+ *   so the password is not written to the `Bundle` that the system puts on disk. After the activity is
+ *   recreated the text is whatever [value] is, the caret is at its end and the password is hidden again
+ *   (whether it is shown is a plain `remember`, not `rememberSaveable`);
+ * - the keyboard is the password one, with no auto-correction and no suggestions.
+ *
+ * Under the box there is one line of `labelSmall`: the [errorText] in `error` or, without an error, the
+ * grey [hint] ("От 8 символов"). An error replaces the hint instead of standing beside it.
+ *
+ * @param value the password; the field is as secret as the caller keeps it, so do not log it or put it into
+ * a saved state either
+ * @param label the caption above the box
+ * @param placeholder what the empty box says; empty by default, as in the design
+ * @param hint the quiet line under the box, or `null` for none
+ * @param errorText the reason the password is not accepted, or `null`; replaces [hint]
+ * @param imeAction the action button of the keyboard: Done for the last field of a form, Next for the
+ * password that is followed by another field
+ * @param keyboardActions what the action button does, e.g. submits the form on Done
+ */
+@Composable
+fun AppPasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    hint: String? = null,
+    errorText: String? = null,
+    imeAction: ImeAction = ImeAction.Done,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    val colors = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
+    // A plain remember: a password that was shown is hidden again after the activity is recreated.
+    var visible by remember { mutableStateOf(false) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FieldLabel(label)
+        AppBasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { if (errorText != null) error(errorText) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+            cursorBrush = SolidColor(colors.primary),
+            keyboardOptions = KeyboardOptions(
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Password,
+                imeAction = imeAction,
+            ),
+            keyboardActions = keyboardActions,
+            visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+            interactionSource = interactionSource,
+            saveState = false,
+            decorationBox = { innerTextField ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .fieldBox(focused, isError = errorText != null)
+                        // The eye is 24dp, 13dp (12 and the outline) from the edge: its button of 48dp
+                        // brings 12dp of that on its own side, and 1dp is left to add.
+                        .padding(end = 1.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.weight(1f).padding(start = 17.dp, top = 15.dp, bottom = 15.dp)) {
+                        if (value.isEmpty()) Placeholder(placeholder)
+                        innerTextField()
+                    }
+                    // Tapped quickly several times it just toggles that many times: no debounce.
+                    AppIconButton(
+                        icon = if (visible) AppIcons.EyeOff else AppIcons.Eye,
+                        contentDescription = stringResource(
+                            if (visible) Res.string.components_hide_password else Res.string.components_show_password,
+                        ),
+                        onClick = { visible = !visible },
+                        repeatable = true,
+                    )
+                }
+            },
+        )
+        when {
+            errorText != null -> FieldError(errorText)
+            hint != null -> FieldHint(hint)
+        }
     }
 }
 
@@ -287,6 +394,11 @@ private fun Modifier.fieldBox(focused: Boolean, isError: Boolean = false): Modif
 @Composable
 private fun FieldError(text: String) {
     Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+}
+
+@Composable
+private fun FieldHint(text: String) {
+    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

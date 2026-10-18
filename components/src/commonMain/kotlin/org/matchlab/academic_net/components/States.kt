@@ -5,12 +5,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.matchlab.academic_net.components.interaction.blockPointerInput
@@ -27,6 +30,26 @@ fun LoadingState(modifier: Modifier = Modifier) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }
+
+/**
+ * The spinner of the design for a place that is as small as a line of text: the label of a loading
+ * button and the footer of a list that loads more ([LoadMoreFooter]). An arc that turns, 2dp thick with round
+ * ends; its center line is 16dp across as in the design, so with the stroke it takes 18dp.
+ *
+ * Not for the free space of a whole screen: that is [LoadingState].
+ */
+@Composable
+internal fun InlineSpinner(color: Color, modifier: Modifier = Modifier) {
+    CircularProgressIndicator(
+        modifier = modifier.size(SpinnerArcDiameter + SpinnerStroke),
+        color = color,
+        strokeWidth = SpinnerStroke,
+        strokeCap = StrokeCap.Round,
+    )
+}
+
+private val SpinnerStroke = 2.dp
+private val SpinnerArcDiameter = 16.dp
 
 /**
  * A screen or a list with nothing to show: an empty result, an error. The [title] and the optional

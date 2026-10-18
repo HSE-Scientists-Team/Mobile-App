@@ -20,6 +20,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -32,12 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.components.ActionListItem
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppBadgeCount
@@ -53,6 +56,7 @@ import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppInputChip
 import org.matchlab.academic_net.components.AppNavigationBar
 import org.matchlab.academic_net.components.AppNavigationBarItem
+import org.matchlab.academic_net.components.AppPasswordField
 import org.matchlab.academic_net.components.AppRadioButton
 import org.matchlab.academic_net.components.AppSearchBar
 import org.matchlab.academic_net.components.AppSearchBarButton
@@ -99,6 +103,7 @@ import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.ToggleListItem
 import org.matchlab.academic_net.components.UploadCard
+import org.matchlab.academic_net.components.format.failureText
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.person.ratingText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
@@ -149,6 +154,7 @@ fun ComponentCatalog() {
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item { BaseComponents() }
+            item { AuthComponents() }
             item { RepeatedTapComponents() }
             item { SharedFeatureComponents() }
             item { ProjectPageComponents() }
@@ -290,6 +296,90 @@ private fun BaseComponents() {
             variant = AppButtonVariant.Outlined,
         )
         AppSnackbarHost(snackbars)
+    }
+}
+
+/**
+ * The pieces of the sign-in screens (19-22 of the design): the password field in its states, the button that
+ * is busy, the text button that waits, the banner of a session that has ended and the words for a failed call.
+ */
+@Composable
+private fun AuthComponents() {
+    Section(":components — вход и регистрация") {
+        // "Input/Password": empty with the hint; one with text (dots, the eye shows it); one with an error,
+        // which takes the place of the hint. Tap the eye of the second one to see the "visible" state.
+        var password by remember { mutableStateOf("") }
+        AppPasswordField(password, { password = it }, label = "Пароль", hint = "От 8 символов")
+        var filled by remember { mutableStateOf("Student#2026") }
+        AppPasswordField(filled, { filled = it }, label = "Пароль", hint = "От 8 символов")
+        var repeated by remember { mutableStateOf("Student#2025") }
+        AppPasswordField(repeated, { repeated = it }, label = "Повторите пароль", errorText = "Пароли не совпадают")
+        // The busy button: the arc takes the place of the label, the size and the colors stay, the taps are
+        // ignored. The first one is busy for two seconds after a tap (the count of taps must not grow while it
+        // is busy, however often it is tapped); the rest are busy all the time.
+        var signingIn by remember { mutableStateOf(false) }
+        var signInTaps by remember { mutableIntStateOf(0) }
+        LaunchedEffect(signingIn) {
+            if (signingIn) {
+                delay(2000)
+                signingIn = false
+            }
+        }
+        AppButton(
+            text = "Войти (нажатий: $signInTaps)",
+            onClick = {
+                signInTaps++
+                signingIn = true
+            },
+            modifier = Modifier.fillMaxWidth(),
+            loading = signingIn,
+        )
+        AppButton("Войти", {}, Modifier.fillMaxWidth(), loading = true)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppButton("Подтвердить", {}, variant = AppButtonVariant.Outlined, loading = true)
+            AppButton("Пригласить", {}, variant = AppButtonVariant.Tonal, loading = true)
+            AppButton("Выгнать", {}, variant = AppButtonVariant.OutlinedError, loading = true)
+            AppButton("Отмена", {}, variant = AppButtonVariant.Text, loading = true)
+        }
+        // The same buttons switched off, for comparison: these are dimmed, the busy ones above are not.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppButton("Войти", {}, enabled = false)
+            AppButton("Подтвердить", {}, variant = AppButtonVariant.Outlined, enabled = false)
+            AppButton("Пригласить", {}, variant = AppButtonVariant.Tonal, enabled = false)
+        }
+        // The text button of the countdown ("Отправить через m:ss") is switched off, the one next to it is not.
+        AppButton("Отправить через 0:45", {}, Modifier.fillMaxWidth(), variant = AppButtonVariant.Text, enabled = false)
+        AppButton("Изменить почту", {}, Modifier.fillMaxWidth(), variant = AppButtonVariant.Text)
+        InfoBanner("Сеанс завершён. Войдите снова", icon = AppIcons.Clock)
+        SecurityNote("Данные входа хранятся на устройстве в зашифрованном виде")
+        // A long line wraps; the lock stays at its first line.
+        SecurityNote(
+            "Данные входа хранятся на устройстве в зашифрованном виде, а пароль никогда не записывается на диск " +
+                "и не передаётся никому, кроме сервера",
+        )
+        // failureText: what the user reads for each kind of failed call.
+        listOf(
+            "NoConnection" to RemoteFailure.NoConnection(),
+            "Timeout" to RemoteFailure.Timeout(),
+            "Http 503" to RemoteFailure.Http(503, "database is down"),
+            "Http 404" to RemoteFailure.Http(404, "not found"),
+            "null" to null,
+        ).forEach { (kind, cause) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = kind,
+                    modifier = Modifier.weight(0.3f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = failureText(cause),
+                    modifier = Modifier.weight(0.7f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
     }
 }
 

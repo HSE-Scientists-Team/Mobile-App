@@ -9,6 +9,16 @@
     <string name="components_verified">Подтверждён</string>
     <string name="components_retry">Повторить</string>
 
+    <!-- The toggle of the password field says what a tap does -->
+    <string name="components_show_password">Показать пароль</string>
+    <string name="components_hide_password">Скрыть пароль</string>
+
+    <!-- Why a call to the server failed, see failureText -->
+    <string name="components_failure_no_connection">Нет связи с сервером</string>
+    <string name="components_failure_timeout">Сервер не ответил</string>
+    <string name="components_failure_unavailable">Сервис временно недоступен</string>
+    <string name="components_failure_other">Что-то пошло не так</string>
+
     <!-- Project type and status; the project card and every list of projects use them -->
     <string name="components_project_type_scientific">Научный</string>
     <string name="components_project_type_practical">Проектный</string>
