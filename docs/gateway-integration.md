@@ -3,6 +3,9 @@
 Статус на 2026-10-18: **реализованы шаги 5 (`:gateway`) и 6 (вход по почте и паролю, граф сессии) и блоки 2 (профили, отзывы, правка работ и документов, настройки), 3 (поиск людей, лента) и «Проекты, сторона чтения» (поиск проектов, страница проекта, добавление роли; блоки 4–5 объединены) — по планам `docs/gateway-block2-profiles.md`, `docs/gateway-blocks3-5-search-and-projects.md` с поправкой «без догадок по API»: где планы предлагают «лучшее предположение» (значения `type`/`status`/`action`/`mine`/`duration`, формат `planned_*`, `GatewayVocabulary`), действует `docs/api-gaps.md`. Создание проекта, «Мои проекты» и «Снять с публикации» отключены пробелами G40–G44.** Межслойные контракты блоков — `docs/contract-b3.md`, `docs/contract-p45.md`. Контракт API —
 `docs/openapi.yaml` (Gateway API v2.5.0). Список правок интерфейса и багов — `docs/plan-ui-and-backend.md`.
 
+**Режим Mock удалён** (мок-вход `MockAuthDataSource`, `Backend.Mock`, свойство `matchlab.backend`, `MOCK_BACKEND`, демо-чаты, модуль `:mockserver`): места ниже, где
+они упомянуты, описывают проект, а не код; в коде остался `Backend.Gateway`, а чаты (G50) локальные и начинаются пустыми.
+
 Живой сервер с машины разработки недоступен (TLS зависает), поэтому всё сверяется с примерами спецификации через
 `ktor-client-mock`; приёмка на устройстве — за пользователем.
 
@@ -24,7 +27,7 @@
 ```
 :common ←(api)── :gateway        Ktor, serialization, DTO, API, ошибки, маппинг в модели :common
 feature:*:domain → :common, :utils          о :gateway не знает
-feature:*:data   → domain, :gateway (+ :mockserver для моков)
+feature:*:data   → domain, :gateway
 :shared          → всё + :gateway           DI и навигация
 ```
 
@@ -49,9 +52,8 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
   очистка `stores.main` и `AppGraph.close()`: кэши, мок-чаты, корутины и клиент прежнего аккаунта уничтожаются
   (закрывает ограничение «Мок-данные между аккаунтами» из `sprint-1.md`).
 - `DataSourcesModule` (бывший `MockDataSourcesModule`, все провайдеры `@SessionScope`) выбирает источники: подключённые фичи (профили,
-  настройки, поиск людей, лента, проекты) берут `GatewaySession` и `session.userId` напрямую, без `Lazy` и без `when (backend)`;
-  `when (backend)` остался у чатов (`MockChatsDataSource`, G50) и у входа (`AuthModule`, мок-вход). Поэтому в режиме Mock граф сессии не
-  собирается: `Gateway` там — `IllegalStateException` (режим Mock удалит tester).
+  настройки, поиск людей, лента, проекты) берут `GatewaySession` и `session.userId` напрямую, без `Lazy` и без `when (backend)`; чаты —
+  локальный `MockChatsDataSource` (G50), вход (`AuthModule`) — `GatewayAuthDataSource`. `when (backend)` в графе не осталось: `Backend` один, `Gateway`.
 - Альтернатива: один граф, `ViewerIdProvider` в `:common` и ручной сброс кэшей в `signOut`. DI проще, но viewerId
   становится nullable, а забытый кэш покажет данные прежнего аккаунта.
 
@@ -61,9 +63,11 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
   Сессионный (`GatewaySession`) создаётся через `HttpClient.config {}` от публичного; движок передаётся экземпляром,
   закрытие клиента сессии его не закрывает.
 - `GatewaySession` получает токен при создании и ставит `Authorization: Bearer` в каждый запрос.
-- 401 на запросе сессии → `SessionRejectionListener.onSessionRejected(token)` → `AuthRepository.expireSession(token)`:
-  если токен текущей сессии — стереть сессию и перейти в `SignedOut(sessionExpired = true)`; иначе (поздний ответ старой
-  сессии) ничего. Вызов в `NonCancellable`.
+- 401 на запросе сессии → `SessionRejectionListener.onSessionRejected(token)` → `AuthRepository.expireSession(token)`. Сам по себе 401
+  сессию не стирает: если токен текущей сессии, репозиторий сначала перепроверяет его запросом `GET /sessions/current` (не дольше 5 с,
+  `verifyTimeout`; параллельные 401 одного токена делят один вопрос). Сессию стирает и переводит в `SignedOut(sessionExpired = true)`
+  только подтверждённый отказ: 401/403 на проверке или чужой `user_id`; сбой, таймаут и 5xx проверки сессию оставляют (следующий 401
+  спросит снова). Токен не текущей сессии (поздний ответ старой) — ничего. Вызов в `NonCancellable`.
 - Не действует: 401 на `/auth/login` (неверный пароль); `GET` и `DELETE /sessions/current` идут через публичный клиент с
   явным токеном, их 401 обрабатывает репозиторий. 403 на `/sessions/current` обрабатывается как 401.
 
@@ -76,7 +80,7 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
 - Что значит код (404/400 на GET по id → «не найден», 409 → конфликт), решает data фичи.
 - `failureText(cause)` в `:components`: нет связи / сервер не ответил / сервис недоступен (≥500) / что-то пошло не так.
   Текст `error` сервера пользователю не показывается.
-- Тайм-ауты: подключение 10 с, запрос 20 с, отзыв токена при выходе 5 с. Автоповторов нет, на экранах «Повторить».
+- Тайм-ауты: подключение 10 с, запрос 20 с, отзыв токена при выходе 5 с, перепроверка токена после 401 5 с. Автоповторов нет, на экранах «Повторить».
 
 ### Сериализация
 
@@ -87,10 +91,12 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
 
 ### «Не проверено на живом сервере»
 
-Всё неопределённое лежит в пакете `org.matchlab.academic_net.gateway.contract` под `@UnverifiedContract`
-(`@RequiresOptIn(level = WARNING)`): `ConfirmationLinks`, позже `GatewayVocabulary` (строки ↔ enum `:common`) и формат
-`planned_*`. Чтение терпимое (регистр не важен, неизвестное значение → `null`, запись в лог в debug), писать неизвестные
-значения на сервер нельзя — такие действия ждут ответа бэкенда. Таблица значений дублируется в `sprint-1.md`.
+Правило «без догадок» (`docs/api-gaps.md`) отменило прежний план: `GatewayVocabulary` (строки ↔ enum `:common`, синонимы, формат `planned_*`)
+не создавался. Значения `type`/`status`/`action`/`mine`/`duration` и формат `planned_*` не угадываются ни в запросах, ни при разборе ответов:
+поле читается как «неизвестно» (`null`), а действие, которому нужно такое значение, выключено флагом возможности. В пакете
+`org.matchlab.academic_net.gateway.contract` две вещи. `ConfirmationLinks` (разбор вставленной ссылки из письма, G01) — единственная
+клиентская догадка, она под `@UnverifiedContract` (`@RequiresOptIn(level = WARNING)`). `AchievementKinds` — единственное сопоставление строк,
+и оно по спецификации (`education | certificate | scientific | project` — enum параметра `kind`); пометка `@UnverifiedContract` его не касается.
 
 ### Логи и секреты
 
@@ -105,14 +111,13 @@ feature:*:data   → domain, :gateway (+ :mockserver для моков)
 ### Адрес, режимы, платформы
 
 - `GatewayConfig.PRODUCTION_BASE_URL = "https://api.matchlab.space"`, пути начинаются с `/api/v1`.
-- `Backend` в `:shared`: `Mock` или `Gateway(baseUrl: String? = null, logCalls: Boolean = false)`.
-- Android: Gradle-свойства `matchlab.backend=mock|gateway` (по умолчанию `gateway`) и `matchlab.gatewayUrl` → `BuildConfig`
-  модуля `androidApp`; `logCalls = BuildConfig.DEBUG`. Для локального Docker Compose по желанию debug-only
+- `Backend` в `:shared`: один случай, `Gateway(baseUrl: String? = null, logCalls: Boolean = false)` (в проекте был ещё `Mock`).
+- Android: Gradle-свойство `matchlab.gatewayUrl` → `BuildConfig` модуля `androidApp` (в проекте было ещё `matchlab.backend=mock|gateway`);
+  `logCalls = BuildConfig.DEBUG`. Для локального Docker Compose по желанию debug-only
   `network_security_config` с cleartext только для `10.0.2.2` и `localhost`. **В манифесте нет `INTERNET` — добавить.**
 - Движки: `expect fun platformHttpEngine(config)` — OkHttp на Android, Darwin на iOS, `MockEngine` в тестах.
 - iOS: `MainViewController()` не меняется (берёт `Backend.Gateway()`), `iosApp/` не трогаем.
-- Режим mock остался только ради мок-входа и будет удалён: профилям, настройкам, поиску, ленте и проектам нужен сервер, граф сессии из мока
-  не собирается; проверять UI запуском на эмуляторе запрещено пользователем.
+- Режим Mock удалён (мок-вход, `Backend.Mock`, `:mockserver`); проверять UI запуском на эмуляторе запрещено пользователем.
 
 ### Версии (проверены на Maven Central 2026-10-17)
 
@@ -156,12 +161,16 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   `connect/read/write`, Darwin — `timeoutIntervalForRequest/Resource`. Значения короче миллисекунды поднимаются до 1 мс,
   длиннее `Int.MAX_VALUE` мс (24 дня) и бесконечные становятся «без таймаута».
 - **401 и слушатель.** `onSessionRejected(token)` вызывается один раз на каждый запрос сессии с ответом 401 (параллельные
-  запросы дают столько же вызовов; `expireSession` идемпотентна по смыслу «токен текущей сессии»), внутри `NonCancellable`,
-  до того как вызов бросит `Http(401)`. Если слушатель упал, его исключение добавляется к `Http(401)` как suppressed.
+  запросы дают столько же вызовов; `expireSession` делит между ними одну перепроверку токена и идемпотентна по смыслу «токен текущей
+  сессии»), внутри `NonCancellable`, до того как вызов бросит `Http(401)`. Если слушатель упал, его исключение добавляется к `Http(401)`
+  как suppressed.
 - **Отмена.** Вызов, у которого отменили корутину, всегда заканчивается `CancellationException`: Ktor «разворачивает» отмену
   с причиной в саму причину (`IOException` → ложный `NoConnection`), поэтому после любого сбоя проверяется `ensureActive()`.
   `GatewaySession.close()` делает `HttpClient.cancel()` и `close()` клиента сессии: идущие запросы получают
-  `CancellationException` (чуть позже самого `close()`: Ktor отменяет их, когда клиент доработает), новые отменяются сразу.
+  `CancellationException` (чуть позже самого `close()`: Ktor отменяет их, когда клиент доработает). После `close()` новые запросы
+  отклоняются сразу: флаг закрытия держит сама сессия (`ApiRequests.refuseFurtherCalls()`), вызов заканчивается `CancellationException`, ничего не
+  отправляется. Клиент Ktor этого не гарантирует: он доканчивает закрытие чуть позже `close()` и в этом окне ещё принимает запрос, который ушёл бы
+  с токеном закрытой сессии. До исправления по итогам ревью эта гонка была.
   Движок и публичный клиент не затрагиваются — `HttpClient.config {}` от клиента, созданного по экземпляру движка, не
   управляет движком (`manageEngine = false`); это проверено тестом на `MockEngine` и на реальном OkHttp.
 - **Логи.** `logCalls` пишет через `Logger.SIMPLE` (`println`: Logcat `System.out`, консоль Xcode); уровень `INFO`, `Authorization`
@@ -173,8 +182,9 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   (отказ в соединении, обрыв, молчание → таймаут): наружу ничего не уходит.
 - **OkHttp и `POST`.** Ktor включает `retryOnConnectionFailure(true)`: на протухшем соединении OkHttp может молча повторить
   `POST` (тело повторяемое). Для `register`/`login` последствия невелики (письмо уйдёт заново, появится ещё один токен), а
-  для `POST /projects` и отправки достижений (блоки 2 и 4) возможен дубль: решение за этими блоками (например,
-  `retryOnConnectionFailure(false)` в `platformHttpEngine`).
+  для `POST /projects`, создания работы и отправки достижений возможен дубль (G48). Решение принято и внесено по итогам ревью:
+  `retryOnConnectionFailure(false)` в `platformHttpEngine` Android (тихий повтор мог бы задвоить запись; на экранах есть «Повторить»).
+  На iOS (Darwin) повтор не настраивался и не проверялся.
 
 ### Реализация `:shared` и `androidApp` (шаг 6c): что вышло иначе или уточнилось
 
@@ -183,8 +193,7 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   код совпадает с Android. Типы с областью родителя ребёнок берёт из `app._scoped` и из открытых свойств родителя (`app.authRepository`),
   второго `AuthRepository` не появляется. Запуск на iOS не проверялся (Xcode не установлен).
 - **`GatewayFactory`** — третий параметр `createAppComponent` (по умолчанию движок платформы): через него тесты строят Gateway на
-  `MockEngine`, и режим Gateway запускается без сети. В режиме Mock клиент не создаётся, а запрос его у графа — `IllegalStateException`,
-  а не клиент, который звонил бы на продовый адрес.
+  `MockEngine`, и граф запускается без сети.
 - **`AppGraph.get(secureStore, backend)`** отдаёт `AppGraphs(app, sessions)` и запускает восстановление сессии в процессном
   `CoroutineScope` (`AppGraphs.start`), а не в `LaunchedEffect` корня: проверка токена на старте не обрывается поворотом экрана или
   пересозданием активности. `SessionGraphs` реализует `ComponentSessionGraphs` (тот же `Session` — тот же граф; другая сессия закрывает
@@ -200,20 +209,18 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   закрывает ресурсы в обратном порядке, сбой одного не мешает остальным (первый сбой бросается в конце), повторный вызов ничего не делает;
   ресурс, зарегистрированный после `close()`, закрывается сразу (поздний `Lazy<GatewaySession>` не оставляет клиента без хозяина).
   Потокобезопасен (атомарная ссылка), как и `InMemorySecureStore`.
-- **Зритель.** Мок-вход сажает любого на `MockAccounts.viewer` (`user-me`); у остальных фич моков больше нет (мок-мир людей и проектов удалён),
-  их Gateway-источники берут `session.userId`. `MockChatsDataSource(seed = backend == Backend.Mock)` — демо-чатов в режиме Gateway нет.
-- **Android:** свойства `matchlab.backend` и `matchlab.gatewayUrl` проверяются при конфигурации сборки (неверное значение останавливает
-  её с понятным сообщением), в `BuildConfig` идут `MOCK_BACKEND` и `GATEWAY_URL`; `network_security_config` с открытым HTTP только к
+- **Зритель.** Gateway-источники берут `session.userId`; моков людей и проектов нет. `MockChatsDataSource` начинается пустым: демо-чатов нет никогда.
+- **Android:** свойство `matchlab.gatewayUrl` проверяется при конфигурации сборки (неверное значение останавливает
+  её с понятным сообщением), в `BuildConfig` идёт `GATEWAY_URL`; `network_security_config` с открытым HTTP только к
   `10.0.2.2` и `localhost` лежит в `src/debug`. `Backend.Gateway` проверяет адрес сразу при создании, а не при первом входе.
 
 ### Моки и `:mockserver`
 
 Правило «заменил мок — удали мок»: когда фича переходит на API, её `Mock…DataSource`, мок-данные в `:mockserver` и тесты мока
 удаляются в том же шаге. Моки профилей, настроек, поиска людей, ленты, проектов, поиска проектов и страницы проекта удалены; на
-моках остались чаты (в API их нет, G50) и мок-вход `MockAuthDataSource` (`Backend.Mock`; его удаляет tester, вместе с
-`Backend.Mock`). `:mockserver` хранит только аккаунт мок-входа (`MockAccounts`) и реестр доменов (`MockTrustedDomains`) и исчезнет
-вместе с мок-входом. Тесты ViewModel подключённых фич идут на fake'ах из `commonTest`; `Mock…DataSource` нужны только тестам чатов и входа.
-В режиме Gateway демо-чатов нет (`seed = false`).
+моке остались чаты (в API их нет, G50). Мок-вход, `Backend.Mock` и `:mockserver` удалены. Тесты ViewModel подключённых фич идут на fake'ах из
+`commonTest`; `MockChatsDataSource` нужен только тестам данных чатов, тесты экранов чатов и входа идут на fake'ах из своих тестовых наборов.
+Демо-чатов нет.
 
 ### Тесты
 
@@ -223,10 +230,9 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
   `NoConnection`, битый JSON → `Malformed`, отмена проходит насквозь; 401 сессии вызывает слушателя ровно один раз с её
   токеном, 401 логина — ни разу; `FlexibleLongSerializer`, `null` вместо массивов, `ConfirmationLinks`.
 - data фич: фейки интерфейсов API без Ktor (перевод кодов в исходы домена, кэши, ревизии).
-- ViewModel: против fake-репозиториев и fake-источников из `commonTest` своего модуля (`Mock…DataSource(latencyMillis = 0)` остались только у
-  чатов и мок-входа).
-- `:shared`: режим mock — регистрация → подтверждение → вход → граф сессии → выход (после повторного входа граф — другой
-  экземпляр); восстановление новым компонентом на том же `InMemorySecureStore`; режим Gateway — граф собирается без сети.
+- ViewModel: против fake-репозиториев и fake-источников из `commonTest` своего модуля (`PlayedAccountServer` у входа, fake чатов у чатов).
+- `:shared`: на `FakeServer` (Gateway на `MockEngine`, без сети) — регистрация → подтверждение → вход → граф сессии → выход (после повторного входа
+  граф — другой экземпляр); восстановление новым компонентом на том же `InMemorySecureStore`; граф каждой фичи собирается и ходит на этот сервер.
 - Kover: `kover(project(":gateway"))`; код в `iosMain` Kover не видит.
 
 ### Находки по спецификации
@@ -255,6 +261,11 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
 
 ## 2. Блоки спринта 1
 
+> **Исторический проект** (таблица блоков 2–5 и таблица значений ниже). Реализация следует `docs/api-gaps.md` (правило «без догадок»: словари,
+> синонимы значений, `GatewayVocabulary`, запись неподтверждённых значений отменены) и контрактам `docs/contract-b3.md`, `docs/contract-p45.md`;
+> расхождения решает код и реестр пробелов. Таблица значений и строка блока 4 приведены к коду; в строках блоков 3 и 5 `project_type`, `type`,
+> `status`, `mine` и `duration` остались как в плане и приложением не отправляются.
+
 Порядок: 1 → 2 → 3 → 4 → 5. Блок 1 первый: токен и граф сессии нужны всем, неопределённых значений в нём нет. Блок 2
 раньше блока 3: без `display_name` поиск людей покажет людей без имени, и блок 2 вводит `UserDirectory` и маппинг
 профиля. Блок 4 раньше блока 5: блок 5 переиспользует маппер `Project` и словарь значений, а в пустой базе нечего искать.
@@ -265,7 +276,7 @@ coroutines 1.11.0). Из каталога убраны `ktor-client-content-nego
 | **1. Регистрация по домену email + Защитить свои данные** | `POST /auth/register`, `/auth/email/confirm`, `/auth/login`; `GET\|DELETE /sessions/current` | auth: поток «почта + пароль → ссылка из письма → вход», `expireSession`; источник Gateway, мок переписан, 3 экрана; `:shared`: граф сессии | Нет кода из письма и лимитов (на клиенте пауза 60 с), нет восстановления пароля, deep link не делается; сессия может закончиться по 401 | — |
 | **2. Оценивать других + Представить себя в профиле** | `GET /users/{id}/profile\|achievements?limit=100\|reviews`; `GET\|PUT /users/me/profile`; `GET\|POST /users/me/achievements`, `POST …/{id}/submit` (+ `PUT`, `DELETE` для правки) | `getReview(userId, reviewId)`; `Collaborator.studyInfo` → `Study(level, year)`; `ReviewerRole?`; добавление работы = создать + `submit` (исход «сохранено, но не отправлено»); профиль — 3 запроса параллельно; работы и документы — один список, делится по `kind`; `source` на клиенте; результаты проверки — из смены статусов при обновлениях (в памяти сессии), `markResultsSeen` локальный; `PUT` профиля — полная замена от свежего `GET`; `UserDirectory`; в 10b поля «Имя*», вуз, уровень и курс, направление; «Загрузить подтверждение» на 11 скрыт до загрузки файлов | Нет: GET отзыва по id; `total` работ (≤100); времени решения модерации; push (точка появляется после обновления: старт, возврат в приложение, вход на вкладку); признака верификации автора отзыва; приватного подтверждения файлом. Причина отказа — `moderation_comment` | Нет (3 запроса параллельно) |
 | **3. Собрать команду (08, 08b, 01, 01c)** | `GET /search/people`, `GET /recommendations/people?limit=10`, `GET /users/me/profile` (шапка ленты) | `Page<T>`, `PageRequest` в `:common`; `ScoredCollaborator.matchPercent` убрать; `q` как введено; `verified_only`, `verified_projects`, `publications`; `project_type` — только если выбран один тип; `university`; ключевые слова → `skill[]`; догрузка при прокрутке, «Найдено N» из `total` | Роль в поиск не передаётся: ни совпадения, ни порядка по роли (строка поиска, как и раньше, заполняется навыками роли). Рекомендации — случайные люди с `open_to_collaboration`: блок ленты может быть пустым, пока никто не включил флаг. `my_university`, `open_only` в API есть, в UI нет | Нет |
-| **4. Управлять проектом (05, 06, 07, 07b, 07c)** | `POST /projects`, `GET /projects?mine=…&limit=100`, `GET /projects/{id}`, `POST /projects/{id}/roles`, `POST /projects/{id}/transitions` | `ProjectStatus` получает статусы сервера (начат, завершён, отменён); `Role` получает `slots` и `members` (создаём `slots = 1`); `ProjectConflictException` для 409; кэш проектов сессии кормит `observe*` и хранит `revision`; при 409 обновить и повторить один раз; `viewerIsInitiator = owner_user_id == viewerId`; сфера ↔ `field`; срок ↔ `planned_*`; роль с `slots > 1` — одна карточка «N из M мест» | Описание роли в форме не вводится; «Опубликовать снова» в API есть, в карте стори нет | Инициатор — сам пользователь; участники — по профилю (до 2-го спринта их нет) |
+| **4. Управлять проектом (05, 06, 07, 07b, 07c)** | `POST /projects`, `GET /projects?mine=…&limit=100`, `GET /projects/{id}`, `POST /projects/{id}/roles`, `POST /projects/{id}/transitions` | `Project.type`/`status`/`period` — nullable, с Gateway всегда неизвестны (G40, G41, G43), статусы сервера не вводились; `Role` получает `slots`, `occupied` и `members` (создаём `slots = 1`; `members` не читаются, G52); кэш проектов сессии кормит `observe*` и хранит `revision`; при 409 проект перечитывается и бросается `ProjectConflictException`, автоповтора нет (G48); `viewerIsInitiator = owner_user_id == viewerId`; сфера ↔ `field`; срок не читается (G43); роль с `slots > 1` — одна карточка «N из M мест» | Описание роли в форме не вводится; «Опубликовать снова» в API есть, в карте стори нет; с Gateway работают только чтение проекта и добавление роли, создание, «Мои проекты» и «Снять с публикации» отключены (G40–G44) | Инициатор — сам пользователь; участники — по профилю (до 2-го спринта их нет) |
 | **5. Найти подходящий проект (02, 03) + Оценить проект (04)** | `GET /search/projects`, `GET /projects/{id}`, `GET /users/{owner}/profile` | `Page<FoundProject>`; срок в 03 — одиночный выбор; `q`; `type` если выбран один; `field = sphere.name`; `duration`; ключевые слова → `tag[]`; «только набор» → `status`; «без своих» → `mine`; маппер `Project` из блока 4; `InitiatorInfo` из профиля (`rating = null`, если `review_count == 0`); 400/404 → «не найден»; догрузка при прокрутке | Ключевые слова, похоже, ищутся только по тегам; правило «термины через запятую» и порядок остаются на сервере и не проверены; два срока сразу выбрать нельзя | Инициаторы страницы через `UserDirectory.profiles(ids)`: без повторов, ≤4 параллельно, TTL 5 мин → 1 + K запросов. Просьба к бэкенду: встроить сводку владельца в `Project` или сделать `GET /users?ids=` |
 
 ```kotlin
@@ -279,20 +290,27 @@ class UserDirectory internal constructor(/* ProfilesApi, TimeSource */) {
 
 ### Значения, которых нет в спецификации
 
-| Значение или формат | Блокирует | Что делаем до ответа |
+Что делаем на деле, определяет правило «без догадок» (`docs/api-gaps.md`); прежние варианты («читаем, предполагая `scientific`/`project`»,
+«терпим `YYYY-MM`, `YYYY-MM-DD`, RFC 3339», «неизвестный статус → не подтверждено») отменены.
+
+| Значение или формат | Блокирует | Что делаем |
 |---|---|---|
-| `Project.type`, `project_types`, параметры `type` / `project_type` | 4 (создание), 2 (чипы интересов), фильтр типа в 3 и 5 | Читаем, предполагая `scientific`/`project` (по аналогии с `kind`); запись ждёт ответа |
-| `Project.status`, параметр `status` | 4, 5 | Неизвестный статус при чтении → проект без действий управления |
-| `transitions.action` для «снять с публикации» | 4 | — |
-| Формат `planned_start` / `planned_end` | 4 (создание) | При чтении терпим `YYYY-MM`, `YYYY-MM-DD`, RFC 3339 |
-| `mine` | 4 («Мои проекты»), 5 | В 5 свои проекты исключаем на клиенте (`total` может быть больше на их число) |
-| `duration` | Фильтр срока в 5 | Фильтр скрыт |
-| `UserAchievement.status` | 2 (статусы, очередь, результаты проверки) | Неизвестный → «не подтверждено», очередь пустая |
-| `study_level`, `author_role` | Отображение в 2–3 | Неизвестное значение не показываем |
-| Ответ `GET /users/me/profile` для нового аккаунта | 2 | 404 → пустой профиль, первый `PUT` его создаёт |
-| Формат ссылки в письме и куда она ведёт | Не блокирует блок 1 | Принимаем ссылку с `token=`, последний сегмент пути или сам токен |
+| `Project.type`, `project_types`, параметры `type` / `project_type` | 4 (создание), 2 (чипы интересов), фильтр типа в 3 и 5 | Не читаем и не пишем (G40, G11): тип проекта неизвестен, фильтр типа и чипы интересов скрыты, создание недоступно; `project_types` профиля при сохранении возвращаются как пришли |
+| `Project.status`, параметр `status` | 4, 5 | Статус неизвестен (G41): чипа и действий управления нет, `status` не отправляется |
+| `transitions.action` для «снять с публикации» | 4 | Действие недоступно (G42) |
+| Формат `planned_start` / `planned_end` | 4 (создание) | Не читаем и не пишем (G43): срока проекта нет, создание недоступно |
+| `mine` | 4 («Мои проекты»), 5 | «Мои проекты» недоступны (G44), `mine` не отправляется; в поиске свои проекты на клиенте не исключаем (G53) |
+| `duration` | Фильтр срока в 5 | Фильтр скрыт, параметр не отправляется (G45) |
+| `UserAchievement.status` | 2 (статусы, очередь, результаты проверки) | Статус неизвестен (G12): чипов, баннеров, очереди и результатов проверки нет |
+| `study_level`, `author_role` | Отображение в 2–3 | `study_level` — свободный текст, показываем как пришёл (G10); роль автора отзыва не показываем (G13) |
+| Ответ `GET /users/me/profile` для нового аккаунта | 2 | 404 или пустые `details` читаются как «профиля ещё нет», первый `PUT` создаёт профиль (G19) |
+| Формат ссылки в письме и куда она ведёт | Не блокирует блок 1 | Принимаем ссылку с `token=`, последний сегмент пути или сам токен (`ConfirmationLinks`, G01) |
 
 ## 3. Шаг 1: фундамент, авторизация, выход
+
+> **Исторический проект** шага 1. Реализация — разделы 1 («Реализация `:gateway`», «Реализация `:shared` и `androidApp`») и `docs/api-gaps.md`
+> (правило «без догадок»: словари, синонимы значений, `GatewayVocabulary`, запись неподтверждённых значений отменены); расхождения решает код и
+> реестр пробелов. Режим Mock и его классы (`MockAuthDataSource`, `Backend.Mock`) из кода удалены.
 
 ### Публичный API `:gateway`
 
@@ -463,7 +481,8 @@ sealed interface SessionCheck { data class Valid(val userId: UserId); data objec
 class GatewayAuthDataSource(private val api: AccountApi) : AuthDataSource
 class MockAuthDataSource(latencyMillis: Long = …, timeSource: TimeSource = …, trustedDomains: Set<String> = MockTrustedDomains.domains) : AuthDataSource
 class AuthRepositoryImpl(source: AuthDataSource, storage: SessionStorage, io: CoroutineDispatcher,
-    timeSource: TimeSource = TimeSource.Monotonic, resendInterval: Duration = 60.seconds, revokeTimeout: Duration = 5.seconds) : AuthRepository
+    timeSource: TimeSource = TimeSource.Monotonic, resendInterval: Duration = 60.seconds, revokeTimeout: Duration = 5.seconds,
+    verifyTimeout: Duration = 5.seconds) : AuthRepository
 ```
 
 | Вызов | Ответ → результат |
@@ -479,8 +498,9 @@ class AuthRepositoryImpl(source: AuthDataSource, storage: SessionStorage, io: Co
 Поведение репозитория:
 
 - `restoreSession()`: сессии нет → `SignedOut()`; есть → сразу `SignedIn` (без ожидания сети), затем в том же вызове
-  `checkSession`: `Rejected` или чужой `userId` → `expireSession`; `RemoteFailure` → сессия остаётся (запуск без сети),
-  первый же 401 её закончит. Альтернатива: держать заставку до 3 с и восстанавливать оптимистично по таймауту.
+  `checkSession`: `Rejected` или чужой `userId` → сессия стирается (`SignedOut(sessionExpired = true)`); `RemoteFailure` → сессия
+  остаётся (запуск без сети), первый же 401 запустит перепроверку токена (см. `expireSession`). Альтернатива: держать заставку до 3 с и
+  восстанавливать оптимистично по таймауту.
 - `register`: при `LetterSent` запоминает учётные данные и время отправки только в памяти; повтор с тем же адресом заменяет
   пароль в памяти.
 - `resendLetter`: нет пароля → `null`; иначе повторная регистрация (старая ссылка перестаёт действовать); ответ
@@ -489,8 +509,11 @@ class AuthRepositoryImpl(source: AuthDataSource, storage: SessionStorage, io: Co
   возвращает `Confirmed(signedIn)`.
 - `signIn`: при успехе в `NonCancellable` сохраняет сессию, забывает регистрацию, ставит `SignedIn`. `Unauthorized` →
   `WrongCredentials`, `Forbidden` → `AccountUnavailable`. `signInPending`: то же, но `Unauthorized` → `NotConfirmedYet`.
-- `expireSession`: только если токен совпадает с токеном текущей сессии: стирает сессию (с существующими повторами),
-  забывает регистрацию, ставит `SignedOut(sessionExpired = true)`; сервер не вызывает.
+- `expireSession`: только если токен совпадает с токеном текущей сессии. 401 на вызове ещё не слово сервера о сессии, поэтому сначала
+  репозиторий спрашивает сервер о самом токене (`checkSession`, то есть `GET /sessions/current`, не дольше `verifyTimeout` = 5 с); параллельные
+  вызовы с тем же токеном ждут один ответ, а не спрашивают заново. Подтверждённый отказ (`Rejected`: 401/403, либо чужой `userId`) → стирает
+  сессию (с существующими повторами), забывает регистрацию, ставит `SignedOut(sessionExpired = true)`; сбой, таймаут проверки и 5xx
+  сессию оставляют (следующий 401 спросит снова).
 - `signOut`: как сейчас, плюс забывает регистрацию; `revoke` ограничен `withTimeoutOrNull(revokeTimeout)`.
 
 Контракт мока: реестр доменов `MockTrustedDomains` (поддомены проходят), остальные → 403; адрес с аккаунтом → 409; заявка
@@ -637,7 +660,8 @@ sessions.open(it) }, onSignOut) }`; в графе входа три маршру
 - Экранов входа, регистрации и подтверждения в Figma нет; они собираются из `AppTopBar`, `AppTextField`, `AppPasswordField`,
   `AppButton`, `SecurityNote` (после правок Figma — по макетам 19, 19b, 20).
 - Вход — по почте и паролю; регистрация — почта, пароль, повтор пароля; пароль 8–72 байта UTF-8, пробелы не обрезаются;
-  «Забыли пароль?» нет — в API нет восстановления.
+  при входе пароль вне этих границ сразу `WrongCredentials` без запроса (схема `Credentials` общая для входа и
+  регистрации); «Забыли пароль?» нет — в API нет восстановления.
 - Клиент проверяет почту только на опечатки; разрешённые домены решает сервер (403).
 - Почта подтверждается ссылкой из письма (30 минут); формат ссылки не проверен; deep link не делался.
 - После подтверждения приложение входит само; пароль хранится только в памяти процесса, при убитом процессе открывается
@@ -645,8 +669,9 @@ sessions.open(it) }, onSignOut) }`; в графе входа три маршру
 - «Я подтвердил(а)» — попытка войти; 401 в этот момент означает «почта ещё не подтверждена».
 - «Отправить письмо ещё раз» повторяет регистрацию (старая ссылка перестаёт действовать); пауза 60 с на клиенте.
 - Ошибки показываются по коду ответа; текст `error` сервера не показывается.
-- У токена нет срока жизни и обновления; при запуске сессия восстанавливается сразу и проверяется в фоне; 401 на любом
-  авторизованном запросе завершает сеанс («Сеанс завершён»); без сети сессия сохраняется.
+- У токена нет срока жизни и обновления; при запуске сессия восстанавливается сразу и проверяется в фоне; 401 на авторизованном
+  запросе запускает перепроверку токена (`GET /sessions/current`, до 5 с), и только подтверждённый отказ (401/403 или чужой `user_id`)
+  завершает сеанс («Сеанс завершён»); без сети, при таймауте проверки и 5xx сессия сохраняется.
 - Выход завершает сессию на устройстве сразу; `DELETE /sessions/current` — без гарантии, с таймаутом 5 с; граф сессии
   уничтожается вместе с кэшами.
 - В режиме бэкенда чаты локальные: сообщения никуда не уходят, демо-чатов нет.
