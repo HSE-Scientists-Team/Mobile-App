@@ -20,7 +20,6 @@ import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveVerificat
 import org.matchlab.academic_net.feature.profile.domain.usecase.RefreshMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.SaveDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.SaveWorkUseCase
-import org.matchlab.academic_net.feature.profile.domain.usecase.SubmitForVerificationUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.feature.profile.ui.my.MyProfileVisibility
 
@@ -32,8 +31,6 @@ import org.matchlab.academic_net.feature.profile.ui.my.MyProfileVisibility
  *  cannot, instead of showing made-up data. Without [ProfileCapabilities.verificationStatuses] there are no status
  *  chips and banners, no queue and no results of the verification, and no dot on the tab; without
  *  [ProfileCapabilities.interestTypes] there are no project-type chips in the editor
- * @param submitForVerification sends a record that is already added. The forms do not use it: they send through
- *  [saveWork] and [saveDocument], which also save what was changed first
  * @param clock and [timeZone] say when a decision of a moderator was made relative to "now" in the
  *  list of results on the viewer's profile
  */
@@ -52,7 +49,6 @@ class ProfileUiDependencies(
     val getMyDocument: GetMyDocumentUseCase,
     val saveWork: SaveWorkUseCase,
     val saveDocument: SaveDocumentUseCase,
-    val submitForVerification: SubmitForVerificationUseCase,
     val deletePortfolioItem: DeletePortfolioItemUseCase,
     val observeVerificationResults: ObserveVerificationResultsUseCase,
     val observeHasUnseenResults: ObserveHasUnseenResultsUseCase,

@@ -23,7 +23,6 @@ import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveVerificat
 import org.matchlab.academic_net.feature.profile.domain.usecase.RefreshMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.SaveDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.SaveWorkUseCase
-import org.matchlab.academic_net.feature.profile.domain.usecase.SubmitForVerificationUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 
@@ -64,7 +63,6 @@ internal interface ProfileModule {
         getMyDocument = GetMyDocumentUseCase(mine),
         saveWork = SaveWorkUseCase(mine),
         saveDocument = SaveDocumentUseCase(mine),
-        submitForVerification = SubmitForVerificationUseCase(mine),
         deletePortfolioItem = DeletePortfolioItemUseCase(mine),
         observeVerificationResults = ObserveVerificationResultsUseCase(mine),
         observeHasUnseenResults = ObserveHasUnseenResultsUseCase(mine),
