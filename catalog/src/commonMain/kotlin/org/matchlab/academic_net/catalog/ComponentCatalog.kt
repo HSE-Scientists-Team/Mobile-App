@@ -1025,6 +1025,23 @@ private fun ProfileComponents() {
             onAuthorClick = {},
             onChatClick = {},
         )
+        // An author the server gave no id for (API-GAP G55): the row is not a button (a tap on it is a tap on the card)
+        // and there is no chat icon.
+        ReviewCard(
+            ReviewCardUiModel(
+                authorName = "Без имени",
+                authorLine = "AI-навигация по кампусу",
+                authorAvatar = Arjun,
+                title = "Помогал команде с данными",
+                rating = 4,
+                date = null,
+                text = "«Сильный инженер, помогал команде с пайплайном данных.»",
+                showChat = false,
+            ),
+            onClick = {},
+            onAuthorClick = null,
+            onChatClick = {},
+        )
     }
 }
 

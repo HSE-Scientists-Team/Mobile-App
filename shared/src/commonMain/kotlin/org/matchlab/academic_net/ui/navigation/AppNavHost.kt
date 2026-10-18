@@ -164,15 +164,18 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
     val chatOpener = remember { ExclusiveLauncher() }
     val signOutLauncher = remember { ExclusiveLauncher() }
 
+    // API-GAP G55: the server may leave out the id of a person (the author of a review). Such a person has no page,
+    // and the route "profile/" matches nothing, so navigating to it would crash. The screens do not offer the tap for
+    // them; this is the last guard, for every profile that is opened from another screen.
     val openProfile: (NavBackStackEntry, UserId) -> Unit = { from, id ->
-        navController.navigateOnce(from, Routes.profile(id))
+        if (id.value.isNotBlank()) navController.navigateOnce(from, Routes.profile(id))
     }
     // The chat opens after the conversation exists, so the tap has to ask first. A tap from a screen
     // that is no longer the current one, or while the previous request runs, does nothing. The answer
     // opens the chat only if the user is still on the screen that asked: after "back" it would
-    // otherwise open over whatever is below.
+    // otherwise open over whatever is below. A person with no id (API-GAP G55) has nobody to talk to.
     val openChatWith: (NavBackStackEntry, UserSummary) -> Unit = { from, user ->
-        if (navController.isCurrent(from)) {
+        if (user.id.value.isNotBlank() && navController.isCurrent(from)) {
             chatOpener.launchIn(scope) {
                 dependencies.chats.openConversation(user).onSuccess { id ->
                     navController.navigateOnce(from, Routes.chat(id))

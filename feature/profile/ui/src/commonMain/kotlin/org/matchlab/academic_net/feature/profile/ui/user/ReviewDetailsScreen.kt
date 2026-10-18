@@ -38,6 +38,8 @@ import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.authorLine
+import org.matchlab.academic_net.feature.profile.ui.canMessageAuthor
+import org.matchlab.academic_net.feature.profile.ui.canOpenAuthor
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_load_error
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_message_author
@@ -54,8 +56,10 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
  *
  * @param reviewId the review; the API cannot give one review by itself (API-GAP G14), so the repository looks it up in
  * the reviews of [userId]
- * @param onAuthorClick the author card, which leads to the author's profile
- * @param onAuthorChatClick the chat icon of the author card; not shown for a review the viewer wrote
+ * @param onAuthorClick the author card, which leads to the author's profile; the card is not a button when the server
+ * gave the review no id of the author (API-GAP G55)
+ * @param onAuthorChatClick the chat icon of the author card; not shown for a review the viewer wrote, nor for an author
+ * with no id (API-GAP G55)
  */
 @Composable
 fun ReviewDetailsRoute(
@@ -129,10 +133,11 @@ private fun ColumnScope.ReviewContent(
                 // so with the Gateway there is no shield.
                 avatar = AppAvatars.forKey(review.author.id.value),
                 isVerified = review.author.isVerified,
-                showChatButton = !review.isByViewer,
+                // API-GAP G55: an author the server gave no id for has no profile to open and nobody to message.
+                showChatButton = review.canMessageAuthor,
                 chatContentDescription = stringResource(Res.string.profile_message_author),
             ),
-            onClick = { onAuthorClick(review.author.id) },
+            onClick = if (review.canOpenAuthor) ({ onAuthorClick(review.author.id) }) else null,
             onChatClick = { onAuthorChatClick(review.author) },
         )
         Text(review.title, style = MaterialTheme.typography.headlineMedium, color = colors.onSurface)

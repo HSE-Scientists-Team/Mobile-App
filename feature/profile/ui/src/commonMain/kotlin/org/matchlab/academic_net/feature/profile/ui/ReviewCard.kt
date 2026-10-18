@@ -37,7 +37,8 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
  * @property rating the mark, a whole number of stars out of five
  * @property date the month the project ended ("мар 2026") in the list of reviews, `null` where it is not shown (the
  *  preview on a profile) or not known
- * @property showChat the chat icon next to the author: not for a review the viewer wrote
+ * @property showChat the chat icon next to the author: not for a review the viewer wrote, and not for an author the
+ *  server gave no id for (API-GAP G55: there is nobody to start a chat with)
  */
 @Immutable
 data class ReviewCardUiModel(
@@ -62,29 +63,37 @@ private const val ReviewTextLines = 3
  *
  * Three things can be tapped, each runs once per burst of taps: the author row opens the profile of the author, the
  * chat icon starts a chat with them, and the rest of the card (with "Читать полностью") opens the review in full.
+ * An author with no id (API-GAP G55) has no profile to open: the row is then not a button ([onAuthorClick] is `null`,
+ * a tap on it is a tap on the card) and the chat icon is left out ([ReviewCardUiModel.showChat] is `false`).
  *
  * @param onClick the card and "Читать полностью": the review in full
- * @param onAuthorClick the row of the author: their profile
+ * @param onAuthorClick the row of the author: their profile; `null` makes the row plain text
  * @param onChatClick the chat icon, which is there only with [ReviewCardUiModel.showChat]
  */
 @Composable
 fun ReviewCard(
     model: ReviewCardUiModel,
     onClick: () -> Unit,
-    onAuthorClick: () -> Unit,
+    onAuthorClick: (() -> Unit)?,
     onChatClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
     // Whether the layout of the text had to cut it: it is known only after the text is measured.
     var isCut by remember(model.text) { mutableStateOf(false) }
+    // The author row is a button only when there is a profile to open (API-GAP G55).
+    val authorTap = if (onAuthorClick != null) {
+        Modifier.onceClickable(role = Role.Button, onClick = onAuthorClick)
+    } else {
+        Modifier
+    }
     AppCard(modifier, onClick = onClick, spacing = 8.dp) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                modifier = Modifier.weight(1f).onceClickable(role = Role.Button, onClick = onAuthorClick),
+                modifier = Modifier.weight(1f).then(authorTap),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

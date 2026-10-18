@@ -116,7 +116,8 @@ internal fun EvidenceAttachedCard(modifier: Modifier = Modifier) {
  * The actions under the form of a record that is edited, each as wide as the form and 8dp apart:
  *
  * - "Отправить на проверку" (outlined) when the record [canSend];
- * - "Открыть ссылку" (a text button) when there is a link to open ([onOpenLink], a work only);
+ * - "Открыть ссылку" (a text button) when there is a web link to open ([onOpenLink], a work only; API-GAP G56: the
+ *   screen passes `null` for a link of another kind);
  * - the red text button that deletes the record ([deleteText]: "Удалить работу" / "Удалить документ"); the screen asks
  *   for the confirmation in [onDelete].
  *

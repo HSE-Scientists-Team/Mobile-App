@@ -134,7 +134,8 @@ internal fun Review.authorLine(): String =
 
 /**
  * The card of a review. The month the project ended is shown in the list of reviews ([withDate]) and when it is known;
- * the chat icon is not shown for a review the viewer wrote.
+ * the chat icon is not shown for a review the viewer wrote, nor for an author with no id ([canMessageAuthor], API-GAP
+ * G55).
  */
 @Composable
 internal fun Review.toCardUiModel(withDate: Boolean): ReviewCardUiModel = ReviewCardUiModel(
@@ -146,7 +147,7 @@ internal fun Review.toCardUiModel(withDate: Boolean): ReviewCardUiModel = Review
     rating = rating,
     date = if (withDate) projectFinished?.let { yearMonthText(it) } else null,
     text = text,
-    showChat = !isByViewer,
+    showChat = canMessageAuthor,
 )
 
 /** "Отзывы · ★ 4.8" | "Reviews · ★ 4.8"; just "Отзывы" while there is no rating. */

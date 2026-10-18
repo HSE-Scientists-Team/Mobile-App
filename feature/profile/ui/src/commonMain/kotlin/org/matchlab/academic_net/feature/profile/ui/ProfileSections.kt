@@ -46,15 +46,20 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
  * leads to the editing ([onFillClick]); the works are called "Портфолио" there.
  *
  * **What a tap on a card does.** On the own profile the cards of works and documents open for editing
- * ([onWorkClick], [onDocumentClick]) and have a chevron. On somebody else's profile a work with a link opens the link
- * ([onWorkClick]), a work without one does nothing, and a document is not a button at all.
+ * ([onWorkClick], [onDocumentClick]) and have a chevron. On somebody else's profile a work with a web link opens the
+ * link ([onWorkClick]); a work without a link, or with one that is not a web link (API-GAP G56, see [openableLink]),
+ * does nothing; a document is not a button at all.
+ *
+ * **Who a review card leads to.** The author row opens the profile of the author and the chat icon starts a chat with
+ * them, unless the server gave the review no id of the author (API-GAP G55): the row is then not a button and there is
+ * no chat icon ([canOpenAuthor], [canMessageAuthor]).
  *
  * @param onWorkClick a card of a work was tapped
  * @param onDocumentClick a card of a document was tapped; it is called on the own profile only
  * @param onAllWorksClick "Все" of the works, shown when the profile has more than it previews
  * @param onAllReviewsClick "Все N" of the reviews, shown when the profile has more than it previews
  * @param onReviewClick a review card (the review in full)
- * @param onAuthorClick the author row of a review card (the profile of the author)
+ * @param onAuthorClick the author row of a review card (the profile of the author); asked for only with an author id
  * @param onAuthorChatClick the chat icon of a review card
  */
 @Composable
@@ -118,7 +123,7 @@ internal fun ColumnScope.ProfileSections(
             profile.works.forEach { work ->
                 WorkCard(
                     model = work.toCardUiModel(listStyle = false),
-                    onClick = if (isOwn || work.link != null) ({ onWorkClick(work) }) else null,
+                    onClick = if (isOwn || openableLink(work.link) != null) ({ onWorkClick(work) }) else null,
                     showChevron = isOwn,
                 )
             }
@@ -149,7 +154,7 @@ internal fun ColumnScope.ProfileSections(
             ReviewCard(
                 model = review.toCardUiModel(withDate = false),
                 onClick = { onReviewClick(review.id) },
-                onAuthorClick = { onAuthorClick(review.author.id) },
+                onAuthorClick = if (review.canOpenAuthor) ({ onAuthorClick(review.author.id) }) else null,
                 onChatClick = { onAuthorChatClick(review.author) },
             )
         }

@@ -42,6 +42,7 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_status_unverified
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_status_verified
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_title
+import org.matchlab.academic_net.feature.profile.ui.openableLink
 import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
 
 /**
@@ -49,8 +50,9 @@ import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
  * design that belong to later stories (invite, open to collaboration, report, block) are not
  * shown; the chat icon in the header stands for the invite and the chat.
  *
- * A work with a link opens the link; a document is not a button. A review card opens the review in full, its author row
- * opens the profile of the author, its chat icon starts a chat with them.
+ * A work with a web link opens the link (API-GAP G56: a link of another kind is not opened); a document is not a
+ * button. A review card opens the review in full, its author row opens the profile of the author, its chat icon starts
+ * a chat with them (an author with no id, API-GAP G55, has neither).
  *
  * @param onNavigateBack the back arrow of the app bar
  * @param onMessageClick the chat icon of the header ("Написать"); not shown on the viewer's own page
@@ -175,7 +177,8 @@ private fun ColumnScope.ProfileContent(
             isOwn = false,
             // Nothing to fill on someone else's page: empty sections are hidden there.
             onFillClick = {},
-            onWorkClick = { work -> work.link?.let(onWorkLinkClick) },
+            // API-GAP G56: only a web link is opened; the card of a work with another kind of link is not a button.
+            onWorkClick = { work -> openableLink(work.link)?.let(onWorkLinkClick) },
             // The documents of another person are not buttons: there is nothing to open.
             onDocumentClick = {},
             onAllWorksClick = onAllWorksClick,

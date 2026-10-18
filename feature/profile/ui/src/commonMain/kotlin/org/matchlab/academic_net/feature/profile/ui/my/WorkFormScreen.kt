@@ -73,6 +73,7 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_work_new_title
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_work_type_practical
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_work_type_scientific
+import org.matchlab.academic_net.feature.profile.ui.openableLink
 import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
 
 /**
@@ -93,9 +94,9 @@ fun AddWorkRoute(
 
 /**
  * "11b Редактировать работу": the form of [AddWorkRoute] on a work of the viewer, with what the server says about it
- * (the state, the comment of the moderator), and the actions: "Сохранить", "Отправить на проверку", "Открыть ссылку",
- * "Удалить работу" (after a confirmation). A work that was changed by someone else meanwhile is loaded again with a
- * message; a work that is gone is "Запись удалена".
+ * (the state, the comment of the moderator), and the actions: "Сохранить", "Отправить на проверку", "Открыть ссылку"
+ * (for a web link only, API-GAP G56), "Удалить работу" (after a confirmation). A work that was changed by someone else
+ * meanwhile is loaded again with a message; a work that is gone is "Запись удалена".
  *
  * @param workId the work to edit
  * @param onClose the cross, and the work being saved or deleted
@@ -358,7 +359,8 @@ private fun ColumnScope.WorkForm(
                 onSend = onSendClick,
                 deleteText = stringResource(Res.string.profile_work_delete),
                 onDelete = onDeleteClick,
-                onOpenLink = base.link?.let { link -> { onOpenLink(link) } },
+                // API-GAP G56: "Открыть ссылку" is there for a web link only, whatever else the work holds in `url`.
+                onOpenLink = openableLink(base.link)?.let { link -> { onOpenLink(link) } },
             )
         }
     }

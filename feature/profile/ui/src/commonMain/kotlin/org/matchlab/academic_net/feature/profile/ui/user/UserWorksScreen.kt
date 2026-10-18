@@ -33,13 +33,14 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_retry
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_works
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_works_empty
+import org.matchlab.academic_net.feature.profile.ui.openableLink
 import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
 import org.matchlab.academic_net.feature.profile.ui.toCardUiModel
 
 /**
  * "09e Все работы": every work of a person, newest first. It serves the profiles of others and the viewer's own: on
- * somebody else's list a work with a link opens it in the browser; on the viewer's own list every work opens for editing
- * and has a chevron.
+ * somebody else's list a work with a web link opens it in the browser (API-GAP G56: a link of another kind is not
+ * opened); on the viewer's own list every work opens for editing and has a chevron.
  *
  * @param onEditWork a work of the viewer's own list was tapped
  */
@@ -97,7 +98,8 @@ internal fun UserWorksScreen(
                             onClick = if (state.isViewer) {
                                 { onEditWork(work.id) }
                             } else {
-                                work.link?.let { link -> { onWorkLinkClick(link) } }
+                                // API-GAP G56: only a web link is opened; any other link leaves the card not a button.
+                                openableLink(work.link)?.let { link -> { onWorkLinkClick(link) } }
                             },
                             showChevron = state.isViewer,
                         )

@@ -37,6 +37,7 @@ import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.domain.ReviewsSummary
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.ReviewCard
+import org.matchlab.academic_net.feature.profile.ui.canOpenAuthor
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_load_error
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_no_reviews
@@ -54,8 +55,8 @@ import org.matchlab.academic_net.feature.profile.ui.toCardUiModel
  * is scrolled ("Загрузка…" under it, or "Не удалось загрузить" with "Повторить").
  *
  * @param onReviewClick a review card, which opens the review in full: the person the reviews are about, and the review
- * @param onAuthorClick the author row of a review card
- * @param onAuthorChatClick the chat icon of a review card
+ * @param onAuthorClick the author row of a review card; an author with no id (API-GAP G55) is not a button
+ * @param onAuthorChatClick the chat icon of a review card; an author with no id has none
  */
 @Composable
 fun UserReviewsRoute(
@@ -161,7 +162,8 @@ private fun ReviewsList(
             ReviewCard(
                 model = review.toCardUiModel(withDate = true),
                 onClick = { onReviewClick(review.id) },
-                onAuthorClick = { onAuthorClick(review.author.id) },
+                // API-GAP G55: an author with no id has no profile to open (the card has no chat icon for them either).
+                onAuthorClick = if (review.canOpenAuthor) ({ onAuthorClick(review.author.id) }) else null,
                 onChatClick = { onAuthorChatClick(review.author) },
             )
         }
