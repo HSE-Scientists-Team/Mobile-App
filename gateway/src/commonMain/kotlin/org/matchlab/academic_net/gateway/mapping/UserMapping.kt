@@ -28,12 +28,17 @@ fun UserProfileDto.toCollaborator(): Collaborator =
     Collaborator(
         user = toUserSummary(),
         university = details.university.orEmpty().trim(),
-        study = Study(
-            level = details.studyLevel?.trim()?.takeIf { it.isNotEmpty() },
-            year = details.studyYear?.takeIf { it > 0 },
-        ),
+        study = studyOf(details.studyLevel, details.studyYear),
         field = details.specialization.orEmpty().trim(),
     )
+
+/**
+ * The study of a person from the two fields the API has for it, in a profile and in a row of the people search alike.
+ * API-GAP G10: [level] is the text the server has, with its outer spaces cut and a blank one left out (`null`); a
+ * [year] of 0 or less (protobuf JSON leaves a zero out) or a missing one is "not given" (`null`).
+ */
+internal fun studyOf(level: String?, year: Int?): Study =
+    Study(level = level?.trim()?.takeIf { it.isNotEmpty() }, year = year?.takeIf { it > 0 })
 
 /**
  * The mean rating of the reviews about the person, or `null` when there are no reviews: the API does not say what

@@ -8,7 +8,9 @@ import kotlinx.coroutines.cancel
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.internal.ApiRequests
 import org.matchlab.academic_net.gateway.internal.KtorAchievementsApi
+import org.matchlab.academic_net.gateway.internal.KtorPeopleSearchApi
 import org.matchlab.academic_net.gateway.internal.KtorProfilesApi
+import org.matchlab.academic_net.gateway.internal.KtorRecommendationsApi
 import org.matchlab.academic_net.gateway.internal.KtorReviewsApi
 import org.matchlab.academic_net.gateway.internal.pathSegment
 import kotlin.coroutines.cancellation.CancellationException
@@ -20,8 +22,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * A session is created when the user signs in (or the app finds the stored session) and closed when the user
  * signs out, so that nothing of the old user's requests is still running when the next one signs in. The
  * calls of the user's data are the properties: [profiles], [achievements], [reviews] and [users] (the
- * profile blocks); the calls of people, projects and search are added by the blocks that need them, each as a
- * property with its own interface over [requests].
+ * profile blocks); the people are found with [peopleSearch] and recommended by [recommendations]. The calls of
+ * projects are added by the blocks that need them, each as a property with its own interface over [requests].
  *
  * Every call throws `RemoteFailure` when it fails and lets a `CancellationException` through, like
  * [AccountApi].
@@ -51,6 +53,12 @@ class GatewaySession internal constructor(
 
     /** The reviews about a person. */
     val reviews: ReviewsApi = KtorReviewsApi(requests)
+
+    /** The people search of "08". */
+    val peopleSearch: PeopleSearchApi = KtorPeopleSearchApi(requests)
+
+    /** What the server recommends: the people of the feed ("01c"). */
+    val recommendations: RecommendationsApi = KtorRecommendationsApi(requests)
 
     /**
      * Cancels the requests of this session that are still running (they end with a `CancellationException`,

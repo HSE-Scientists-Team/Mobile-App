@@ -57,12 +57,16 @@ internal class ApiRequests(
      *
      * @param body the JSON text to send, or `null` for a request without a body.
      * @param query parameters of the URL; those with a `null` value are left out.
+     * @param repeatedQuery parameters of the URL that may come several times, the way OpenAPI writes an array in the
+     * query by default (`form`, exploded: `skill=a&skill=b`); each value is a `name=value` of its own, in the order of
+     * the list, and an empty string is left out. A name that is also in [query] is added to it, not replaced.
      * @param bearerToken a token to send as `Authorization: Bearer`, for calls made outside a session.
      */
     suspend fun <T> call(
         method: HttpMethod,
         path: String,
         query: Map<String, String?> = emptyMap(),
+        repeatedQuery: Map<String, List<String>> = emptyMap(),
         body: String? = null,
         bearerToken: String? = null,
         parse: (String) -> T,
@@ -74,6 +78,10 @@ internal class ApiRequests(
                 accept(ContentType.Application.Json)
                 if (bearerToken != null) bearerAuth(bearerToken)
                 query.forEach { (name, value) -> if (value != null) parameter(name, value) }
+                // Ktor's parameter() appends to the ones already there, so the same name can be given many times.
+                repeatedQuery.forEach { (name, values) ->
+                    values.forEach { value -> if (value.isNotEmpty()) parameter(name, value) }
+                }
                 if (body != null) setBody(TextContent(body, JsonBody))
             }
             if (!response.status.isSuccess()) throw failureOf(response)
@@ -81,12 +89,15 @@ internal class ApiRequests(
         }
     }
 
-    /** `GET` whose answer is a JSON of type [T]. */
+    /** `GET` whose answer is a JSON of type [T]; [query] and [repeatedQuery] are those of [call]. */
     suspend inline fun <reified T> get(
         path: String,
         query: Map<String, String?> = emptyMap(),
+        repeatedQuery: Map<String, List<String>> = emptyMap(),
         bearerToken: String? = null,
-    ): T = call(HttpMethod.Get, path, query, bearerToken = bearerToken) { GatewayJson.decodeFromString<T>(it) }
+    ): T = call(HttpMethod.Get, path, query, repeatedQuery, bearerToken = bearerToken) {
+        GatewayJson.decodeFromString<T>(it)
+    }
 
     /** `POST` of [body] as JSON, whose answer is a JSON of type [T]. */
     suspend inline fun <reified B, reified T> post(path: String, body: B, bearerToken: String? = null): T =
