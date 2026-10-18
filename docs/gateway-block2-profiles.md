@@ -1,6 +1,11 @@
 # Блок 2 «Оценивать других» + «Представить себя в профиле»: проект подключения к Gateway
 
-Статус на 2026-10-18: это проект `architect`, ничего не реализовано. Документ рассчитан на то, что шаг 1 (Часть 3 `docs/gateway-integration.md`) уже сделан: есть `:gateway`, `GatewaySession`, `RemoteFailure`, `SessionComponent` с `SessionResources`, `Backend`, `DataSourcesModule`, `failureText`, `FlexibleLongSerializer`, `@UnverifiedContract`, а также защита от повторных нажатий (Баг 1), иконка чата в шапке 09 и Card/Person 64 (шаги 2 и 4 плана). Предлагаю сохранить документ как «Часть 4» в `docs/gateway-integration.md`.
+> **Исторический проект.** Реализация следует `docs/api-gaps.md` (правило «без догадок»: словари, синонимы значений, `GatewayVocabulary`, запись
+> неподтверждённых значений отменены) и контрактам `docs/contract-b3.md`, `docs/contract-p45.md`; расхождения решает код и реестр пробелов.
+> Из этого документа не делались `ModerationLedger` и словари статусов, ролей и уровней: статус записи и роль автора отзыва неизвестны, уровень обучения —
+> свободный текст (G10, G12, G13).
+
+Статус на 2026-10-18: это проект `architect`; блок затем реализован в коде с отступлениями (см. заметку выше). Документ рассчитан на то, что шаг 1 (Часть 3 `docs/gateway-integration.md`) уже сделан: есть `:gateway`, `GatewaySession`, `RemoteFailure`, `SessionComponent` с `SessionResources`, `Backend`, `DataSourcesModule`, `failureText`, `FlexibleLongSerializer`, `@UnverifiedContract`, а также защита от повторных нажатий (Баг 1), иконка чата в шапке 09 и Card/Person 64 (шаги 2 и 4 плана). Предлагаю сохранить документ как «Часть 4» в `docs/gateway-integration.md`.
 
 ## 0. Что нового по сравнению с docs/gateway-integration.md
 
@@ -955,7 +960,7 @@ class SettingsUiDependencies(val getOpenToCollaboration: GetOpenToCollaborationU
 - `PrivacySettings`, `PrivacyOption`, `GetPrivacySettingsUseCase`, `SetPrivacyOptionUseCase`, `PrivacySettingsTest` и тесты, которые на них ссылаются;
 - `PrivacyToggle` на экране и строки `settings_show_*`.
 
-Добавляются `settings_open_to_collaboration`, `settings_open_to_collaboration_hint` («Вас смогут находить в поиске людей и в рекомендациях») и `settings_profile_missing_hint`. Если шаг 1 этого не сделал, `settings_sign_out_text` меняется на «Чтобы войти снова, понадобятся почта и пароль». Заголовок «Приватность и безопасность» остаётся, пока пользователь не ответил про «Видимость».
+Добавляются `settings_open_to_collaboration`, `settings_open_to_collaboration_hint` («Вас будут показывать в рекомендациях людей»; en "You'll appear in the people recommendations"; подсказка макета обещала больше, чем API, см. `docs/sprint-1.md`) и `settings_profile_missing_hint`. Если шаг 1 этого не сделал, `settings_sign_out_text` меняется на «Чтобы войти снова, понадобятся почта и пароль». Заголовок «Приватность и безопасность» остаётся, пока пользователь не ответил про «Видимость».
 
 ## 8. `:shared`: DI и навигация
 
