@@ -30,18 +30,22 @@ class FeedViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
-    /** Mock data source whose answers can be switched off like a dead network. */
+    /** Mock data source whose answers can be switched off like a dead network, and which counts the requests. */
     private class SwitchableDataSource(
         private val delegate: FeedDataSource = MockFeedDataSource(latencyMillis = 0),
     ) : FeedDataSource {
         var peopleFail = false
         var viewerFail = false
+        var peopleRequests = 0
+            private set
 
         override suspend fun getViewer(): UserSummary =
             if (viewerFail) error("offline") else delegate.getViewer()
 
-        override suspend fun getRecommendedPeople(): List<Collaborator> =
-            if (peopleFail) error("offline") else delegate.getRecommendedPeople()
+        override suspend fun getRecommendedPeople(): List<Collaborator> {
+            peopleRequests++
+            return if (peopleFail) error("offline") else delegate.getRecommendedPeople()
+        }
     }
 
     /** A server that does not recommend anyone until the test lets it, and counts the requests. */
@@ -68,6 +72,10 @@ class FeedViewModelTest {
         return FeedViewModel(GetViewerUseCase(repository), GetRecommendedPeopleUseCase(repository))
     }
 
+    /** A view model whose "Люди" scope has been opened, which is when the people are asked for. */
+    private fun peopleShown(dataSource: FeedDataSource = SwitchableDataSource()): FeedViewModel =
+        viewModel(dataSource).also { it.onScopeSelect(FeedScope.People) }
+
     @Test
     fun opensOnTheProjectsScope() = runTest {
         assertEquals(FeedScope.Projects, viewModel().uiState.value.scope)
@@ -86,7 +94,7 @@ class FeedViewModelTest {
 
     @Test
     fun recommendedPeopleAreShownWithTheirSubtitles() = runTest {
-        val state = viewModel().uiState.value
+        val state = peopleShown().uiState.value
 
         assertFalse(state.isPeopleLoading)
         assertFalse(state.peopleFailed)
@@ -103,7 +111,7 @@ class FeedViewModelTest {
     fun failedViewerLeavesTheDefaultAvatar() = runTest {
         val dataSource = SwitchableDataSource().apply { viewerFail = true }
 
-        val state = viewModel(dataSource).uiState.value
+        val state = peopleShown(dataSource).uiState.value
 
         assertNull(state.viewerAvatarKey)
         assertEquals(3, state.people.size)
@@ -112,7 +120,7 @@ class FeedViewModelTest {
     @Test
     fun failedPeopleCanBeRetried() = runTest {
         val dataSource = SwitchableDataSource().apply { peopleFail = true }
-        val viewModel = viewModel(dataSource)
+        val viewModel = peopleShown(dataSource)
         assertTrue(viewModel.uiState.value.peopleFailed)
         assertFalse(viewModel.uiState.value.isPeopleLoading)
         assertTrue(viewModel.uiState.value.people.isEmpty())
@@ -128,7 +136,7 @@ class FeedViewModelTest {
     @Test
     fun retryWhilePeopleAreLoadingAsksOnce() = runTest {
         val dataSource = GatedDataSource()
-        val viewModel = viewModel(dataSource)
+        val viewModel = peopleShown(dataSource)
         assertTrue(viewModel.uiState.value.isPeopleLoading)
 
         viewModel.onPeopleRetry()
@@ -139,5 +147,94 @@ class FeedViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isPeopleLoading)
         assertEquals(3, state.people.size)
+    }
+
+    @Test
+    fun peopleAreNotAskedForUntilTheScopeIsShown() = runTest {
+        val dataSource = SwitchableDataSource()
+
+        val viewModel = viewModel(dataSource)
+
+        // The feed opens on "Проекты": the viewer is loaded, the people are not requested.
+        assertEquals("user-me", viewModel.uiState.value.viewerAvatarKey)
+        assertEquals(0, dataSource.peopleRequests)
+        assertTrue(viewModel.uiState.value.people.isEmpty())
+        assertTrue(viewModel.uiState.value.isPeopleLoading)
+    }
+
+    @Test
+    fun peopleAreAskedForWhenTheScopeIsShownFirst() = runTest {
+        val dataSource = SwitchableDataSource()
+        val viewModel = viewModel(dataSource)
+
+        viewModel.onScopeSelect(FeedScope.People)
+
+        assertEquals(1, dataSource.peopleRequests)
+        assertEquals(3, viewModel.uiState.value.people.size)
+        assertFalse(viewModel.uiState.value.isPeopleLoading)
+    }
+
+    @Test
+    fun selectingTheProjectsScopeAsksForNothing() = runTest {
+        val dataSource = SwitchableDataSource()
+        val viewModel = viewModel(dataSource)
+
+        viewModel.onScopeSelect(FeedScope.Projects)
+
+        assertEquals(0, dataSource.peopleRequests)
+    }
+
+    @Test
+    fun switchingBetweenTheScopesDoesNotAskAgain() = runTest {
+        val dataSource = SwitchableDataSource()
+        val viewModel = viewModel(dataSource)
+
+        viewModel.onScopeSelect(FeedScope.People)
+        val people = viewModel.uiState.value.people
+        repeat(3) {
+            viewModel.onScopeSelect(FeedScope.Projects)
+            viewModel.onScopeSelect(FeedScope.People)
+        }
+
+        assertEquals(1, dataSource.peopleRequests)
+        assertEquals(people, viewModel.uiState.value.people)
+        // What the user sees on coming back: the people, not a spinner.
+        assertFalse(viewModel.uiState.value.isPeopleLoading)
+        assertEquals(FeedScope.People, viewModel.uiState.value.scope)
+    }
+
+    @Test
+    fun tapsOnThePeopleScopeWhileTheyLoadAskOnce() = runTest {
+        val dataSource = GatedDataSource()
+        val viewModel = viewModel(dataSource)
+
+        viewModel.onScopeSelect(FeedScope.People)
+        viewModel.onScopeSelect(FeedScope.Projects)
+        viewModel.onScopeSelect(FeedScope.People)
+        viewModel.onScopeSelect(FeedScope.People)
+        dataSource.answer()
+
+        assertEquals(1, dataSource.peopleRequests)
+        assertEquals(3, viewModel.uiState.value.people.size)
+    }
+
+    @Test
+    fun aFailureIsKeptWhenSwitchingAndOnlyRetryAsksAgain() = runTest {
+        val dataSource = SwitchableDataSource().apply { peopleFail = true }
+        val viewModel = viewModel(dataSource)
+
+        viewModel.onScopeSelect(FeedScope.People)
+        viewModel.onScopeSelect(FeedScope.Projects)
+        viewModel.onScopeSelect(FeedScope.People)
+
+        assertEquals(1, dataSource.peopleRequests)
+        assertTrue(viewModel.uiState.value.peopleFailed)
+
+        dataSource.peopleFail = false
+        viewModel.onPeopleRetry()
+
+        assertEquals(2, dataSource.peopleRequests)
+        assertFalse(viewModel.uiState.value.peopleFailed)
+        assertEquals(3, viewModel.uiState.value.people.size)
     }
 }
