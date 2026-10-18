@@ -261,6 +261,15 @@ private fun BaseComponents() {
             onRemoveTag = { tags -= it },
             placeholder = "Введите тег и нажмите Enter",
         )
+        // The form is being saved: the input takes no text, the plus adds nothing, the chips are not removed.
+        AppTagsField(
+            label = "Теги (идёт сохранение)",
+            tags = listOf("Machine Learning", "Python"),
+            onAddTag = {},
+            onRemoveTag = {},
+            placeholder = "Введите тег и нажмите Enter",
+            enabled = false,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
             var checked by remember { mutableStateOf(false) }
             AppSwitch(checked, { checked = it })

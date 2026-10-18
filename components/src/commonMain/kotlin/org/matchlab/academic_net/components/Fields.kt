@@ -46,7 +46,8 @@ import org.matchlab.academic_net.components.interaction.onceClickable
 // In the design the 1dp outline adds to the component size, so the inner padding is 1dp larger
 // than the Figma padding (the text stays exactly where Figma puts it).
 // The text inputs are built on AppBasicTextField, so the caret and the selection survive rotation
-// (the password field is the one that deliberately does not, see AppPasswordField).
+// (the password field is the one that deliberately does not, see AppPasswordField; so is a text field
+// that is given `saveState = false`).
 
 /**
  * "Search bar": full-round field with a search icon. The caret survives configuration changes
@@ -126,6 +127,11 @@ fun AppSearchBarButton(
  * With [errorText] the outline is `error` and a line of `labelSmall` in `error` stands under the box (the
  * design draws this state as an override of the field, see the registration screens).
  *
+ * @param saveState whether the caret, the selection and the text survive a recreation of the activity and the
+ * death of the process (see [AppBasicTextField]); `true` for a name or a title. Pass `false` for a field that
+ * takes a secret that must not reach the `Bundle` the system writes to disk, such as the one-time token of the
+ * confirmation letter ([AppPasswordField] does it for a password). After a recreation the text is whatever [value]
+ * is and the caret is at its end. It must not change while the field is shown.
  * @param errorText the reason the text is not accepted, or `null`
  * @param errorAction a button at the end of the error line, for the way out of that very problem: "Войти" next
  * to "Аккаунт с этой почтой уже есть". It is drawn only together with [errorText], which takes the width that
@@ -144,6 +150,7 @@ fun AppTextField(
     enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    saveState: Boolean = true,
     errorText: String? = null,
     errorAction: (@Composable () -> Unit)? = null,
 ) {
@@ -164,6 +171,7 @@ fun AppTextField(
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
             interactionSource = interactionSource,
+            saveState = saveState,
             decorationBox = { innerTextField ->
                 Box(
                     Modifier
@@ -330,7 +338,14 @@ fun AppSelectField(
     }
 }
 
-/** "Text field/Tags": entered tags as input chips plus a field to add new ones. */
+/**
+ * "Text field/Tags": entered tags as input chips plus a field to add new ones.
+ *
+ * @param onAddTag the trimmed text that was committed (the keyboard's Done, or the plus)
+ * @param onRemoveTag the tag whose chip was tapped
+ * @param enabled `false` while the form that holds the field is busy (a save is on its way): the input takes no
+ * text, the plus adds nothing and the chips cannot be removed. The look is unchanged, as with [AppTextField]
+ */
 @Composable
 fun AppTagsField(
     label: String,
@@ -339,6 +354,7 @@ fun AppTagsField(
     onRemoveTag: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
@@ -365,7 +381,7 @@ fun AppTagsField(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    tags.forEach { tag -> AppInputChip(tag, onRemove = { onRemoveTag(tag) }) }
+                    tags.forEach { tag -> AppInputChip(tag, onRemove = { onRemoveTag(tag) }, enabled = enabled) }
                 }
             }
             Row(
@@ -376,6 +392,7 @@ fun AppTagsField(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
+                    enabled = enabled,
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
                     cursorBrush = SolidColor(colors.primary),
@@ -392,7 +409,7 @@ fun AppTagsField(
                 AppIcon(
                     icon = AppIcons.Plus,
                     contentDescription = stringResource(Res.string.components_add),
-                    modifier = Modifier.clickable(onClick = commit),
+                    modifier = Modifier.clickable(enabled = enabled, onClick = commit),
                     size = 20.dp,
                     tint = colors.primary,
                 )

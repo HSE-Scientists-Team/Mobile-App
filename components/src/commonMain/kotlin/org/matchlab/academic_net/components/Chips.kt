@@ -39,14 +39,21 @@ fun AppTagChip(text: String, modifier: Modifier = Modifier) {
  * the finger, and a second tap would remove it too. The rows of the app compose their chips by
  * position (no `key`), so the guard of the chip that went stays with its position and holds the
  * chip that took its place for the same window.
+ *
+ * @param enabled `false` makes the chip a plain label: a tap removes nothing (the field of tags is switched off
+ * while its form is busy)
  */
 @Composable
-fun AppInputChip(text: String, onRemove: () -> Unit, modifier: Modifier = Modifier) {
+fun AppInputChip(text: String, onRemove: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val colors = MaterialTheme.colorScheme
     ChipRow(
         modifier
             .background(colors.surfaceContainer)
-            .onceClickable(onClickLabel = stringResource(Res.string.components_remove), onClick = onRemove),
+            .onceClickable(
+                enabled = enabled,
+                onClickLabel = stringResource(Res.string.components_remove),
+                onClick = onRemove,
+            ),
     ) {
         AppIcon(AppIcons.X, contentDescription = null, size = 16.dp, tint = colors.onSurfaceVariant)
         ChipText(text, colors.onSurfaceVariant)
