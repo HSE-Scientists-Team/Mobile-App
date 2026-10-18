@@ -220,6 +220,72 @@ class MyProfileUseCasesTest {
         assertEquals(emptyList(), repository.calls, "a PUT would reset the confirmation for nothing")
     }
 
+    // The server keeps a text as it was stored once (a double space inside, a blank at the edge), and the form opens with
+    // it as it is. Saving the form without touching it is not a change: the comparison is with the record normalized
+    // the same way as the form, and a PUT would reset the confirmation of the record for nothing.
+
+    @Test
+    fun aWorkWhoseServerTextHasDoubleOrEdgeBlanksIsNotChangedBySavingItAsItIs() = runTest {
+        val base = work(title = "Статья   о  графах ", description = "  Описание\nв две  строки ", link = " https://doi.org/10.1/x ")
+
+        val result = SaveWorkUseCase(repository)(base, base.toDraft(), send = false)
+
+        assertEquals(SubmitResult.Success(PortfolioChange.Saved(base, sent = false)), result)
+        assertEquals(emptyList(), repository.calls, "no PUT")
+    }
+
+    @Test
+    fun aDocumentWhoseServerTextHasDoubleOrEdgeBlanksIsNotChangedBySavingItAsItIs() = runTest {
+        val base = document(
+            title = " Диплом   бакалавра",
+            issuer = "НИУ  ВШЭ ",
+            proof = ProofAttachment(" https://files.example.com/diploma.pdf "),
+        )
+
+        val result = SaveDocumentUseCase(repository)(base, base.toDraft(), send = false)
+
+        assertEquals(SubmitResult.Success(PortfolioChange.Saved(base, sent = false)), result)
+        assertEquals(emptyList(), repository.calls, "no PUT")
+    }
+
+    @Test
+    fun aRecordWithBlanksOfTheServerAndNoEditsStillCanBeSentWithoutASave() = runTest {
+        val savedWork = work(id = "w5", title = "Статья   о графах ")
+        val savedDocument = document(id = "d5", issuer = "НИУ  ВШЭ ")
+
+        SaveWorkUseCase(repository)(savedWork, savedWork.toDraft(), send = true)
+        SaveDocumentUseCase(repository)(savedDocument, savedDocument.toDraft(), send = true)
+
+        assertEquals(listOf("submit", "submit"), repository.calls, "only the sending, no save before it")
+    }
+
+    @Test
+    fun aRealEditNextToBlanksOfTheServerIsSavedWithTheWholeFormNormalized() = runTest {
+        val base = work(title = "Статья   о  графах ", description = "Описание")
+
+        SaveWorkUseCase(repository)(base, base.toDraft().copy(description = "Другое описание"), send = false)
+
+        val (_, draft, _) = repository.updatedWorks.single()
+        assertEquals("Статья о графах", draft.title, "the untouched field goes out tidy too")
+        assertEquals("Другое описание", draft.description)
+
+        val baseDocument = document(issuer = "НИУ  ВШЭ ")
+        SaveDocumentUseCase(repository)(baseDocument, baseDocument.toDraft().copy(title = "Новый диплом"), send = false)
+
+        assertEquals("НИУ ВШЭ", repository.updatedDocuments.single().second.issuer)
+    }
+
+    @Test
+    fun anEditThatOnlyMovesBlanksAroundIsNotAnEditEvenWhenTheFormGotItsOwn() = runTest {
+        // The record has a double space; the user's form has it in another place and a blank at the end.
+        val base = work(title = "Статья  о графах")
+
+        val result = SaveWorkUseCase(repository)(base, base.toDraft().copy(title = "Статья о  графах  "), send = false)
+
+        assertEquals(SubmitResult.Success(PortfolioChange.Saved(base, sent = false)), result)
+        assertEquals(emptyList(), repository.calls)
+    }
+
     @Test
     fun aChangedWorkIsSavedOnTheRevisionItWasOpenedOn() = runTest {
         val base = work(revision = 7)

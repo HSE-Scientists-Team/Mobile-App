@@ -93,9 +93,10 @@ class GetMyDocumentUseCase(private val repository: MyProfileRepository) {
 
 /**
  * Saves the form of a work being edited, which was opened on [base]. Nothing changed means no request (a save would
- * reset the confirmation for nothing); with [send] the work is also sent for verification when it has a link or a
- * proof file. A work that was saved but could not be sent is [PortfolioChange.Saved] with `sent = false`.
- * See `savePortfolioItem` for the whole table.
+ * reset the confirmation for nothing); the form is compared with [base] after both went through the same
+ * normalization, so a text the server keeps with a double space or a trailing blank is not a change the user made.
+ * With [send] the work is also sent for verification when it has a link or a proof file. A work that was saved but
+ * could not be sent is [PortfolioChange.Saved] with `sent = false`. See `savePortfolioItem` for the whole table.
  */
 class SaveWorkUseCase(private val repository: MyProfileRepository) {
     suspend operator fun invoke(
@@ -110,7 +111,8 @@ class SaveWorkUseCase(private val repository: MyProfileRepository) {
         return suspendRunCatching {
             savePortfolioItem(
                 base = base,
-                changed = normalized != base.toDraft(),
+                // Both sides are normalized: the form was normalized above, while the record is as the server has it.
+                changed = normalized != base.toDraft().normalized(),
                 send = send,
                 sendsForVerification = normalized.sendsForVerification,
                 update = { repository.updateWork(base.id, normalized, base.revision) },
@@ -137,7 +139,8 @@ class SaveDocumentUseCase(private val repository: MyProfileRepository) {
         return suspendRunCatching {
             savePortfolioItem(
                 base = base,
-                changed = normalized != base.toDraft(),
+                // Both sides are normalized: the form was normalized above, while the record is as the server has it.
+                changed = normalized != base.toDraft().normalized(),
                 send = send,
                 sendsForVerification = normalized.sendsForVerification,
                 update = { repository.updateDocument(base.id, normalized, base.revision) },
