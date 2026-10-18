@@ -31,10 +31,15 @@ class RestoreSessionUseCase(private val repository: AuthRepository) {
  * "Войти": signs in with the e-mail and the password.
  *
  * The form is checked here, and only for what cannot be right: an address that fails [EmailRules]
- * and an empty password. The length of the password is not checked: it is the rule of a
- * registration, and the account may have been made under another one, so the server decides. A form
- * with a problem does not reach the server ([SubmitResult.Invalid]); the verdict of the server is
- * the [SignInOutcome]; a failure of the call is [SubmitResult.Failure].
+ * and an empty password. A form with a problem does not reach the server ([SubmitResult.Invalid]); the
+ * verdict of the server is the [SignInOutcome]; a failure of the call is [SubmitResult.Failure].
+ *
+ * **A password the schema cannot hold is never right.** The schema `Credentials` is one for the registration
+ * and for the sign-in (the password is [PasswordRules.MinBytes] to [PasswordRules.MaxBytes] bytes of UTF-8), so
+ * no account has a password outside of it. Such a password gets the verdict [SignInOutcome.WrongCredentials] at
+ * once, without a request: a request that the schema does not allow may be refused as a bad one (400), which the
+ * user would read as "something went wrong" instead of "wrong address or password". (It is not a problem of the
+ * form: the form of a sign-in does not name the rules of a registration.)
  */
 class SignInUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(email: String, password: String): SubmitResult<SignInOutcome, CredentialsError> {
@@ -44,6 +49,9 @@ class SignInUseCase(private val repository: AuthRepository) {
             if (password.isEmpty()) add(CredentialsError.PasswordEmpty)
         }
         if (errors.isNotEmpty()) return SubmitResult.Invalid(errors)
+
+        // The password is not empty here, so what is left of the rules is its length.
+        if (PasswordRules.validate(password) != null) return SubmitResult.Success(SignInOutcome.WrongCredentials)
 
         return suspendRunCatching { repository.signIn(Credentials(normalized, Password(password))) }.toSubmitResult()
     }

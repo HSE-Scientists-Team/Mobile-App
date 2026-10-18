@@ -56,13 +56,72 @@ class AuthUseCasesTest {
         assertEquals(emptyList(), repository.signIns)
     }
 
-    @Test
-    fun signInDoesNotApplyTheLengthRulesOfARegistration() = runTest {
-        // The account may have been made under other rules: the server is the judge of a wrong password.
-        signIn("student@hse.ru", "short")
-        signIn("student@hse.ru", "x".repeat(200))
+    // The schema `Credentials` is one for the registration and for the sign-in: a password of fewer than 8 or more than 72
+    // bytes of UTF-8 cannot belong to any account, so it is "wrong credentials" at once, without a request.
 
-        assertEquals(listOf("short", "x".repeat(200)), repository.signIns.map { it.password.value })
+    @Test
+    fun signInWithAPasswordTheSchemaCannotHoldIsWrongCredentialsAndNeverReachesTheServer() = runTest {
+        for (password in listOf("short", "x".repeat(7), "x".repeat(73), "x".repeat(200))) {
+            repository.signInOutcome = SignInOutcome.SignedIn // what the server would have said, had it been asked
+
+            val result = signIn("student@hse.ru", password)
+
+            assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), result, "${password.length} bytes")
+        }
+
+        assertEquals(emptyList(), repository.signIns)
+    }
+
+    @Test
+    fun signInPasswordIsMeasuredInBytesOfUtf8NotInCharacters() = runTest {
+        // 37 Cyrillic letters are 74 bytes: too long, though 37 characters look short. 4 letters are 8 bytes: just enough.
+        assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), signIn("student@hse.ru", "ж".repeat(37)))
+        assertEquals(emptyList(), repository.signIns)
+
+        assertIs<SubmitResult.Success<SignInOutcome>>(signIn("student@hse.ru", "ж".repeat(4)))
+        assertIs<SubmitResult.Success<SignInOutcome>>(signIn("student@hse.ru", "ж".repeat(36)))
+
+        assertEquals(listOf("ж".repeat(4), "ж".repeat(36)), repository.signIns.map { it.password.value })
+    }
+
+    @Test
+    fun signInPasswordOfEightAndOfSeventyTwoBytesIsAskedOfTheServer() = runTest {
+        signIn("student@hse.ru", "x".repeat(8))
+        signIn("student@hse.ru", "x".repeat(72))
+
+        assertEquals(listOf("x".repeat(8), "x".repeat(72)), repository.signIns.map { it.password.value })
+    }
+
+    @Test
+    fun signInPasswordBoundsHoldForEmojiAndMixedTextToo() = runTest {
+        // An emoji outside the BMP is a pair of surrogates and four bytes: 2 of them are 8 bytes, 18 are 72, 19 are 76.
+        val emoji = "😀"
+        assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), signIn("student@hse.ru", emoji))
+        assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), signIn("student@hse.ru", emoji.repeat(19)))
+        assertEquals(emptyList(), repository.signIns)
+
+        signIn("student@hse.ru", emoji.repeat(2))
+        signIn("student@hse.ru", emoji.repeat(18))
+        // Seventy bytes of ASCII and one Cyrillic letter: 72 exactly, then one more byte.
+        signIn("student@hse.ru", "x".repeat(70) + "ж")
+        assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), signIn("student@hse.ru", "x".repeat(71) + "ж"))
+
+        assertEquals(3, repository.signIns.size)
+    }
+
+    @Test
+    fun signInWithAnEmptyPasswordIsStillAMistakeOfTheFormAndNotWrongCredentials() = runTest {
+        // Nothing was typed: the field is told, and the answer is not "wrong password".
+        assertEquals(SubmitResult.Invalid(setOf(CredentialsError.PasswordEmpty)), signIn("student@hse.ru", ""))
+        assertEquals(emptyList(), repository.signIns)
+    }
+
+    @Test
+    fun signInNeverNamesTheLengthRulesOfARegistrationInTheForm() = runTest {
+        // A short password is not "PasswordTooShort": the sign-in form does not teach the rules of a registration.
+        assertEquals(SubmitResult.Invalid(setOf(CredentialsError.EmailMalformed)), signIn("nonsense", "abc"))
+        assertEquals(SubmitResult.Invalid(setOf(CredentialsError.EmailEmpty)), signIn("   ", "x".repeat(100)))
+        assertEquals(emptyList(), repository.signIns)
     }
 
     @Test
@@ -77,10 +136,21 @@ class AuthUseCasesTest {
     }
 
     @Test
-    fun signInPasswordOfSpacesIsAPassword() = runTest {
-        signIn("student@hse.ru", "   ")
+    fun signInPasswordOfSpacesIsAPasswordWhenItIsLongEnough() = runTest {
+        // Spaces count as bytes and are never trimmed: eight of them are a password, three are too few for the schema.
+        signIn("student@hse.ru", "        ")
+        assertEquals(listOf("        "), repository.signIns.map { it.password.value })
 
-        assertEquals(listOf("   "), repository.signIns.map { it.password.value })
+        assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), signIn("student@hse.ru", "   "))
+        assertEquals(1, repository.signIns.size, "three spaces did not reach the server")
+    }
+
+    @Test
+    fun signInRefusedByTheLengthDoesNotLetAFailureOfTheRepositoryThrough() = runTest {
+        // The repository would fail, but it is not asked: the verdict is the same offline as online.
+        repository.failure = RemoteFailure.NoConnection()
+
+        assertEquals(SubmitResult.Success(SignInOutcome.WrongCredentials), signIn("student@hse.ru", "short"))
     }
 
     @Test

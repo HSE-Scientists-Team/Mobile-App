@@ -95,16 +95,77 @@ class SignInViewModelTest : AuthViewModelTest() {
     }
 
     @Test
-    fun passwordOfAnyLengthGoesToTheServerWhichDecides() = runTest {
-        // The length rules are those of a registration: the account may have been made under others.
-        harness.createAccount(password = "abc")
+    fun aPasswordNoAccountCanHaveIsToldAsWrongAndNeverReachesTheServer() = runTest {
+        // The schema holds a password of 8 to 72 bytes, for a registration and for a sign-in alike: "abc" is nobody's
+        // password, so the user is told "wrong address or password" without a request (which could come back as a 400).
         val viewModel = harness.signInViewModel()
         viewModel.fill(password = "abc")
 
         viewModel.onSignInClick()
 
-        assertEquals(1, harness.source.signIns)
-        assertIs<AuthState.SignedIn>(harness.authState)
+        assertEquals(0, harness.source.signIns)
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+        assertTrue(viewModel.state.errors.isEmpty(), "it is the verdict on the pair, not a mistake of the field")
+        assertFalse(viewModel.state.isSubmitting)
+        assertEquals("abc", viewModel.state.password, "the form stays filled for another try")
+        assertFalse(harness.authState is AuthState.SignedIn)
+    }
+
+    @Test
+    fun aPasswordOfSeventyThreeBytesIsToldAsWrongWithoutARequestToo() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        // 37 Cyrillic letters are 74 bytes.
+        viewModel.fill(password = "ж".repeat(37))
+
+        viewModel.onSignInClick()
+
+        assertEquals(0, harness.source.signIns)
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+
+        viewModel.onPasswordChange("x".repeat(73))
+        viewModel.onSignInClick()
+        assertEquals(0, harness.source.signIns)
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+    }
+
+    @Test
+    fun aPasswordOfAllowedLengthGoesToTheServerWhichDecides() = runTest {
+        // 8 bytes: the least the schema holds; 4 Cyrillic letters are 8 bytes as well; 72 bytes: the most.
+        for (password in listOf("12345678", "жжжж", "p".repeat(72))) {
+            val harness = AuthTestHarness()
+            harness.createAccount(password = password)
+            val viewModel = harness.signInViewModel()
+            viewModel.fill(password = password)
+
+            viewModel.onSignInClick()
+
+            assertEquals(1, harness.source.signIns, password)
+            assertIs<AuthState.SignedIn>(harness.authState, password)
+        }
+    }
+
+    @Test
+    fun aWrongPasswordOfAllowedLengthIsAskedOfTheServerAndRefusedByIt() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        viewModel.fill(password = "12345678")
+
+        viewModel.onSignInClick()
+
+        assertEquals(1, harness.source.signIns, "the length is fine, so only the server can tell it is wrong")
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+    }
+
+    @Test
+    fun aPasswordTooShortIsTheSameAnswerOnlineAndOffline() = runTest {
+        harness.source.offline = true
+        val viewModel = harness.signInViewModel()
+        viewModel.fill(password = "abc")
+
+        viewModel.onSignInClick()
+
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem, "no request, so no network to fail")
     }
 
     @Test
