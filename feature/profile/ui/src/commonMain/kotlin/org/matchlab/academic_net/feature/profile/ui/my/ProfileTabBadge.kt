@@ -7,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 
 /**
@@ -14,6 +15,9 @@ import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
  * the viewer, and the viewer has not been shown the decision yet. It goes out when
  * [MyProfileRoute] shows the decision, and it stays off while that screen is visible (the
  * decisions that arrive on the open screen are shown at once, so they are not news).
+ *
+ * API-GAP G12: without [org.matchlab.academic_net.feature.profile.domain.ProfileCapabilities.verificationStatuses]
+ * (the Gateway has no statuses and no notifications) there are no decisions, so the dot is never shown.
  *
  * Call it where the bottom navigation is built; it observes the decisions while it is in the
  * composition.
@@ -32,8 +36,12 @@ fun profileTabHasBadge(dependencies: ProfileUiDependencies): Boolean {
  *
  * Known edge: a decision that arrives within the latency of the server before the user leaves the
  * tab can light the dot until the marking request completes.
+ *
+ * API-GAP G12: a source that does not tell the states of the records never lights the dot.
  */
-internal fun ProfileUiDependencies.observeTabBadge(): Flow<Boolean> =
-    combine(observeHasUnseenResults(), myProfileVisibility.isVisible) { hasUnseen, visible ->
+internal fun ProfileUiDependencies.observeTabBadge(): Flow<Boolean> {
+    if (!capabilities.verificationStatuses) return flowOf(false)
+    return combine(observeHasUnseenResults(), myProfileVisibility.isVisible) { hasUnseen, visible ->
         hasUnseen && !visible
     }.distinctUntilChanged()
+}

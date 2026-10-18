@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.feature.feed.data.mock.MockFeedData
 import org.matchlab.academic_net.feature.feed.data.mock.MockFeedDataSource
 
@@ -20,7 +21,7 @@ class MockFeedDataSourceTest {
         val people = repository.getRecommendedPeople()
 
         assertEquals(listOf("Арджун Мехта", "Мария Соколова", "Даниил Крюков"), people.map { it.user.name })
-        assertEquals("Stanford · 3 курс бакалавриата · Computer Science", people.first().subtitle)
+        assertEquals(Study("Бакалавриат", 3), people.first().study)
     }
 
     @Test

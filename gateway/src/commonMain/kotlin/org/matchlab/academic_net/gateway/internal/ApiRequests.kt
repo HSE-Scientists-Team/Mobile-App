@@ -32,7 +32,8 @@ private val JsonBody = ContentType.Application.Json.withCharset(Charsets.UTF_8)
  * turns whatever went wrong into a [RemoteFailure]. [KtorAccountApi] and the APIs of the next blocks (profiles,
  * projects, search...) are thin layers on top of it: a path, a body, an answer type.
  *
- * - **Paths** are relative to the API prefix (`auth/login`, `users/me/profile`).
+ * - **Paths** are relative to the API prefix (`auth/login`, `users/me/profile`); an id taken from outside goes
+ *   into a path through [pathSegment].
  * - **Bodies** are encoded and answers decoded here, with [GatewayJson], not by a Ktor plugin. A decoding error
  *   carries a piece of the answer in its message (for `login`, the token); inside Ktor's pipeline the logging
  *   plugin would print that message, here it surfaces only as [RemoteFailure.Malformed] with the piece cut out.
@@ -97,6 +98,21 @@ internal class ApiRequests(
     suspend inline fun <reified B> postWithoutAnswer(path: String, body: B, bearerToken: String? = null) {
         call(HttpMethod.Post, path, body = GatewayJson.encodeToString(body), bearerToken = bearerToken) { }
     }
+
+    /**
+     * `GET` whose answer is read as the DTO [T] and also keeps the raw `details` object of the JSON, for a
+     * read-modify-write (see [layOver]).
+     */
+    suspend inline fun <reified T> getWithDetails(path: String): AnswerWithDetails<T> =
+        call(HttpMethod.Get, path) { text -> AnswerWithDetails(GatewayJson.decodeFromString<T>(text), rawDetailsOf(text)) }
+
+    /** `POST` without a body, whose answer is a JSON of type [T]. */
+    suspend inline fun <reified T> postEmpty(path: String): T =
+        call(HttpMethod.Post, path) { GatewayJson.decodeFromString<T>(it) }
+
+    /** `PUT` of [body], the JSON text of a whole request body, whose answer is a JSON of type [T]. */
+    suspend inline fun <reified T> putJson(path: String, body: String): T =
+        call(HttpMethod.Put, path, body = body) { GatewayJson.decodeFromString<T>(it) }
 
     /** `DELETE` whose answer has no body that matters (204). */
     suspend fun delete(path: String, bearerToken: String? = null) {

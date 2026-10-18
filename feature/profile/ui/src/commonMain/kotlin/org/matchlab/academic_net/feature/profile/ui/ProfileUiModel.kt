@@ -1,6 +1,7 @@
 package org.matchlab.academic_net.feature.profile.ui
 
 import androidx.compose.runtime.Immutable
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
@@ -16,8 +17,10 @@ import org.matchlab.academic_net.utils.ChatListTime
  * A profile page as "09 Профиль коллаборатора" and "10 Мой профиль" show it. It carries no
  * localized text: the sections build their labels from these fields.
  *
- * @property subtitle the line under the name: "Stanford · 3 курс бакалавриата · Computer Science"
- * @property interestTypes the project types the person is interested in
+ * @property person the name, the university, the study and the field; the line under the name
+ * ("Stanford · Бакалавриат, 3 курс · Computer Science") is made by the screen with `subtitleText`, because the study is
+ * written in the language of the app
+ * @property interestTypes the project types the person is interested in; empty while the server gives none (API-GAP G11)
  * @property interests free topics ("Computer Vision")
  * @property works the newest works only, see [hasMoreWorks]
  * @property hasMoreWorks there are more works than [works]: the section has "Все"
@@ -28,8 +31,7 @@ import org.matchlab.academic_net.utils.ChatListTime
  */
 @Immutable
 data class ProfileUiModel(
-    val user: UserSummary,
-    val subtitle: String,
+    val person: Collaborator,
     val about: String,
     val interestTypes: Set<ProjectType>,
     val interests: List<String>,
@@ -41,18 +43,21 @@ data class ProfileUiModel(
     val reviewCount: Int,
     val reviews: List<Review>,
     val canMessage: Boolean,
-)
+) {
+    val user: UserSummary get() = person.user
+}
 
 internal fun UserProfile.toUiModel(): ProfileUiModel = ProfileUiModel(
-    user = person.user,
-    subtitle = person.subtitle,
+    person = person,
     about = about,
     interestTypes = interests.projectTypes,
     interests = interests.topics,
     skills = skills,
     documents = documents,
     works = works,
+    // API-GAP G16: the API has no total, `worksCount` is the size of the loaded page (at most 100).
     hasMoreWorks = worksCount > works.size,
+    // API-GAP G20: no rating while there are no reviews (`average` is `null`).
     rating = reviews.average,
     reviewCount = reviews.count,
     reviews = latestReviews,

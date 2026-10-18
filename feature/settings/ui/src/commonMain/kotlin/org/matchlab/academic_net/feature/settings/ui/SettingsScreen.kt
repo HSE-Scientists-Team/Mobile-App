@@ -37,16 +37,15 @@ import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.SectionHeader
 import org.matchlab.academic_net.components.ToggleListItem
-import org.matchlab.academic_net.feature.settings.domain.PrivacyOption
+import org.matchlab.academic_net.components.format.failureText
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_load_error
+import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_open_to_collaboration
+import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_open_to_collaboration_hint
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_privacy_title
+import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_profile_missing_hint
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_retry
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_save_error
-import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_show_contacts
-import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_show_contacts_hint
-import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_show_projects
-import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_show_projects_hint
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_sign_out
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_sign_out_cancel
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_sign_out_confirm
@@ -55,9 +54,13 @@ import org.matchlab.academic_net.feature.settings.ui.generated.resources.setting
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_title
 
 /**
- * "18 Настройки · Приватность и безопасность": two switches of what others see and "Выйти из
- * аккаунта", which is not in the design. "Заблокированные пользователи" of the design belongs to
- * the second and third sprints and is not shown.
+ * "18 Настройки · Приватность и безопасность": the one switch there is, "Открыт к сотрудничеству" (it is a field of the
+ * profile: whether people can find the user in the people search and in the recommendations), and "Выйти из аккаунта",
+ * which is not in the design. "Заблокированные пользователи" of the design belongs to the second and third sprints and is
+ * not shown.
+ *
+ * An account that has not filled the profile yet has nothing to put the switch in (API-GAP G19): the switch is off and
+ * cannot be switched, and the hint under it says to fill the profile first.
  *
  * @param onNavigateBack the back arrow of the app bar
  * @param onSignOut the user confirmed signing out; the app ends the session and leaves the screen
@@ -69,13 +72,13 @@ fun SettingsRoute(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val viewModel = viewModel { SettingsViewModel(dependencies.getPrivacySettings, dependencies.setPrivacyOption) }
+    val viewModel = viewModel { SettingsViewModel(dependencies.getOpenToCollaboration, dependencies.setOpenToCollaboration) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     SettingsScreen(
         state = state,
         onNavigateBack = onNavigateBack,
-        onOptionChange = viewModel::onOptionChange,
+        onToggle = viewModel::onToggle,
         onSaveFailureShown = viewModel::onSaveFailureShown,
         onRetry = viewModel::onRetry,
         onSignOut = onSignOut,
@@ -87,7 +90,7 @@ fun SettingsRoute(
 internal fun SettingsScreen(
     state: SettingsUiState,
     onNavigateBack: () -> Unit,
-    onOptionChange: (PrivacyOption, Boolean) -> Unit,
+    onToggle: (Boolean) -> Unit,
     onSaveFailureShown: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
@@ -96,11 +99,11 @@ internal fun SettingsScreen(
     val snackbars = remember { SnackbarHostState() }
     var confirmingSignOut by rememberSaveable { mutableStateOf(false) }
 
-    val failedToSave = (state as? SettingsUiState.Content)?.failedToSave
+    val failedToSave = (state as? SettingsUiState.Content)?.failedToSave == true
     val saveError = stringResource(Res.string.settings_save_error)
     val scope = rememberCoroutineScope()
     LaunchedEffect(failedToSave) {
-        if (failedToSave != null) {
+        if (failedToSave) {
             // The switch has already gone back; the message only explains why. The state is
             // cleared first, and the message is shown from the scope of the screen, because
             // clearing the state restarts this effect and would take the message away.
@@ -126,28 +129,14 @@ internal fun SettingsScreen(
                 SectionHeader(stringResource(Res.string.settings_privacy_title))
                 when (state) {
                     SettingsUiState.Loading -> LoadingState(Modifier.height(120.dp))
-                    SettingsUiState.Error -> MessageState(
+                    is SettingsUiState.Error -> MessageState(
                         title = stringResource(Res.string.settings_load_error),
                         modifier = Modifier.height(200.dp),
+                        text = failureText(state.cause),
                         actionText = stringResource(Res.string.settings_retry),
                         onAction = onRetry,
                     )
-                    is SettingsUiState.Content -> {
-                        PrivacyToggle(
-                            option = PrivacyOption.ParticipatedProjects,
-                            title = stringResource(Res.string.settings_show_projects),
-                            subtitle = stringResource(Res.string.settings_show_projects_hint),
-                            state = state,
-                            onOptionChange = onOptionChange,
-                        )
-                        PrivacyToggle(
-                            option = PrivacyOption.Contacts,
-                            title = stringResource(Res.string.settings_show_contacts),
-                            subtitle = stringResource(Res.string.settings_show_contacts_hint),
-                            state = state,
-                            onOptionChange = onOptionChange,
-                        )
-                    }
+                    is SettingsUiState.Content -> OpenToCollaborationToggle(state, onToggle)
                 }
                 AppButton(
                     text = stringResource(Res.string.settings_sign_out),
@@ -181,19 +170,20 @@ internal fun SettingsScreen(
     }
 }
 
+/**
+ * "Открыт к сотрудничеству": the switch with what it does under it. Without a profile (the value is `null`, API-GAP G19) it
+ * is off and takes no taps, and the hint says to fill the profile first.
+ */
 @Composable
-private fun PrivacyToggle(
-    option: PrivacyOption,
-    title: String,
-    subtitle: String,
-    state: SettingsUiState.Content,
-    onOptionChange: (PrivacyOption, Boolean) -> Unit,
-) {
+private fun OpenToCollaborationToggle(state: SettingsUiState.Content, onToggle: (Boolean) -> Unit) {
+    val hasProfile = state.openToCollaboration != null
     ToggleListItem(
-        title = title,
-        checked = state.privacy.isEnabled(option),
-        onCheckedChange = { onOptionChange(option, it) },
-        subtitle = subtitle,
-        enabled = option !in state.pending,
+        title = stringResource(Res.string.settings_open_to_collaboration),
+        checked = state.openToCollaboration == true,
+        onCheckedChange = onToggle,
+        subtitle = stringResource(
+            if (hasProfile) Res.string.settings_open_to_collaboration_hint else Res.string.settings_profile_missing_hint,
+        ),
+        enabled = hasProfile && !state.isSaving,
     )
 }

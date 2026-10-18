@@ -40,7 +40,7 @@ enum class VerificationMark {
  * @param subtitle the second line: the description on a profile, the kind of work and where it
  *  lives ("Научная работа · GitHub") in the lists of works
  * @param type decides the icon: the scientific work is a document, the practical one a briefcase
- * @param mark `null` hides the verification icon
+ * @param mark `null` hides the verification icon (API-GAP G12: the Gateway does not tell the state of a work)
  */
 @Immutable
 data class WorkCardUiModel(
@@ -50,12 +50,19 @@ data class WorkCardUiModel(
     val mark: VerificationMark? = null,
 )
 
-/** "Card/Work": scientific or practical work in the portfolio with its verification mark. */
+/**
+ * "Card/Work": scientific or practical work in the portfolio with its verification mark.
+ *
+ * @param onClick the whole card; `null` leaves the card without a tap
+ * @param showChevron the chevron at the end of the row, centered on the whole row: it tells the card opens something
+ * (on the viewer's own profile a work opens for editing)
+ */
 @Composable
 fun WorkCard(
     model: WorkCardUiModel,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    showChevron: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val icon = when (model.type) {
@@ -66,7 +73,7 @@ fun WorkCard(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             AppIcon(icon, contentDescription = null, size = 20.dp, tint = colors.onSurfaceVariant)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = model.title,
                         modifier = Modifier.weight(1f),
@@ -75,12 +82,22 @@ fun WorkCard(
                     )
                     if (model.mark != null) VerificationIcon(model.mark)
                 }
-                Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                if (model.subtitle.isNotBlank()) {
+                    Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
             }
+            if (showChevron) Chevron(Modifier.align(Alignment.CenterVertically))
         }
     }
 }
 
+/**
+ * What [EducationCard] shows.
+ *
+ * @param title name of the document: "B.S. Computer Science"
+ * @param subtitle who issued it and when: "Stanford University · выпуск 2027"
+ * @param mark `null` hides the verification icon (API-GAP G12: the Gateway does not tell the state of a document)
+ */
 @Immutable
 data class EducationCardUiModel(
     val title: String,
@@ -88,12 +105,18 @@ data class EducationCardUiModel(
     val mark: VerificationMark? = null,
 )
 
-/** "Card/Education": education document or certificate with its verification mark. */
+/**
+ * "Card/Education": education document or certificate with its verification mark.
+ *
+ * @param onClick the whole card; `null` leaves the card without a tap (the document of somebody else)
+ * @param showChevron the chevron after the mark: on the viewer's own profile a document opens for editing
+ */
 @Composable
 fun EducationCard(
     model: EducationCardUiModel,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    showChevron: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     AppCard(modifier, onClick = onClick) {
@@ -101,11 +124,26 @@ fun EducationCard(
             AppIcon(AppIcons.GraduationCap, contentDescription = null, size = 20.dp, tint = colors.onSurfaceVariant)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(model.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                if (model.subtitle.isNotBlank()) {
+                    Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
             }
             if (model.mark != null) VerificationIcon(model.mark)
+            if (showChevron) Chevron()
         }
     }
+}
+
+/** The 20dp chevron of a card that opens something; decorative, the card itself is what a screen reader tells. */
+@Composable
+private fun Chevron(modifier: Modifier = Modifier) {
+    AppIcon(
+        icon = AppIcons.ChevronRight,
+        contentDescription = null,
+        modifier = modifier,
+        size = 20.dp,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 /** The icon of a [VerificationMark] with the text a screen reader says. */

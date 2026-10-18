@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.LoadResult
 import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
@@ -15,16 +16,22 @@ import org.matchlab.academic_net.feature.profile.domain.usecase.GetReviewUseCase
 sealed interface ReviewDetailsUiState {
     data object Loading : ReviewDetailsUiState
 
-    /** The server has no such review. */
+    /** There is no such review about this person (it was deleted, or the id is wrong). */
     data object NotFound : ReviewDetailsUiState
 
-    data object Error : ReviewDetailsUiState
+    /** The request failed with [cause]; "Повторить" asks again. */
+    data class Error(val cause: Throwable) : ReviewDetailsUiState
 
     data class Content(val review: Review) : ReviewDetailsUiState
 }
 
-/** "09d Отзыв — подробно": one review with its whole text. */
+/**
+ * "09d Отзыв — подробно": one review about [userId] with its whole text. API-GAP G14: the API has no request for one
+ * review, so the repository takes it from the pages it has loaded and, when the screen was restored and nothing was,
+ * looks for it in the newest reviews; a review that is not found is [ReviewDetailsUiState.NotFound].
+ */
 class ReviewDetailsViewModel(
+    private val userId: UserId,
     private val reviewId: ReviewId,
     private val getReview: GetReviewUseCase,
 ) : ViewModel() {
@@ -45,10 +52,10 @@ class ReviewDetailsViewModel(
 
     private fun load() {
         viewModelScope.launch {
-            state.value = when (val result = getReview(reviewId)) {
+            state.value = when (val result = getReview(userId, reviewId)) {
                 is LoadResult.Found -> ReviewDetailsUiState.Content(result.value)
                 LoadResult.NotFound -> ReviewDetailsUiState.NotFound
-                is LoadResult.Failure -> ReviewDetailsUiState.Error
+                is LoadResult.Failure -> ReviewDetailsUiState.Error(result.cause)
             }
         }
     }

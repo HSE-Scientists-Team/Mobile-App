@@ -24,6 +24,9 @@ import org.matchlab.academic_net.components.AppStatusChipTone
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
+import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
+import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCard
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCardUiModel
@@ -46,11 +49,16 @@ import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
  * design that belong to later stories (invite, open to collaboration, report, block) are not
  * shown; the chat icon in the header stands for the invite and the chat.
  *
+ * A work with a link opens the link; a document is not a button. A review card opens the review in full, its author row
+ * opens the profile of the author, its chat icon starts a chat with them.
+ *
  * @param onNavigateBack the back arrow of the app bar
  * @param onMessageClick the chat icon of the header ("Написать"); not shown on the viewer's own page
  * @param onAllWorksClick "Все" of the works
  * @param onAllReviewsClick "Все N" of the reviews
- * @param onReviewClick a review card
+ * @param onReviewClick a review card: the person whose page this is, and the review
+ * @param onAuthorClick the author row of a review card
+ * @param onAuthorChatClick the chat icon of a review card
  */
 @Composable
 fun UserProfileRoute(
@@ -60,7 +68,9 @@ fun UserProfileRoute(
     onMessageClick: (UserSummary) -> Unit,
     onAllWorksClick: (UserId) -> Unit,
     onAllReviewsClick: (UserId) -> Unit,
-    onReviewClick: (ReviewId) -> Unit,
+    onReviewClick: (UserId, ReviewId) -> Unit,
+    onAuthorClick: (UserId) -> Unit,
+    onAuthorChatClick: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel(key = "user-profile-${userId.value}") {
@@ -78,7 +88,9 @@ fun UserProfileRoute(
         onWorkLinkClick = openLink,
         onAllWorksClick = { onAllWorksClick(userId) },
         onAllReviewsClick = { onAllReviewsClick(userId) },
-        onReviewClick = onReviewClick,
+        onReviewClick = { reviewId -> onReviewClick(userId, reviewId) },
+        onAuthorClick = onAuthorClick,
+        onAuthorChatClick = onAuthorChatClick,
         onRetry = viewModel::onRetry,
         modifier = modifier,
     )
@@ -93,6 +105,8 @@ internal fun UserProfileScreen(
     onAllWorksClick: () -> Unit,
     onAllReviewsClick: () -> Unit,
     onReviewClick: (ReviewId) -> Unit,
+    onAuthorClick: (UserId) -> Unit,
+    onAuthorChatClick: (UserSummary) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -104,8 +118,9 @@ internal fun UserProfileScreen(
                 title = stringResource(Res.string.profile_not_found_title),
                 text = stringResource(Res.string.profile_not_found_text),
             )
-            UserProfileUiState.Error -> MessageState(
+            is UserProfileUiState.Error -> MessageState(
                 title = stringResource(Res.string.profile_load_error),
+                text = failureText(state.cause),
                 actionText = stringResource(Res.string.profile_retry),
                 onAction = onRetry,
             )
@@ -116,6 +131,8 @@ internal fun UserProfileScreen(
                 onAllWorksClick = onAllWorksClick,
                 onAllReviewsClick = onAllReviewsClick,
                 onReviewClick = onReviewClick,
+                onAuthorClick = onAuthorClick,
+                onAuthorChatClick = onAuthorChatClick,
             )
         }
     }
@@ -129,6 +146,8 @@ private fun ColumnScope.ProfileContent(
     onAllWorksClick: () -> Unit,
     onAllReviewsClick: () -> Unit,
     onReviewClick: (ReviewId) -> Unit,
+    onAuthorClick: (UserId) -> Unit,
+    onAuthorChatClick: (UserSummary) -> Unit,
 ) {
     Column(
         Modifier
@@ -140,8 +159,9 @@ private fun ColumnScope.ProfileContent(
     ) {
         ProfileHeaderCard(
             model = ProfileHeaderCardUiModel(
-                name = profile.user.name,
-                subtitle = profile.subtitle,
+                name = nameOrPlaceholder(profile.user.name),
+                subtitle = profile.person.subtitleText(),
+                // API-GAP G18: no real avatars yet, an illustration chosen by the id.
                 avatar = AppAvatars.forKey(profile.user.id.value),
                 isVerified = profile.user.isVerified,
                 // Verification status of the person; on their own page it is not needed.
@@ -156,9 +176,13 @@ private fun ColumnScope.ProfileContent(
             // Nothing to fill on someone else's page: empty sections are hidden there.
             onFillClick = {},
             onWorkClick = { work -> work.link?.let(onWorkLinkClick) },
+            // The documents of another person are not buttons: there is nothing to open.
+            onDocumentClick = {},
             onAllWorksClick = onAllWorksClick,
             onAllReviewsClick = onAllReviewsClick,
             onReviewClick = onReviewClick,
+            onAuthorClick = onAuthorClick,
+            onAuthorChatClick = onAuthorChatClick,
         )
     }
 }

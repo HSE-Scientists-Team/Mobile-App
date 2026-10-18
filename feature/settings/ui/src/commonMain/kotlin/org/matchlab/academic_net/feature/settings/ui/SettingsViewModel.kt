@@ -8,44 +8,48 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.matchlab.academic_net.feature.settings.domain.PrivacyOption
-import org.matchlab.academic_net.feature.settings.domain.PrivacySettings
-import org.matchlab.academic_net.feature.settings.domain.usecase.GetPrivacySettingsUseCase
-import org.matchlab.academic_net.feature.settings.domain.usecase.SetPrivacyOptionUseCase
+import org.matchlab.academic_net.feature.settings.domain.ProfileMissingException
+import org.matchlab.academic_net.feature.settings.domain.usecase.GetOpenToCollaborationUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.SetOpenToCollaborationUseCase
 
 /** What the settings screen shows: the loading, the failure or the settings themselves. */
 sealed interface SettingsUiState {
     /** The settings are being requested. */
     data object Loading : SettingsUiState
 
-    /** The request failed; "Повторить" asks again. */
-    data object Error : SettingsUiState
+    /** The request failed with [cause] (the screen says why with `failureText`); "Повторить" asks again. */
+    data class Error(val cause: Throwable) : SettingsUiState
 
     /**
-     * The settings as the switches show them, which may be ahead of the server: a switch moves at
-     * once and goes back when saving fails.
+     * The settings as the switch shows them, which may be ahead of the server: the switch moves at once and goes back
+     * when saving fails.
      *
-     * @property pending the options being saved; their rows ignore taps until the answer comes
-     * @property failedToSave the option that could not be saved and went back to its old value;
-     *  the screen tells the user once and calls [SettingsViewModel.onSaveFailureShown]
+     * @property openToCollaboration whether people can find the user in the people search and in the recommendations;
+     *  `null` when the user has no profile yet (API-GAP G19: the switch is a field of the profile, and an account that
+     *  never saved the form of the profile has none): the switch is off and cannot be switched, and a hint says what to
+     *  do
+     * @property isSaving the new value is being saved; the switch ignores taps until the answer comes
+     * @property failedToSave the new value could not be saved and the switch went back to its old value; the screen tells
+     *  the user once and calls [SettingsViewModel.onSaveFailureShown]
      */
     @Immutable
     data class Content(
-        val privacy: PrivacySettings,
-        val pending: Set<PrivacyOption> = emptySet(),
-        val failedToSave: PrivacyOption? = null,
+        val openToCollaboration: Boolean?,
+        val isSaving: Boolean = false,
+        val failedToSave: Boolean = false,
     ) : SettingsUiState
 }
 
 /**
- * "18 Настройки · Приватность и безопасность": loads the settings once, when it is created, and
- * again on [onRetry]. Every switch is saved on its own: a change is applied optimistically and
- * only the changed option is patched with the answer, so two switches saved at the same time
- * cannot overwrite each other.
+ * "18 Настройки · Приватность и безопасность": loads the one setting there is, "Открыт к сотрудничеству", once, when it
+ * is created, and again on [onRetry]. A change is applied optimistically and saved; it goes back when saving fails.
+ *
+ * **One save at a time**: while a value is being saved the switch takes no taps ([SettingsUiState.Content.isSaving]), so
+ * two saves cannot overtake each other and leave the screen with the older value.
  */
 class SettingsViewModel(
-    private val getPrivacySettings: GetPrivacySettingsUseCase,
-    private val setPrivacyOption: SetPrivacyOptionUseCase,
+    private val getOpenToCollaboration: GetOpenToCollaborationUseCase,
+    private val setOpenToCollaboration: SetOpenToCollaborationUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<SettingsUiState>(SettingsUiState.Loading)
 
@@ -62,28 +66,24 @@ class SettingsViewModel(
         load()
     }
 
-    /** A switch was flipped: shows the new value at once and saves it. */
-    fun onOptionChange(option: PrivacyOption, enabled: Boolean) {
+    /** The switch was flipped: shows the new value at once and saves it. */
+    fun onToggle(open: Boolean) {
         val content = state.value as? SettingsUiState.Content ?: return
-        if (option in content.pending) return
-        val previous = content.privacy.isEnabled(option)
-        if (previous == enabled) return
-        state.value = content.copy(
-            privacy = content.privacy.with(option, enabled),
-            pending = content.pending + option,
-            failedToSave = null,
-        )
+        val previous = content.openToCollaboration ?: return
+        if (content.isSaving || previous == open) return
+        state.value = content.copy(openToCollaboration = open, isSaving = true, failedToSave = false)
         viewModelScope.launch {
-            setPrivacyOption(option, enabled).fold(
-                onSuccess = { saved ->
-                    // The answer is the whole state of the server; take only what was asked for.
+            setOpenToCollaboration(open).fold(
+                // The answer is the value the server has now.
+                onSuccess = { saved -> updateContent { it.copy(openToCollaboration = saved, isSaving = false) } },
+                onFailure = { failure ->
                     updateContent {
-                        it.copy(privacy = it.privacy.with(option, saved.isEnabled(option)), pending = it.pending - option)
-                    }
-                },
-                onFailure = {
-                    updateContent {
-                        it.copy(privacy = it.privacy.with(option, previous), pending = it.pending - option, failedToSave = option)
+                        if (failure is ProfileMissingException) {
+                            // There is no profile to put the switch in: it is off and cannot be switched, with a hint.
+                            it.copy(openToCollaboration = null, isSaving = false)
+                        } else {
+                            it.copy(openToCollaboration = previous, isSaving = false, failedToSave = true)
+                        }
                     }
                 },
             )
@@ -91,13 +91,13 @@ class SettingsViewModel(
     }
 
     /** The screen has told the user that [SettingsUiState.Content.failedToSave] failed. */
-    fun onSaveFailureShown() = updateContent { it.copy(failedToSave = null) }
+    fun onSaveFailureShown() = updateContent { it.copy(failedToSave = false) }
 
     private fun load() {
         viewModelScope.launch {
-            state.value = getPrivacySettings().fold(
+            state.value = getOpenToCollaboration().fold(
                 onSuccess = { SettingsUiState.Content(it) },
-                onFailure = { SettingsUiState.Error },
+                onFailure = { SettingsUiState.Error(it) },
             )
         }
     }

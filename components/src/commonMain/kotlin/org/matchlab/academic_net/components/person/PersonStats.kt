@@ -38,8 +38,14 @@ fun personStatsText(rating: Double?, completedProjects: Int): String {
 @Composable
 fun ratingText(rating: Double): String = stringResource(Res.string.components_person_rating, formatRating(rating))
 
-/** One decimal digit, with a point: 4.8. A value outside 0..5 is cut to the nearest bound. */
-internal fun formatRating(rating: Double): String {
+/**
+ * The average of reviews as a number alone, with one decimal digit and a point: "4.8". It is the big figure on the
+ * summary of the reviews, where the stars stand under it; [ratingText] is the same with a star in front, for a line of
+ * text. A value outside 0..5 is cut to the nearest bound.
+ *
+ * @param rating the average of reviews, 0..5
+ */
+fun formatRating(rating: Double): String {
     val tenths = (rating * 10).roundToInt().coerceIn(0, 50)
     return "${tenths / 10}.${tenths % 10}"
 }

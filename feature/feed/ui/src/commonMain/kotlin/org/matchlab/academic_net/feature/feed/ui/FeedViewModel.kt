@@ -17,12 +17,16 @@ import org.matchlab.academic_net.feature.feed.domain.usecase.GetViewerUseCase
 /** What the search bar and the list of the feed are about (the "search-scope" of the design). */
 enum class FeedScope { Projects, People }
 
-/** A recommended person with the line under their name. */
+/**
+ * A recommended person. The line under their name ("Stanford · Бакалавриат, 3 курс · Computer Science") is made by the
+ * screen from [collaborator] (`subtitleText` of `:components`), because the study is written in the language of the app.
+ */
 @Immutable
 data class FeedPerson(
-    val user: UserSummary,
-    val subtitle: String,
-)
+    val collaborator: Collaborator,
+) {
+    val user: UserSummary get() = collaborator.user
+}
 
 /**
  * @property viewerAvatarKey key of the viewer's avatar illustration, `null` until the viewer is loaded
@@ -100,4 +104,4 @@ class FeedViewModel(
     }
 }
 
-private fun Collaborator.toFeedPerson() = FeedPerson(user, subtitle)
+private fun Collaborator.toFeedPerson() = FeedPerson(this)

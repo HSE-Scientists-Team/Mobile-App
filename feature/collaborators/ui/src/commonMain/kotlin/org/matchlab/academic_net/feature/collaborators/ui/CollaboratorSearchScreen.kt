@@ -36,6 +36,7 @@ import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
+import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_back
@@ -163,7 +164,7 @@ internal fun CollaboratorSearchScreen(
                     PersonListItem(
                         model = PersonListItemUiModel(
                             name = person.user.name,
-                            subtitle = person.subtitle,
+                            subtitle = person.collaborator.subtitleText(),
                             avatar = AppAvatars.forKey(person.user.id.value),
                             isVerified = person.user.isVerified,
                         ),

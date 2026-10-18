@@ -1,12 +1,17 @@
 package org.matchlab.academic_net.feature.settings.data
 
-import org.matchlab.academic_net.feature.settings.domain.PrivacyOption
-import org.matchlab.academic_net.feature.settings.domain.PrivacySettings
-
-/** Where the settings come from: the backend (not there yet) or the mock that plays it. */
+/**
+ * Where the settings come from: the Gateway ([GatewaySettingsDataSource]). A call throws when it fails (no network, a
+ * server error); a `CancellationException` is never turned into anything.
+ */
 interface SettingsDataSource {
-    suspend fun getPrivacySettings(): PrivacySettings
+    /** "Открыт к сотрудничеству", or `null` when the user has no profile yet. */
+    suspend fun getOpenToCollaboration(): Boolean?
 
-    /** Patches one field on the server and answers with the whole settings after the change. */
-    suspend fun setPrivacyOption(option: PrivacyOption, enabled: Boolean): PrivacySettings
+    /**
+     * Saves the switch and answers with the value the server has after the change.
+     *
+     * @throws org.matchlab.academic_net.feature.settings.domain.ProfileMissingException when there is no profile.
+     */
+    suspend fun setOpenToCollaboration(open: Boolean): Boolean
 }

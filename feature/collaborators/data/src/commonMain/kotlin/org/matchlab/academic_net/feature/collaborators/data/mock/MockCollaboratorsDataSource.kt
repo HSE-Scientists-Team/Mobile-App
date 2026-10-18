@@ -3,6 +3,7 @@ package org.matchlab.academic_net.feature.collaborators.data.mock
 import kotlinx.coroutines.delay
 import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsDataSource
@@ -33,7 +34,8 @@ data class MockPerson(
  *
  * Rules of this mock:
  * - the text is comma-separated terms; a person fits when at least one term occurs (ignoring case)
- *   in their name, university, study info, field or skills; no terms means everyone;
+ *   in their name, university, study (level and year as the server writes them, in Russian), field or
+ *   skills; no terms means everyone;
  * - filters are combined with "and"; every keyword has to occur;
  * - the match is the share of the role's skills the person has; people are ordered by it, then
  *   verified first, then by name.
@@ -81,10 +83,16 @@ internal fun matchPercent(required: List<String>, skills: List<String>): Int? {
     return (covered * 100 + needed.size / 2) / needed.size
 }
 
+/**
+ * The study as the plain Russian text this mock searches in ("Бакалавриат, 3 курс", "Аспирантура"; empty for the
+ * staff): what a person typing "аспирант" or "3 курс" is matched against. The real search is the server's.
+ */
+private fun Study.searchText(): String = listOfNotNull(level, year?.let { "$it курс" }).joinToString(", ")
+
 private fun MockPerson.haystack(): String = buildList {
     add(collaborator.user.name)
     add(collaborator.university)
-    add(collaborator.studyInfo)
+    add(collaborator.study.searchText())
     add(collaborator.field)
     addAll(skills)
 }.joinToString(separator = "\n").lowercase()
@@ -117,7 +125,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-arjun"), "Арджун Мехта", isVerified = true),
                 university = "Stanford",
-                studyInfo = "3 курс бакалавриата",
+                study = Study("Бакалавриат", 3),
                 field = "Computer Science",
             ),
             skills = listOf("Computer Vision", "Python", "PyTorch", "TensorFlow"),
@@ -129,7 +137,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-maria"), "Мария Соколова", isVerified = true),
                 university = "МГУ",
-                studyInfo = "аспирантка",
+                study = Study("Аспирантура"),
                 field = "биоинформатика",
             ),
             skills = listOf("Python", "Data Analysis", "R", "Machine Learning"),
@@ -141,7 +149,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-daniil"), "Даниил Крюков", isVerified = true),
                 university = "ИТМО",
-                studyInfo = "магистрант",
+                study = Study("Магистратура"),
                 field = "робототехника",
             ),
             skills = listOf("Computer Vision", "ROS", "C++", "Python"),
@@ -153,7 +161,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-lina"), "Лина Ковач", isVerified = true),
                 university = "ВШЭ",
-                studyInfo = "магистрантка",
+                study = Study("Магистратура"),
                 field = "анализ данных",
             ),
             skills = listOf("SQL", "Pandas", "Python", "Tableau"),
@@ -165,7 +173,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-ilyas"), "Ильяс Каримов", isVerified = false),
                 university = "КФУ",
-                studyInfo = "2 курс бакалавриата",
+                study = Study("Бакалавриат", 2),
                 field = "Computer Science",
             ),
             skills = listOf("Python", "Flutter", "Dart", "Firebase"),
@@ -177,7 +185,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-anna"), "Анна Петрова", isVerified = true),
                 university = "СПбГУ",
-                studyInfo = "4 курс бакалавриата",
+                study = Study("Бакалавриат", 4),
                 field = "психология",
             ),
             skills = listOf("Figma", "Интервью", "UX Research", "Usability"),
@@ -189,7 +197,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-sergey"), "Сергей Волков", isVerified = false),
                 university = "МФТИ",
-                studyInfo = "магистрант",
+                study = Study("Магистратура"),
                 field = "прикладная математика",
             ),
             skills = listOf("Kotlin", "Flutter", "Dart", "Android"),
@@ -201,7 +209,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-olga"), "Ольга Никитина", isVerified = true),
                 university = "Stanford",
-                studyInfo = "аспирантка",
+                study = Study("Аспирантура"),
                 field = "Computer Science",
             ),
             skills = listOf("Machine Learning", "Computer Vision", "Python", "TensorFlow", "CUDA"),
@@ -213,7 +221,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-timur"), "Тимур Алиев", isVerified = true),
                 university = "ИТМО",
-                studyInfo = "3 курс бакалавриата",
+                study = Study("Бакалавриат", 3),
                 field = "информационные системы",
             ),
             skills = listOf("Kotlin", "PostgreSQL", "Docker", "Python"),
@@ -225,7 +233,7 @@ object MockCollaborators {
             collaborator = Collaborator(
                 user = UserSummary(UserId("user-eva"), "Ева Миронова", isVerified = false),
                 university = "МГУ",
-                studyInfo = "1 курс магистратуры",
+                study = Study("Магистратура", 1),
                 field = "биология",
             ),
             skills = listOf("R", "Statistics", "Data Analysis"),

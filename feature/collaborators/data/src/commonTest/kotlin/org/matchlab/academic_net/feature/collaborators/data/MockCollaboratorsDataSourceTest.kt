@@ -9,6 +9,7 @@ import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaborators
@@ -26,13 +27,13 @@ private fun person(
     skills: List<String> = emptyList(),
     university: String = "МГУ",
     field: String = "физика",
-    studyInfo: String = "магистрант",
+    study: Study = Study("Магистратура"),
     verified: Boolean = false,
     verifiedProjects: Int = 0,
     publications: Int = 0,
     workTypes: Set<ProjectType> = emptySet(),
 ) = MockPerson(
-    collaborator = Collaborator(UserSummary(UserId("u-$name"), name, isVerified = verified), university, studyInfo, field),
+    collaborator = Collaborator(UserSummary(UserId("u-$name"), name, isVerified = verified), university, study, field),
     skills = skills,
     verifiedProjectsCount = verifiedProjects,
     publicationsCount = publications,

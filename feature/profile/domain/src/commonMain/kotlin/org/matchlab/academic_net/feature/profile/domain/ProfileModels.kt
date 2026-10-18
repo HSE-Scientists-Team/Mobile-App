@@ -27,10 +27,28 @@ value class ReviewId(val value: String)
 value class VerificationResultId(val value: String)
 
 /**
- * Moderation state of a work or of a document.
+ * What the profile feature can do with the server it talks to. A screen reads the flags and hides, or switches off
+ * with a word of explanation, what the server cannot give, instead of showing made-up data. Every flag is closed by
+ * one gap of `docs/api-gaps.md`: when the backend fills the gap, the data source sets the flag and implements the call.
  *
- * The owner sees all four; other viewers get only [Verified] and [Unconfirmed]: what is being
- * checked or was rejected is the owner's business.
+ * @property verificationStatuses API-GAP G12: the `status` of an achievement has no list of values, so the state of a
+ * work or a document in the moderation is unknown (`null`). When `false` there are no status chips and banners, no
+ * "Верификация профиля" queue, no results of the verification and no dot on the profile tab.
+ * @property interestTypes API-GAP G11: the `project_types` of a profile have no list of values, so the project
+ * types a person is interested in are neither shown nor chosen (the chips of the editor are hidden); the server's
+ * value is kept as it is when the profile is saved.
+ */
+data class ProfileCapabilities(
+    val verificationStatuses: Boolean,
+    val interestTypes: Boolean,
+)
+
+/**
+ * Moderation state of a work or of a document, when the server tells it.
+ *
+ * API-GAP G12: the Gateway does not (the list of its statuses is not defined), and the models carry
+ * `VerificationStatus?` where `null` is "unknown". Only a source that knows the states
+ * ([ProfileCapabilities.verificationStatuses]) gives the four of them.
  */
 enum class VerificationStatus {
     /** Added without a link or a proof: nobody checks it. */
@@ -42,13 +60,14 @@ enum class VerificationStatus {
     /** A moderator confirmed it. */
     Verified,
 
-    /** A moderator did not confirm it ("Нужны доказательства"). */
+    /** A moderator did not confirm it. */
     Rejected,
 }
 
 /**
- * Stand-in of an uploaded file in the first sprint: a link to it. The app has no file picker yet;
- * when it appears the attachment gets its own upload and this class keeps the address.
+ * The proof of a document: a link to it. The app has no file picker yet, so the proof is the `url` of the record,
+ * which is public (API-GAP G17): whoever opens the profile can read it. When files can be uploaded the attachment
+ * gets its own upload and this class keeps the address.
  */
 data class ProofAttachment(val url: String)
 
@@ -60,9 +79,16 @@ data class PortfolioWork(
     val description: String,
     /** Where the work lives (publication, repository); `null` if the author gave no link. */
     val link: String?,
-    /** The server's label of where the work lives, derived from [link]: "DOI 10.1234/cv", "GitHub". */
+    /** The label of where the work lives, derived on the client from [link]: "DOI 10.1234/cv", "GitHub". */
     val source: String?,
-    val status: VerificationStatus,
+    /** Where the work is in the moderation; `null` when the server does not tell (API-GAP G12). */
+    val status: VerificationStatus?,
+    /** The moderator's reason; only the owner gets it. */
+    val moderationComment: String? = null,
+    /** A proof file is attached on the server (uploaded elsewhere); an edit keeps it. */
+    val hasEvidenceFile: Boolean = false,
+    /** The version of the record the server holds: a change names it, and a stale one is refused. */
+    val revision: Int = 0,
 )
 
 enum class DocumentKind {
@@ -81,10 +107,23 @@ data class ProfileDocument(
     /** The university or organization that issued it. */
     val issuer: String,
     val year: Int?,
-    val status: VerificationStatus,
+    /** The proof as a link (public, API-GAP G17); `null` when the proof is a file or there is none. */
+    val proof: ProofAttachment?,
+    /** Where the document is in the moderation; `null` when the server does not tell (API-GAP G12). */
+    val status: VerificationStatus?,
+    /** The moderator's reason; only the owner gets it. */
+    val moderationComment: String? = null,
+    /** A proof file is attached on the server (uploaded elsewhere); an edit keeps it. */
+    val hasEvidenceFile: Boolean = false,
+    /** The version of the record the server holds: a change names it, and a stale one is refused. */
+    val revision: Int = 0,
 )
 
-/** What a person is interested in: the project types (the chips of the screen) and free topics. */
+/**
+ * What a person is interested in: the project types (the chips of the screen) and free topics.
+ *
+ * API-GAP G11: the project types are empty when [ProfileCapabilities.interestTypes] is `false`.
+ */
 data class ProfileInterests(
     val projectTypes: Set<ProjectType>,
     val topics: List<String>,
@@ -99,22 +138,26 @@ enum class ReviewerRole {
 /** A review one person left about another after a finished project. */
 data class Review(
     val id: ReviewId,
+    /** API-GAP G15: the API does not say whether the author is verified, so `isVerified` is `false`. */
     val author: UserSummary,
-    val authorRole: ReviewerRole,
+    /** `null` when the server's value is unknown to the app (API-GAP G13: the Gateway gives no list of roles). */
+    val authorRole: ReviewerRole?,
     val projectTitle: String,
-    /** The month the project ended. */
-    val projectFinished: YearMonth,
+    /** The month the project ended; `null` when the server did not say. */
+    val projectFinished: YearMonth?,
     /** Short summary: "Довёл модели до демо". */
     val title: String,
     /** 1 to 5 stars. */
     val rating: Int,
     val text: String,
+    /** The viewer wrote the review: there is nobody to message. */
+    val isByViewer: Boolean = false,
 )
 
 /**
- * Numbers over all reviews of a person, counted by the server from the real list.
+ * Numbers over all reviews of a person, counted by the server.
  *
- * @property average mean rating, `null` while there are no reviews.
+ * @property average mean rating, `null` while there are no reviews (API-GAP G20).
  * @property positiveCount how many reviews have a rating of 4 or more.
  */
 data class ReviewsSummary(
@@ -123,29 +166,50 @@ data class ReviewsSummary(
     val positiveCount: Int,
 )
 
-/** The screen "Отзывы": the numbers and the whole list, newest first. */
+/**
+ * A page of reviews, newest first (API-GAP G21: the API does not describe the order of the list; the app takes it as
+ * it comes and shows it as the newest first).
+ *
+ * @property hasMore the page was full, so the next one may have reviews: the API gives no total (API-GAP G16).
+ */
+data class ReviewsPage(
+    val items: List<Review>,
+    val hasMore: Boolean,
+)
+
+/** The screen "Отзывы": the numbers (from the profile) and the first page of the list. */
 data class UserReviews(
     val summary: ReviewsSummary,
-    val items: List<Review>,
+    val firstPage: ReviewsPage,
+)
+
+/**
+ * "Работы и публикации" of a person: the works, newest first.
+ *
+ * @property isViewer the works are the viewer's own; they open for editing.
+ */
+data class UserWorks(
+    val items: List<PortfolioWork>,
+    val isViewer: Boolean,
 )
 
 /**
  * A profile page. The documents come whole (there are few of them), while the works and the
- * reviews are previews chosen by the server: the full lists are separate requests
- * ([UserReviews], and the works through the list of works of the person).
+ * reviews are previews: the full lists are separate requests ([UserWorks], [UserReviews]).
  */
 data class UserProfile(
     /**
-     * The name, the university and study info. `person.user.isVerified` is the person's
-     * verification status: at least one education document has been confirmed.
+     * The name, the university and the study. `person.user.isVerified` is the server's verification of the
+     * person. The name is empty for an account that has not filled the profile yet.
      */
     val person: Collaborator,
     val about: String,
     val interests: ProfileInterests,
     val skills: List<String>,
     val documents: List<ProfileDocument>,
-    /** The newest works only; [worksCount] says how many there are in all. */
+    /** The newest works only; [worksCount] says how many there are. */
     val works: List<PortfolioWork>,
+    /** The number of the works the list gave: at most 100 (API-GAP G16: the API has no total). */
     val worksCount: Int,
     val reviews: ReviewsSummary,
     /** The newest reviews only; the rest is in [UserReviews]. */
@@ -154,7 +218,10 @@ data class UserProfile(
     val isViewer: Boolean,
 )
 
-/** What is under moderation or was rejected: a work or a document of the viewer. */
+/**
+ * A work or a document of the viewer: what a request to check, send or delete names. The kind of a document
+ * is part of it, because the server keeps works and documents in one list.
+ */
 sealed interface VerificationSubject {
     data class Work(val id: WorkId) : VerificationSubject
 
@@ -167,14 +234,29 @@ data class VerificationItem(
     val title: String,
     /** [VerificationStatus.Pending] or [VerificationStatus.Rejected]. */
     val status: VerificationStatus,
+    /** Why it was rejected, when the moderator said. */
+    val moderationComment: String? = null,
 )
 
-/** The viewer's own profile and what is being checked in it. */
+/**
+ * The viewer's own profile and what is being checked in it.
+ *
+ * API-GAP G19: an account that has never saved a profile has no name; the profile is empty and [needsName] is
+ * `true` until the viewer saves the form with a name.
+ */
 data class MyProfile(
     val profile: UserProfile,
-    /** Works and documents that are pending or were rejected; empty when everything is settled. */
+    /** Every work of the viewer, newest first; [UserProfile.works] previews some. */
+    val allWorks: List<PortfolioWork>,
+    /**
+     * Works and documents that are pending or were rejected; empty when everything is settled, and always
+     * empty while [ProfileCapabilities.verificationStatuses] is `false`.
+     */
     val verificationQueue: List<VerificationItem>,
-)
+) {
+    /** A new account: no name yet. */
+    val needsName: Boolean get() = profile.person.user.name.isBlank()
+}
 
 /** What a moderator decided. */
 enum class VerificationOutcome {
@@ -185,6 +267,9 @@ enum class VerificationOutcome {
 /**
  * A moderator's decision about one of the viewer's works or documents: the notification
  * "Подтверждено" / "Отклонено". It stays unseen until the viewer is shown it.
+ *
+ * API-GAP G12: the API gives neither the statuses nor the time of a decision nor a notification, so the Gateway
+ * source has no results; this is what the screens show once it does.
  */
 data class VerificationResult(
     val id: VerificationResultId,
@@ -194,3 +279,33 @@ data class VerificationResult(
     val decidedAt: Instant,
     val isSeen: Boolean,
 )
+
+/** The answer to a change of a record that exists: a save of its fields, a send for verification, a delete. */
+sealed interface EditOutcome<out T> {
+    /** The server accepted the change; [value] is the record after it (`Unit` for a delete). */
+    data class Done<out T>(val value: T) : EditOutcome<T>
+
+    /** The record was changed since it was loaded (409, or a revision that is not the current one). */
+    data object Conflict : EditOutcome<Nothing>
+
+    /** The record is gone (404). */
+    data object NotFound : EditOutcome<Nothing>
+}
+
+/** What adding or saving a work or a document ended with. */
+sealed interface PortfolioChange<out T> {
+    /**
+     * The record is saved on the server as [value].
+     *
+     * @property sent it was also sent for verification. `false` when the author asked only to save, when the
+     * record has nothing to verify (no link, no file), or when sending failed after the record was saved: the
+     * record is there, unconfirmed, and can be sent again.
+     */
+    data class Saved<out T>(val value: T, val sent: Boolean) : PortfolioChange<T>
+
+    /** The record was changed since it was loaded; nothing was saved. */
+    data object Conflict : PortfolioChange<Nothing>
+
+    /** The record is gone; nothing was saved. */
+    data object NotFound : PortfolioChange<Nothing>
+}

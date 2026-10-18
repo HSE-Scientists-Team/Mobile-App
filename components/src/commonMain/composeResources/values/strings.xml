@@ -96,4 +96,8 @@
 
     <!-- Shown instead of the name of a person whose name is empty -->
     <string name="components_name_placeholder">No name</string>
+
+    <!-- Where a person is in their studies, see studyText. 1: the level as it is written ("Bachelor"), 2: the year -->
+    <string name="components_study_level_year">%1$s, year %2$d</string>
+    <string name="components_study_year">Year %1$d</string>
 </resources>

@@ -20,8 +20,8 @@ sealed interface UserProfileUiState {
     /** The server has no such person. */
     data object NotFound : UserProfileUiState
 
-    /** The request failed; "Повторить" asks again. */
-    data object Error : UserProfileUiState
+    /** The request failed with [cause] (the screen says why with `failureText`); "Повторить" asks again. */
+    data class Error(val cause: Throwable) : UserProfileUiState
 
     /** The profile was found. */
     data class Content(val profile: ProfileUiModel) : UserProfileUiState
@@ -55,7 +55,7 @@ class UserProfileViewModel(
             state.value = when (val result = getUserProfile(userId)) {
                 is LoadResult.Found -> UserProfileUiState.Content(result.value.toUiModel())
                 LoadResult.NotFound -> UserProfileUiState.NotFound
-                is LoadResult.Failure -> UserProfileUiState.Error
+                is LoadResult.Failure -> UserProfileUiState.Error(result.cause)
             }
         }
     }

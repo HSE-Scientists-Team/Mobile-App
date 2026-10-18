@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.matchlab.academic_net.common.model.Collaborator
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.data.FeedDataSource
 import org.matchlab.academic_net.feature.feed.data.FeedRepositoryImpl
@@ -93,13 +94,17 @@ class FeedViewModelTest {
     }
 
     @Test
-    fun recommendedPeopleAreShownWithTheirSubtitles() = runTest {
+    fun recommendedPeopleCarryWhatTheirSubtitlesAreMadeOf() = runTest {
         val state = peopleShown().uiState.value
 
         assertFalse(state.isPeopleLoading)
         assertFalse(state.peopleFailed)
         assertEquals(listOf("Арджун Мехта", "Мария Соколова", "Даниил Крюков"), state.people.map { it.user.name })
-        assertEquals("МГУ · аспирантка · биоинформатика", state.people[1].subtitle)
+        // The line under the name is made by the screen (`subtitleText`), in the language of the app.
+        val maria = state.people[1].collaborator
+        assertEquals("МГУ", maria.university)
+        assertEquals(Study("Аспирантура"), maria.study)
+        assertEquals("биоинформатика", maria.field)
     }
 
     @Test

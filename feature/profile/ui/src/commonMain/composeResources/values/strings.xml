@@ -1,8 +1,11 @@
 <resources>
-    <!-- Verification marks of works and documents (content descriptions of the icons) -->
+    <!-- Verification marks of works and documents (content descriptions of the icons, titles of the status banners) -->
     <string name="profile_mark_verified">Verified</string>
     <string name="profile_mark_pending">Under review</string>
     <string name="profile_mark_unverified">Not verified</string>
+    <string name="profile_status_rejected">Rejected</string>
+    <!-- 1: what the moderator wrote -->
+    <string name="profile_moderator_comment">Moderator's comment: %1$s</string>
 
     <!-- Common -->
     <string name="profile_title">Profile</string>
@@ -36,6 +39,8 @@
     <string name="profile_see_all">All</string>
     <!-- 1: how many there are -->
     <string name="profile_see_all_count">All %1$d</string>
+    <!-- The name of a new account that has not filled the profile yet -->
+    <string name="profile_name_missing">Name not set</string>
 
     <!-- Subtitles of cards. 1: the university or organization, 2: the year -->
     <string name="profile_document_graduation">%1$s · class of %2$d</string>
@@ -56,8 +61,12 @@
     </plurals>
     <string name="profile_reviews_hint">Left by participants and initiators of finished projects</string>
     <string name="profile_review_title">Review</string>
-    <!-- 1: the month the project ended: Mar 2026 -->
-    <string name="profile_review_project_finished">Project finished · %1$s</string>
+    <string name="profile_read_more">Read more</string>
+    <string name="profile_message_author">Message the author</string>
+    <!-- 1: the title of the project, 2: the month it ended: Mar 2026 -->
+    <string name="profile_review_project_line">Project “%1$s” · finished in %2$s</string>
+    <!-- 1: the title of the project -->
+    <string name="profile_review_project">Project “%1$s”</string>
     <string name="profile_review_not_found_title">Review not found</string>
     <string name="profile_review_not_found_text">It may have been deleted</string>
 
@@ -66,13 +75,17 @@
     <string name="profile_edit">Edit</string>
     <string name="profile_settings">Settings</string>
     <string name="profile_verification_title">Profile verification</string>
-    <string name="profile_verification_rejected">More proof needed</string>
     <!-- 1: the title of the work or document -->
     <string name="profile_result_verified">Verified: %1$s</string>
     <string name="profile_result_rejected">Rejected: %1$s</string>
 
     <!-- Editing of the profile -->
     <string name="profile_edit_title">Edit profile</string>
+    <string name="profile_field_name">Name *</string>
+    <string name="profile_field_university">University</string>
+    <string name="profile_field_study_level">Level of study</string>
+    <string name="profile_field_study_year">Year</string>
+    <string name="profile_field_field">Field of study</string>
     <string name="profile_field_about">About</string>
     <string name="profile_field_about_hint">What you do and what projects you look for</string>
     <string name="profile_field_interest_types">Project types</string>
@@ -82,12 +95,14 @@
     <string name="profile_add_document">Add document</string>
     <string name="profile_add_work">Add work</string>
     <string name="profile_save">Save</string>
-    <string name="profile_saving">Saving…</string>
     <string name="profile_save_error">Could not save. Try again</string>
     <!-- 1: the limit -->
+    <string name="profile_error_text_too_long">No more than %1$d characters</string>
     <string name="profile_error_about_too_long">No more than %1$d characters</string>
     <string name="profile_error_too_many_interests">No more than %1$d interests</string>
     <string name="profile_error_too_many_skills">No more than %1$d skills</string>
+    <!-- 1: the first year of study, 2: the last -->
+    <string name="profile_error_study_year">Enter a year of study from %1$d to %2$d</string>
 
     <!-- New work -->
     <string name="profile_work_new_title">New work</string>
@@ -113,12 +128,33 @@
     <string name="profile_document_field_issuer_hint">For example, Stanford University</string>
     <string name="profile_document_field_year">Year</string>
     <string name="profile_document_field_year_hint">For example, 2027</string>
+    <string name="profile_document_field_proof">Link to the proof *</string>
     <string name="profile_document_banner">A moderator checks the document. A verified education document adds a trust badge to your profile.</string>
+    <!-- The proof of a document is the public link of its record until the app can upload files -->
+    <string name="profile_proof_public_warning">Everyone who opens your profile will see the link to the proof</string>
+    <!-- A file attached to the record elsewhere: the form shows that it is there and keeps it -->
+    <string name="profile_proof_attached">Proof attached</string>
+
+    <!-- Editing of a work or a document -->
+    <string name="profile_work_edit_title">Edit work</string>
+    <string name="profile_document_edit_title">Edit document</string>
+    <string name="profile_open_link">Open link</string>
+    <string name="profile_work_delete">Delete work</string>
+    <string name="profile_document_delete">Delete document</string>
+    <string name="profile_work_delete_title">Delete this work?</string>
+    <string name="profile_work_delete_text">The work will be removed from your portfolio. The record of its checks stays in the history.</string>
+    <string name="profile_document_delete_title">Delete this document?</string>
+    <string name="profile_document_delete_text">The document will be removed from your profile. The record of its checks stays in the history.</string>
+    <string name="profile_delete_confirm">Delete</string>
+    <string name="profile_delete_error">Could not delete. Try again</string>
+    <string name="profile_conflict">The record has changed. The latest version is shown — make your changes again</string>
+    <string name="profile_item_gone_title">The record was deleted</string>
+    <string name="profile_resubmit_warning_work">After saving, the work will be checked again</string>
+    <string name="profile_resubmit_warning_document">After saving, the document will be checked again</string>
 
     <!-- Forms -->
     <string name="profile_submit">Submit for review</string>
     <string name="profile_submit_unverified">Add without proof</string>
-    <string name="profile_submitting">Sending…</string>
     <string name="profile_send_error">Could not send. Try again</string>
     <string name="profile_error_required">Fill in this field</string>
     <string name="profile_error_title_too_long">No more than %1$d characters</string>
@@ -127,17 +163,5 @@
     <string name="profile_error_link">Enter a link that starts with http:// or https://</string>
     <!-- 1: the earliest year, 2: the latest -->
     <string name="profile_error_year">Enter a year from %1$d to %2$d</string>
-    <string name="profile_error_proof_missing">Attach a proof</string>
-
-    <!-- Proof of a work or a document: a link to the file until the app has a file picker -->
-    <string name="profile_proof_title">Upload proof</string>
-    <string name="profile_proof_attached">Proof attached</string>
-    <string name="profile_proof_subtitle">PDF or a screenshot showing authorship</string>
-    <string name="profile_proof_sheet_title">Link to the file</string>
-    <string name="profile_proof_sheet_field">Link to the file</string>
-    <string name="profile_proof_sheet_hint">The file must open by the link, for example on a cloud drive</string>
-    <string name="profile_proof_hint">https://</string>
-    <string name="profile_proof_attach">Attach</string>
-    <string name="profile_proof_remove">Remove proof</string>
-    <string name="profile_proof_error_link">Enter a link that starts with http:// or https://</string>
+    <string name="profile_error_proof_missing">Add a link to the proof</string>
 </resources>

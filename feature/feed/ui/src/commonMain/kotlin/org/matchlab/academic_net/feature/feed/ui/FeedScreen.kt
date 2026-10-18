@@ -42,6 +42,7 @@ import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
 import org.matchlab.academic_net.components.SectionHeader
+import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_empty_text
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_empty_title
@@ -223,7 +224,7 @@ private fun PeopleContent(
                 PersonListItem(
                     model = PersonListItemUiModel(
                         name = person.user.name,
-                        subtitle = person.subtitle,
+                        subtitle = person.collaborator.subtitleText(),
                         avatar = AppAvatars.forKey(person.user.id.value),
                         isVerified = person.user.isVerified,
                     ),

@@ -1,13 +1,12 @@
 package org.matchlab.academic_net.mockserver
 
 import kotlinx.datetime.YearMonth
-import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 
-/** What the mock server's moderation says about a work or a document; the owner sees all four. */
+/** What the mock server's moderation says about a document: whether the person is verified follows from it. */
 enum class MockCheckState {
-    /** Added without a link or a proof: nobody checks it. */
+    /** Added without a proof: nobody checks it. */
     Unconfirmed,
 
     /** Waits for a moderator's decision. */
@@ -29,31 +28,8 @@ data class MockServerPerson(
     val name: String,
     /** The university as the server writes it ("Stanford", "ИТМО"). */
     val university: String,
-    /** Year and level, or status: "3 курс бакалавриата", "аспирантка". */
-    val studyInfo: String,
-    /** Field of study: "Computer Science". */
-    val field: String,
-    /** The "О себе" text; blank until the person writes it. */
-    val about: String = "",
-    val interestTypes: Set<ProjectType> = emptySet(),
-    val interests: List<String> = emptyList(),
-    val skills: List<String> = emptyList(),
     /** How many projects the person has finished. */
     val completedProjects: Int = 0,
-)
-
-/** A row of the "works" table: a scientific or a practical work of [ownerId]. */
-data class MockServerWork(
-    val id: String,
-    val ownerId: UserId,
-    val type: ProjectType,
-    val title: String,
-    val description: String,
-    /** Where the work lives (a publication, a repository); `null` if the author gave no link. */
-    val link: String? = null,
-    /** The author attached a proof of the work. */
-    val hasProof: Boolean = false,
-    val state: MockCheckState,
 )
 
 /** A row of the "documents" table: an education document or a certificate of [ownerId]. */
@@ -84,18 +60,17 @@ data class MockServerReview(
 )
 
 /**
- * The mock server's tables of people: who they are, their works, documents and reviews. The mock
- * data sources of several features answer from the same [default] instance, so a person has one
- * id, one name and one verification status everywhere: the catalog of projects takes the
- * initiators' university, rating and finished projects from here, the profile feature builds the
- * profiles from here.
+ * The mock server's tables of people: who they are, their documents and reviews. The mock data
+ * sources of several features answer from the same [default] instance, so a person has one id, one
+ * name and one verification status everywhere: the catalog of projects takes the initiators'
+ * university, rating and finished projects from here. (The profile feature reads the Gateway now,
+ * so the works of a person, which only its mock needed, are gone.)
  *
  * Every table lists the newest rows first. The numbers are derived, not stored: a person is
  * verified when an education document is confirmed, the rating is the mean of the reviews.
  */
 class MockPeople(
     val persons: List<MockServerPerson>,
-    val works: List<MockServerWork> = emptyList(),
     val documents: List<MockServerDocument> = emptyList(),
     val reviews: List<MockServerReview> = emptyList(),
 ) {
@@ -103,9 +78,6 @@ class MockPeople(
 
     /** The person with [id], or `null` when the server does not know them. */
     fun person(id: UserId): MockServerPerson? = personsById[id]
-
-    /** Works of [id], newest first. */
-    fun worksOf(id: UserId): List<MockServerWork> = works.filter { it.ownerId == id }
 
     /** Documents of [id] in the order of the table. */
     fun documentsOf(id: UserId): List<MockServerDocument> = documents.filter { it.ownerId == id }

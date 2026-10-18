@@ -100,4 +100,8 @@
 
     <!-- Shown instead of the name of a person whose name is empty -->
     <string name="components_name_placeholder">Без имени</string>
+
+    <!-- Where a person is in their studies, see studyText. 1: the level as it is written ("Бакалавриат"), 2: the year -->
+    <string name="components_study_level_year">%1$s, %2$d курс</string>
+    <string name="components_study_year">%1$d курс</string>
 </resources>

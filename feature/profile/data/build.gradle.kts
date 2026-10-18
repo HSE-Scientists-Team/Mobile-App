@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Profile feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockProfileDataSource.
+// Profile feature, data layer: the repository, and the one server it talks to, the Gateway
+// (GatewayProfileDataSource over ProfilesApi, AchievementsApi, ReviewsApi and UserDirectory).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.profile.data"
@@ -27,11 +27,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":feature:profile:domain"))
-            // MockProfileDataSource takes the mock server's people (profiles, works, documents, reviews)
-            // in its constructor.
-            api(project(":mockserver"))
-            // IdGenerator is a parameter of MockProfileDataSource.
             implementation(project(":utils"))
+            // The APIs, DTOs and mapping of the Gateway for GatewayProfileDataSource; the feature never exposes them.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

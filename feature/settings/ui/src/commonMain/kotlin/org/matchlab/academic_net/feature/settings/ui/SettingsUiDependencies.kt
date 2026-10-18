@@ -1,7 +1,7 @@
 package org.matchlab.academic_net.feature.settings.ui
 
-import org.matchlab.academic_net.feature.settings.domain.usecase.GetPrivacySettingsUseCase
-import org.matchlab.academic_net.feature.settings.domain.usecase.SetPrivacyOptionUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.GetOpenToCollaborationUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.SetOpenToCollaborationUseCase
 
 /**
  * What the screens of the settings feature need from the outside; the app creates it once and
@@ -9,6 +9,6 @@ import org.matchlab.academic_net.feature.settings.domain.usecase.SetPrivacyOptio
  * app does it in the `onSignOut` callback of the route.
  */
 class SettingsUiDependencies(
-    val getPrivacySettings: GetPrivacySettingsUseCase,
-    val setPrivacyOption: SetPrivacyOptionUseCase,
+    val getOpenToCollaboration: GetOpenToCollaborationUseCase,
+    val setOpenToCollaboration: SetOpenToCollaborationUseCase,
 )

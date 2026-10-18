@@ -10,21 +10,27 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorFilters
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.domain.ScoredCollaborator
 
-/** A person in the result list with everything the row shows. */
+/**
+ * A person in the result list with everything the row shows.
+ *
+ * The line under the name ("Stanford · Бакалавриат, 3 курс · Computer Science") is not made here: the study is written
+ * in the language of the app, so the screen makes the line from [collaborator] (`subtitleText` of `:components`).
+ */
 @Immutable
 data class CollaboratorItem(
-    val user: UserSummary,
-    /** "Stanford · 3 курс бакалавриата · Computer Science". */
-    val subtitle: String,
+    val collaborator: Collaborator,
     /** Share of the role's skills the person has; `null` when the role asks for none. */
     val matchPercent: Int?,
-)
+) {
+    val user: UserSummary get() = collaborator.user
+}
 
 /** The open filters sheet: the filters being edited and how many people they would show. */
 @Immutable
@@ -169,7 +175,6 @@ class CollaboratorSearchViewModel(
 }
 
 private fun ScoredCollaborator.toItem() = CollaboratorItem(
-    user = collaborator.user,
-    subtitle = collaborator.subtitle,
+    collaborator = collaborator,
     matchPercent = matchPercent,
 )

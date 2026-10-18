@@ -2,18 +2,17 @@ package org.matchlab.academic_net.common.model
 
 /**
  * A person offered as a possible collaborator: a row of the people search and of the feed's
- * recommendations. What a search looks at (skills, works, ...) stays on the server.
+ * recommendations, and the person of a profile page. What a search looks at (skills, works, ...)
+ * stays on the server.
+ *
+ * The line under the name ("Stanford · Бакалавриат, 3 курс · Computer Science") is not made here: the study
+ * is translated and written by the UI from [study].
  */
 data class Collaborator(
     val user: UserSummary,
     val university: String,
-    /** Year and level, or status: "3 курс бакалавриата", "аспирантка". */
-    val studyInfo: String,
+    /** The level and the year of study; either may be unknown. */
+    val study: Study,
     /** Field of study: "Computer Science". */
     val field: String,
-) {
-    /** The line under the name in lists: "Stanford · 3 курс бакалавриата · Computer Science". */
-    val subtitle: String
-        // `this.field`: a bare `field` in a getter is the property's own backing field.
-        get() = listOf(university, studyInfo, this.field).filter { it.isNotBlank() }.joinToString(" · ")
-}
+)

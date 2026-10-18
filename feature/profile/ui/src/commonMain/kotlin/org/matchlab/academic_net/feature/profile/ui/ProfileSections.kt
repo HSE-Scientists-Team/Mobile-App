@@ -13,6 +13,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.model.UserId
+import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.SectionHeader
@@ -20,6 +22,7 @@ import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.interaction.onceClickable
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
+import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_about
@@ -42,9 +45,17 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
  * are none. On the own profile ([isOwn]) an empty section says "Не заполнено" and a tap on it
  * leads to the editing ([onFillClick]); the works are called "Портфолио" there.
  *
- * @param onWorkClick a card of a work was tapped; the screen opens its link
+ * **What a tap on a card does.** On the own profile the cards of works and documents open for editing
+ * ([onWorkClick], [onDocumentClick]) and have a chevron. On somebody else's profile a work with a link opens the link
+ * ([onWorkClick]), a work without one does nothing, and a document is not a button at all.
+ *
+ * @param onWorkClick a card of a work was tapped
+ * @param onDocumentClick a card of a document was tapped; it is called on the own profile only
  * @param onAllWorksClick "Все" of the works, shown when the profile has more than it previews
  * @param onAllReviewsClick "Все N" of the reviews, shown when the profile has more than it previews
+ * @param onReviewClick a review card (the review in full)
+ * @param onAuthorClick the author row of a review card (the profile of the author)
+ * @param onAuthorChatClick the chat icon of a review card
  */
 @Composable
 internal fun ColumnScope.ProfileSections(
@@ -52,9 +63,12 @@ internal fun ColumnScope.ProfileSections(
     isOwn: Boolean,
     onFillClick: () -> Unit,
     onWorkClick: (PortfolioWork) -> Unit,
+    onDocumentClick: (ProfileDocument) -> Unit,
     onAllWorksClick: () -> Unit,
     onAllReviewsClick: () -> Unit,
     onReviewClick: (ReviewId) -> Unit,
+    onAuthorClick: (UserId) -> Unit,
+    onAuthorChatClick: (UserSummary) -> Unit,
 ) {
     val aboutTitle = stringResource(Res.string.profile_about)
     if (profile.about.isNotBlank()) {
@@ -81,7 +95,13 @@ internal fun ColumnScope.ProfileSections(
     if (profile.documents.isNotEmpty()) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SectionHeader(educationTitle)
-            profile.documents.forEach { EducationCard(it.toCardUiModel()) }
+            profile.documents.forEach { document ->
+                EducationCard(
+                    model = document.toCardUiModel(),
+                    onClick = if (isOwn) ({ onDocumentClick(document) }) else null,
+                    showChevron = isOwn,
+                )
+            }
         }
     } else if (isOwn) {
         EmptySection(educationTitle, onFillClick)
@@ -98,7 +118,8 @@ internal fun ColumnScope.ProfileSections(
             profile.works.forEach { work ->
                 WorkCard(
                     model = work.toCardUiModel(listStyle = false),
-                    onClick = if (work.link != null) ({ onWorkClick(work) }) else null,
+                    onClick = if (isOwn || work.link != null) ({ onWorkClick(work) }) else null,
+                    showChevron = isOwn,
                 )
             }
         }
@@ -128,7 +149,8 @@ internal fun ColumnScope.ProfileSections(
             ReviewCard(
                 model = review.toCardUiModel(withDate = false),
                 onClick = { onReviewClick(review.id) },
-                maxTextLines = ReviewPreviewLines,
+                onAuthorClick = { onAuthorClick(review.author.id) },
+                onChatClick = { onAuthorChatClick(review.author) },
             )
         }
     }
@@ -137,6 +159,9 @@ internal fun ColumnScope.ProfileSections(
 /**
  * Interests: the two project types as static chips with the chosen ones highlighted, then the
  * free topics as tags. The types are shown only when the person has chosen some.
+ *
+ * API-GAP G11: the API has no list of the project types, so with the Gateway the set is always empty and only the topics
+ * are shown.
  */
 @Composable
 private fun InterestsBlock(
@@ -180,6 +205,3 @@ private fun EmptySection(title: String, onClick: () -> Unit) {
         )
     }
 }
-
-/** How many lines of a review the cards of the lists show. */
-private const val ReviewPreviewLines = 3

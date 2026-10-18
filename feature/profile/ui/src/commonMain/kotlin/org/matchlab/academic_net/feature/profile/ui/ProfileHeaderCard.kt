@@ -32,7 +32,8 @@ data class ProfileStatusUiModel(
 /**
  * What [ProfileHeaderCard] shows.
  *
- * @property subtitle the line under the name; it wraps
+ * @property subtitle the line under the name ("Stanford · Бакалавриат, 3 курс · Computer Science", made by
+ * `subtitleText`); it wraps, and it is not drawn while it is blank
  * @property statuses chips under the first row, e.g. "Профиль подтверждён"
  * @property showChatButton the chat icon at the end of the first row: on someone else's profile, not
  * on the viewer's own
@@ -80,7 +81,10 @@ fun ProfileHeaderCard(
                     )
                     if (model.isVerified) VerifiedBadge(size = 18.dp)
                 }
-                Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                // A new account has neither a university nor a study: no empty line under the name.
+                if (model.subtitle.isNotBlank()) {
+                    Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
             }
             if (model.showChatButton) {
                 ChatIconButton(onClick = onChatClick, contentDescription = stringResource(Res.string.profile_message))

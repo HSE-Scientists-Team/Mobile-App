@@ -42,10 +42,14 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.Study
+import org.matchlab.academic_net.common.model.UserId
+import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.components.ActionListItem
 import org.matchlab.academic_net.components.AppAvatars
@@ -122,6 +126,7 @@ import org.matchlab.academic_net.components.paging.LoadMoreFooter
 import org.matchlab.academic_net.components.paging.LoadMoreState
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.person.ratingText
+import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
 import org.matchlab.academic_net.components.project.ProjectHeader
 import org.matchlab.academic_net.components.project.ProjectPeriodCard
@@ -841,18 +846,26 @@ private fun ProjectsComponents() {
 }
 
 /**
- * The cards of "09 Профиль коллаборатора", "10 Мой профиль" and the lists of works and reviews,
- * in the states the screens use: the verification marks, the two kinds of work, the review cards
- * of a list (with the date) and of the page of one review (a tap on the author).
+ * The cards of "09 Профиль коллаборатора", "10 Мой профиль" and the lists of works and reviews, in the states the
+ * screens use: the verification marks (and none, as the Gateway gives them), the two kinds of work, the chevron of the
+ * cards that open for editing, the review cards of a list (with the month) and of a profile (without it), with and
+ * without the chat icon, and the line under a name that is made of the study (`subtitleText`).
  */
 @Composable
 private fun ProfileComponents() {
     Section(":feature:profile:ui") {
+        // The line under the name is made of the university, the study (a free text level and the year) and the field.
+        val student = Collaborator(
+            user = UserSummary(UserId("user-arjun"), "Арджун Мехта", isVerified = true),
+            university = "Stanford University",
+            study = Study(level = "бакалавриат", year = 3),
+            field = "Computer Science",
+        )
         // Someone else's profile: the verification chip and the chat icon at the end of the first row.
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
-                name = "Арджун Мехта",
-                subtitle = "Stanford University · 3 курс · Computer Science",
+                name = student.user.name,
+                subtitle = student.subtitleText(),
                 avatar = Elena,
                 isVerified = true,
                 statuses = listOf(ProfileStatusUiModel("Профиль подтверждён", AppStatusChipTone.Success)),
@@ -863,7 +876,7 @@ private fun ProfileComponents() {
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = "Алексей Морозов",
-                subtitle = "Stanford University · 3 курс · Computer Science",
+                subtitle = student.subtitleText(),
                 avatar = Arjun,
                 isVerified = true,
             ),
@@ -872,16 +885,30 @@ private fun ProfileComponents() {
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = "Александра Константинопольская-Вишневецкая",
-                subtitle = "Московский государственный университет имени М. В. Ломоносова · аспирантка · биоинформатика",
+                subtitle = Collaborator(
+                    user = UserSummary(UserId("user-alexandra"), "Александра"),
+                    university = "Московский государственный университет имени М. В. Ломоносова",
+                    study = Study(level = "Аспирантура"),
+                    field = "биоинформатика",
+                ).subtitleText(),
                 avatar = Elena,
                 isVerified = true,
                 statuses = listOf(ProfileStatusUiModel("Профиль не подтверждён", AppStatusChipTone.Off)),
                 showChatButton = true,
             ),
         )
+        // A new account: no name, no study: the header says so and the line under the name is not drawn.
+        ProfileHeaderCard(ProfileHeaderCardUiModel(name = "Имя не указано", subtitle = "", avatar = Arjun))
         // The three marks: confirmed, being checked (only the owner sees it) and not confirmed.
         EducationCard(EducationCardUiModel("B.S. Computer Science", "Stanford University · выпуск 2027", VerificationMark.Verified))
         EducationCard(EducationCardUiModel("Сертификат Deep Learning", "Coursera · 2025", VerificationMark.Pending))
+        // The own profile: the card opens for editing and has a chevron; without a mark, as the Gateway gives them.
+        EducationCard(
+            EducationCardUiModel("Сертификат Deep Learning", "Coursera · 2025", VerificationMark.Verified),
+            onClick = {},
+            showChevron = true,
+        )
+        EducationCard(EducationCardUiModel("Диплом бакалавра", "Stanford University · выпуск 2027"), onClick = {}, showChevron = true)
         WorkCard(
             WorkCardUiModel(
                 title = "Localized CV Pipelines on Edge Devices",
@@ -906,30 +933,54 @@ private fun ProfileComponents() {
             ),
             onClick = {},
         )
+        // The own profile: the chevron is centered on the whole row, a long title takes two lines.
+        WorkCard(
+            WorkCardUiModel(
+                title = "Localized CV Pipelines on Edge Devices",
+                subtitle = "Научная работа · DOI 10.1234/cv",
+                mark = VerificationMark.Verified,
+            ),
+            onClick = {},
+            showChevron = true,
+        )
+        WorkCard(
+            WorkCardUiModel(title = "Сегментация коридоров на Raspberry Pi", subtitle = "Проектная работа · GitHub", type = ProjectType.Practical),
+            onClick = {},
+            showChevron = true,
+        )
+        // A review in a list: with the month, the chat icon, a long text that is cut and "Читать полностью".
         ReviewCard(
             ReviewCardUiModel(
                 authorName = "Проф. Елена Васкес",
-                authorRole = "Инициатор · AI-навигация по кампусу · мар 2026",
+                authorLine = "Инициатор · AI-навигация по кампусу",
                 authorAvatar = Elena,
                 title = "Довёл модели до демо",
                 rating = 5,
-                text = "«Взял на себя обучение моделей и довёл до демо. Сроки соблюдал, писал понятные отчёты.»",
+                date = "мар 2026",
+                text = "«Взял на себя обучение моделей и довёл их до рабочего демо. Сроки соблюдал, писал понятные отчёты, " +
+                    "на встречах приходил с готовыми вариантами решений. Рекомендую в проекты, где нужен самостоятельный инженер.»",
+                showChat = true,
             ),
             onClick = {},
-            maxTextLines = 3,
+            onAuthorClick = {},
+            onChatClick = {},
         )
-        // The page of one review: the whole text, the author line leads to their profile.
+        // A review on a profile: no month, a short text (no "Читать полностью"), the role of the author is not known
+        // (the Gateway does not tell it), a review the viewer wrote has no chat icon.
         ReviewCard(
             ReviewCardUiModel(
                 authorName = "Лина Ковач",
-                authorRole = "Участник · AI-навигация по кампусу",
+                authorLine = "AI-навигация по кампусу",
                 authorAvatar = Arjun,
                 title = "Помогал команде с данными",
-                rating = 5,
-                text = "«Сильный инженер, помогал команде с пайплайном данных. Разобрался в предметной области за " +
-                    "неделю, предложил свой метод разметки и защитил его перед командой.»",
+                rating = 4,
+                date = null,
+                text = "«Сильный инженер, помогал команде с пайплайном данных.»",
+                showChat = false,
             ),
+            onClick = {},
             onAuthorClick = {},
+            onChatClick = {},
         )
     }
 }

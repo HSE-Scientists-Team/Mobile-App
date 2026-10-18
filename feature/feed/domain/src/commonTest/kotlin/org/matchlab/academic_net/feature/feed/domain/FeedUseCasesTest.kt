@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.Collaborator
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedPeopleUseCase
@@ -12,7 +13,7 @@ import org.matchlab.academic_net.feature.feed.domain.usecase.GetViewerUseCase
 
 private class FakeFeedRepository : FeedRepository {
     val viewer = UserSummary(UserId("me"), "Вы")
-    var people = listOf(Collaborator(UserSummary(UserId("u1"), "Вера"), "МГУ", "магистрант", "физика"))
+    var people = listOf(Collaborator(UserSummary(UserId("u1"), "Вера"), "МГУ", Study("Магистратура"), "физика"))
     var failure: Throwable? = null
 
     override suspend fun getViewer(): UserSummary {

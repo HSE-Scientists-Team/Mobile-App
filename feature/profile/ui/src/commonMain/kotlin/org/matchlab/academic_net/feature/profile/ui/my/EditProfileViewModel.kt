@@ -11,50 +11,55 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.ProjectType
-import org.matchlab.academic_net.common.result.LoadResult
 import org.matchlab.academic_net.common.result.SubmitResult
-import org.matchlab.academic_net.feature.profile.domain.AboutDraft
-import org.matchlab.academic_net.feature.profile.domain.AboutDraftError
-import org.matchlab.academic_net.feature.profile.domain.MyProfile
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
-import org.matchlab.academic_net.feature.profile.domain.usecase.GetUserWorksUseCase
+import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
+import org.matchlab.academic_net.feature.profile.domain.ProfileDraftError
+import org.matchlab.academic_net.feature.profile.domain.ProfileLimits
+import org.matchlab.academic_net.feature.profile.domain.toDraft
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveMyProfileUseCase
-import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateAboutUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.utils.withTag
 import org.matchlab.academic_net.utils.withoutTag
 
 /**
- * @property draft the text, the interests and the skills as the user is editing them; taken from
- *  the profile once, so later changes of the profile (a new work) do not overwrite the typing
- * @property documents and [works] are always what the profile has now: adding one on its own
- *  screen shows up here at once
- * @property errors the problems of the draft; empty until the first "Сохранить", then kept up to
- *  date while editing
+ * @property loadFailure why the profile could not be loaded (the form is not there then, "Повторить" asks again);
+ *  `null` while it was
+ * @property draft the form as the user is editing it; taken from the profile once, so later changes of the profile (a
+ *  new work) do not overwrite the typing
+ * @property documents and [works] are always what the profile has now: adding or changing one on its own screen shows up
+ *  here at once
+ * @property errors the problems of the draft; empty until the first "Сохранить", then kept up
+ *  to date while editing
+ * @property isSaving the form is being saved, or it has been and the screen is about to close: nothing is saved again
  * @property isSaved set once the changes are saved: the screen closes
  */
 @Immutable
 data class EditProfileUiState(
     val isLoading: Boolean = true,
-    val loadFailed: Boolean = false,
-    val draft: AboutDraft = AboutDraft(),
+    val loadFailure: Throwable? = null,
+    val draft: ProfileDraft = ProfileDraft(),
     val documents: List<ProfileDocument> = emptyList(),
     val works: List<PortfolioWork> = emptyList(),
-    val errors: Set<AboutDraftError> = emptySet(),
+    val errors: Set<ProfileDraftError> = emptySet(),
     val isSaving: Boolean = false,
     val saveFailed: Boolean = false,
     val isSaved: Boolean = false,
 )
 
 /**
- * "10b Редактирование профиля": "заполнить БИО и интересы". Documents and works are added on
- * their own screens and appear in the lists here as the profile changes; "Сохранить" saves the
- * text, the interests and the skills.
+ * "10b Редактирование профиля": the name, the university, the study (the level as a free text, API-GAP G10, and the
+ * year), the field, the text about the person, the interests and the skills. Documents and works are added and
+ * edited on their own screens and appear in the lists here as the profile changes; "Сохранить" saves the form. A new
+ * account (API-GAP G19) has no name: the form starts empty, and its first save creates the profile.
+ *
+ * **One save at a time**: [onSaveClick] does nothing while the form is being saved and after it has been (the screen is
+ * about to close), so a double tap cannot save twice.
  */
 class EditProfileViewModel(
     private val observeMyProfile: ObserveMyProfileUseCase,
-    private val getUserWorks: GetUserWorksUseCase,
-    private val updateAbout: UpdateAboutUseCase,
+    private val updateProfile: UpdateProfileUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow(EditProfileUiState())
 
@@ -70,9 +75,23 @@ class EditProfileViewModel(
 
     /** "Повторить" after the profile could not be loaded. */
     fun onRetry() {
-        state.update { it.copy(isLoading = true, loadFailed = false) }
+        state.update { it.copy(isLoading = true, loadFailure = null) }
         observe()
     }
+
+    fun onNameChange(name: String) = editDraft { it.copy(name = name) }
+
+    fun onUniversityChange(university: String) = editDraft { it.copy(university = university) }
+
+    /** The level of study, as the person writes it (API-GAP G10: a free text, there is no list to choose from). */
+    fun onStudyLevelChange(level: String) = editDraft { it.copy(studyLevel = level) }
+
+    /** The year of study; only digits are taken, and no more than the largest year has. */
+    fun onStudyYearChange(year: String) = editDraft {
+        it.copy(studyYear = year.filter(Char::isDigit).take(MaxStudyYearDigits))
+    }
+
+    fun onFieldChange(field: String) = editDraft { it.copy(field = field) }
 
     fun onAboutChange(about: String) = editDraft { it.copy(about = about) }
 
@@ -92,7 +111,7 @@ class EditProfileViewModel(
         val current = state.value
         // Nothing to save while the profile is not there, while a save is running, and once the
         // changes are saved: the form stays on the screen until it has faded out.
-        if (current.isSaving || current.isSaved || current.isLoading || current.loadFailed) return
+        if (current.isSaving || current.isSaved || current.isLoading || current.loadFailure != null) return
         val errors = current.draft.normalized().validate()
         showErrors = true
         if (errors.isNotEmpty()) {
@@ -101,8 +120,9 @@ class EditProfileViewModel(
         }
         state.update { it.copy(errors = emptySet(), isSaving = true, saveFailed = false) }
         viewModelScope.launch {
-            when (val result = updateAbout(current.draft)) {
-                is SubmitResult.Success -> state.update { it.copy(isSaving = false, isSaved = true) }
+            when (val result = updateProfile(current.draft)) {
+                // The save is done: `isSaving` stays set, so that nothing is saved again while the screen closes.
+                is SubmitResult.Success -> state.update { it.copy(isSaved = true) }
                 is SubmitResult.Invalid -> state.update { it.copy(isSaving = false, errors = result.errors) }
                 is SubmitResult.Failure -> state.update { it.copy(isSaving = false, saveFailed = true) }
             }
@@ -114,16 +134,19 @@ class EditProfileViewModel(
         observing = viewModelScope.launch {
             observeMyProfile()
                 // A failure of the stream after the form is shown keeps the form: nothing is lost.
-                .catch { state.update { current -> current.copy(isLoading = false, loadFailed = !draftTaken) } }
+                .catch { cause ->
+                    state.update { current ->
+                        current.copy(isLoading = false, loadFailure = if (draftTaken) null else cause)
+                    }
+                }
                 .collect { profile ->
-                    val works = allWorks(profile)
                     state.update { current ->
                         current.copy(
                             isLoading = false,
-                            loadFailed = false,
+                            loadFailure = null,
                             draft = if (draftTaken) current.draft else profile.toDraft(),
                             documents = profile.profile.documents,
-                            works = works,
+                            works = profile.allWorks,
                         )
                     }
                     draftTaken = true
@@ -131,22 +154,7 @@ class EditProfileViewModel(
         }
     }
 
-    /**
-     * The profile carries a preview of the works; the list here has all of them.
-     *
-     * If the full list cannot be loaded the preview stays (the newest works) and the failure is
-     * not shown: the form of "О себе", interests and skills still works, the list of works is only
-     * a reference here, and a stream that fails does not take the screen down with it. The next
-     * emission of the profile (a work added through "Добавить работу") asks for the full list again.
-     */
-    private suspend fun allWorks(profile: MyProfile): List<PortfolioWork> {
-        val preview = profile.profile.works
-        if (profile.profile.worksCount <= preview.size) return preview
-        val result = getUserWorks(profile.profile.person.user.id)
-        return if (result is LoadResult.Found) result.value else preview
-    }
-
-    private fun editDraft(transform: (AboutDraft) -> AboutDraft) {
+    private fun editDraft(transform: (ProfileDraft) -> ProfileDraft) {
         state.update { current ->
             val draft = transform(current.draft)
             current.copy(
@@ -156,11 +164,9 @@ class EditProfileViewModel(
             )
         }
     }
-}
 
-private fun MyProfile.toDraft(): AboutDraft = AboutDraft(
-    about = profile.about,
-    interestTypes = profile.interests.projectTypes,
-    interests = profile.interests.topics,
-    skills = profile.skills,
-)
+    private companion object {
+        /** The year of study has as many digits as the largest one: "6" is one. */
+        val MaxStudyYearDigits = ProfileLimits.MaxStudyYear.toString().length
+    }
+}

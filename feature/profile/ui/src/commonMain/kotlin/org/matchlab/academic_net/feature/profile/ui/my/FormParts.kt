@@ -9,33 +9,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.components.AppBottomSheet
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
-import org.matchlab.academic_net.components.AppTextField
-import org.matchlab.academic_net.components.SheetHeader
-import org.matchlab.academic_net.components.UploadCard
-import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
+import org.matchlab.academic_net.components.AppIcons
+import org.matchlab.academic_net.components.InfoBanner
+import org.matchlab.academic_net.components.InfoBannerTone
+import org.matchlab.academic_net.components.InfoCard
+import org.matchlab.academic_net.components.StatusBanner
+import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_cancel
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_attach
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_conflict
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_moderator_comment
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_open_link
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_attached
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_error_link
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_hint
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_remove
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_sheet_field
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_sheet_hint
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_sheet_title
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_subtitle
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_title
-import org.matchlab.academic_net.utils.isWebLink
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_submit
+import org.matchlab.academic_net.feature.profile.ui.bannerTitle
+import org.matchlab.academic_net.feature.profile.ui.toBannerStatus
 
 /** A small red line under a field or a button, for problems the field component has no slot for. */
 @Composable
@@ -50,8 +42,11 @@ internal fun FormErrorText(text: String, modifier: Modifier = Modifier) {
 
 /**
  * The bar with the main button at the bottom of a form: the surface under the button reaches the
- * edge of the screen, the button stays above the navigation bar. A failed sending is told above
+ * edge of the screen, the button stays above the navigation bar. A failed action is told above
  * the button ([errorText]).
+ *
+ * @param enabled whether the button takes taps; while the action runs ([loading]) it does not
+ * @param loading the action of the button is on its way: an arc turns in place of the label
  */
 @Composable
 internal fun FormBottomBar(
@@ -60,6 +55,7 @@ internal fun FormBottomBar(
     enabled: Boolean,
     errorText: String?,
     modifier: Modifier = Modifier,
+    loading: Boolean = false,
 ) {
     Column(
         modifier
@@ -72,101 +68,98 @@ internal fun FormBottomBar(
         if (errorText != null) {
             Text(text = errorText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
-        AppButton(text = text, onClick = onClick, modifier = Modifier.fillMaxWidth(), enabled = enabled)
-    }
-}
-
-/**
- * "Card/Upload" of the forms: "Загрузить подтверждение", or, once there is a [proof], the link
- * that was attached. A file picker is not available yet, so the proof is a link to the file; a
- * tap opens [ProofLinkSheet].
- */
-@Composable
-internal fun ProofUploadCard(
-    proof: ProofAttachment?,
-    errorText: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        UploadCard(
-            title = stringResource(if (proof == null) Res.string.profile_proof_title else Res.string.profile_proof_attached),
-            subtitle = proof?.url ?: stringResource(Res.string.profile_proof_subtitle),
+        AppButton(
+            text = text,
             onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            loading = loading,
         )
-        if (errorText != null) FormErrorText(errorText)
     }
 }
 
 /**
- * "Ссылка на файл": the sheet where the user pastes the address of the proof file. It holds the
- * text of the field itself and passes on only a valid link, so the form never gets a wrong one.
+ * The banners at the top of the form of a record that is edited, one under another:
  *
- * @param current the link attached before, shown in the field; with it "Убрать" is offered
- * @param onAttach the link the user confirmed (trimmed, `http` or `https`)
- * @param onRemove the user removed the attached link
- * @param onDismiss swiping the sheet away or tapping outside it
+ * - [isConflict]: the record was changed by someone else while the form was open, and the form shows the newer
+ *   version ("Запись изменилась…"), an error banner;
+ * - the state of the record ([StatusBanner]) when the server tells it. The comment of the moderator is part of that
+ *   banner;
+ * - API-GAP G12: when the state is not known (`null`, the Gateway never tells it) but the moderator left a comment, the
+ *   comment is an error banner of its own ("Комментарий модератора: …"), whatever the state is.
  */
 @Composable
-internal fun ProofLinkSheet(
-    current: ProofAttachment?,
-    onAttach: (ProofAttachment) -> Unit,
-    onRemove: () -> Unit,
-    onDismiss: () -> Unit,
+internal fun PortfolioBanners(
+    status: VerificationStatus?,
+    moderationComment: String?,
+    isConflict: Boolean,
 ) {
-    var link by rememberSaveable { mutableStateOf(current?.url.orEmpty()) }
-    var showError by rememberSaveable { mutableStateOf(false) }
-    AppBottomSheet(onDismissRequest = onDismiss) {
-        SheetHeader(title = stringResource(Res.string.profile_proof_sheet_title))
-        Column(
-            Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AppTextField(
-                value = link,
-                onValueChange = {
-                    link = it
-                    showError = false
-                },
-                label = stringResource(Res.string.profile_proof_sheet_field),
-                placeholder = stringResource(Res.string.profile_proof_hint),
-                errorText = if (showError) stringResource(Res.string.profile_proof_error_link) else null,
-            )
-            Text(
-                text = stringResource(Res.string.profile_proof_sheet_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+    if (isConflict) InfoBanner(stringResource(Res.string.profile_conflict), tone = InfoBannerTone.Error)
+    val comment = moderationComment?.takeIf { it.isNotBlank() }
+        ?.let { stringResource(Res.string.profile_moderator_comment, it) }
+    when {
+        status != null -> StatusBanner(status.toBannerStatus(), title = status.bannerTitle(), text = comment)
+        comment != null -> InfoBanner(comment, tone = InfoBannerTone.Error)
+    }
+}
+
+/**
+ * "Подтверждение добавлено": the record has a proof file on the server (it was attached elsewhere, the app cannot
+ * upload files yet). The card is not a button, there is nothing to do with it; the file stays when the record is saved.
+ */
+@Composable
+internal fun EvidenceAttachedCard(modifier: Modifier = Modifier) {
+    InfoCard(text = stringResource(Res.string.profile_proof_attached), icon = AppIcons.Check, modifier = modifier)
+}
+
+/**
+ * The actions under the form of a record that is edited, each as wide as the form and 8dp apart:
+ *
+ * - "Отправить на проверку" (outlined) when the record [canSend];
+ * - "Открыть ссылку" (a text button) when there is a link to open ([onOpenLink], a work only);
+ * - the red text button that deletes the record ([deleteText]: "Удалить работу" / "Удалить документ"); the screen asks
+ *   for the confirmation in [onDelete].
+ *
+ * @param enabled `false` while some action of the form runs: none of the buttons takes a tap then
+ * @param isSending the sending is the action that runs: an arc turns in place of the label of the first button
+ */
+@Composable
+internal fun PortfolioActions(
+    canSend: Boolean,
+    isSending: Boolean,
+    enabled: Boolean,
+    onSend: () -> Unit,
+    deleteText: String,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenLink: (() -> Unit)? = null,
+) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (canSend) {
             AppButton(
-                text = stringResource(Res.string.profile_proof_attach),
-                onClick = {
-                    val url = link.trim()
-                    if (url.isWebLink()) onAttach(ProofAttachment(url)) else showError = true
-                },
+                text = stringResource(Res.string.profile_submit),
+                onClick = onSend,
                 modifier = Modifier.fillMaxWidth(),
+                variant = AppButtonVariant.Outlined,
+                enabled = enabled,
+                loading = isSending,
             )
-            if (current != null) {
-                AppButton(
-                    text = stringResource(Res.string.profile_proof_remove),
-                    onClick = onRemove,
-                    modifier = Modifier.fillMaxWidth(),
-                    variant = AppButtonVariant.Outlined,
-                )
-            } else {
-                AppButton(
-                    text = stringResource(Res.string.profile_cancel),
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                    variant = AppButtonVariant.Text,
-                )
-            }
         }
+        if (onOpenLink != null) {
+            AppButton(
+                text = stringResource(Res.string.profile_open_link),
+                onClick = onOpenLink,
+                modifier = Modifier.fillMaxWidth(),
+                variant = AppButtonVariant.Text,
+                enabled = enabled,
+            )
+        }
+        AppButton(
+            text = deleteText,
+            onClick = onDelete,
+            modifier = Modifier.fillMaxWidth(),
+            variant = AppButtonVariant.TextError,
+            enabled = enabled,
+        )
     }
 }

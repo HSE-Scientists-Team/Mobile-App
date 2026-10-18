@@ -6,12 +6,12 @@ import kotlin.test.assertTrue
 import org.matchlab.academic_net.feature.chats.data.mock.MockChatPeers
 import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaborators
 import org.matchlab.academic_net.feature.feed.data.mock.MockFeedData
-import org.matchlab.academic_net.mockserver.MockPeople
 import org.matchlab.academic_net.mockserver.MockProjectCatalog
 
 /**
- * The mock server, the mock chats, the people search and the feed are separate databases; the
- * people they share must have one id, or "message the initiator" opens a second, empty chat.
+ * The mock server's catalog of projects, the mock chats, the people search and the feed are separate databases; the
+ * people they share must have one id, or "message the initiator" opens a second, empty chat. (The profiles are the
+ * Gateway's now and do not read the mock server's people, so nothing checks that each person has a row there.)
  */
 class MockServerIdsTest {
     private val peopleOfOtherFeatures = buildList {
@@ -20,28 +20,6 @@ class MockServerIdsTest {
         add(MockChatPeers.daniil)
         MockCollaborators.all.mapTo(this) { it.collaborator.user }
         MockFeedData.recommendedPeople.mapTo(this) { it.user }
-    }
-
-    @Test
-    fun everyPersonOfTheOtherMocksHasAProfileUnderTheSameId() {
-        // A tap on a person opens the profile by id: a person without a row would be "not found".
-        val missing = (peopleOfOtherFeatures + MockProjectCatalog.all.map { it.project.initiator })
-            .filter { it.id.value != "user-me" }
-            .filter { MockPeople.default.person(it.id) == null }
-
-        assertTrue(missing.isEmpty(), "people without a profile: ${missing.map { it.id.value }.distinct()}")
-    }
-
-    @Test
-    fun profilesAgreeWithTheOtherMocksOnNameAndUniversity() {
-        val disagreements = MockCollaborators.all
-            .filter { MockPeople.default.person(it.collaborator.user.id) != null }
-            .filter {
-                val person = MockPeople.default.person(it.collaborator.user.id)!!
-                person.name != it.collaborator.user.name || person.university != it.collaborator.university
-            }
-
-        assertTrue(disagreements.isEmpty(), "profile and people search disagree: ${disagreements.map { it.collaborator.user.id.value }}")
     }
 
     @Test

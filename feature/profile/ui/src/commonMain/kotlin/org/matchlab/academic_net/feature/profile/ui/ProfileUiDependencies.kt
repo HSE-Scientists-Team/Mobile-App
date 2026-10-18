@@ -2,9 +2,14 @@ package org.matchlab.academic_net.feature.profile.ui
 
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import org.matchlab.academic_net.feature.profile.domain.ProfileCapabilities
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddWorkUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.DeletePortfolioItemUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyDocumentUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyWorkUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetReviewUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.GetReviewsPageUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetUserProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetUserReviewsUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetUserWorksUseCase
@@ -12,13 +17,23 @@ import org.matchlab.academic_net.feature.profile.domain.usecase.MarkResultsSeenU
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveHasUnseenResultsUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveVerificationResultsUseCase
-import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateAboutUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.RefreshMyProfileUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.SaveDocumentUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.SaveWorkUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.SubmitForVerificationUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.feature.profile.ui.my.MyProfileVisibility
 
 /**
  * What the screens of the profile feature need from the outside; the app creates it once and
  * hands it to every `…Route` and to [profileTabHasBadge].
  *
+ * @param capabilities what the server behind the profiles can give (API-GAP G11, G12): the screens hide what it
+ *  cannot, instead of showing made-up data. Without [ProfileCapabilities.verificationStatuses] there are no status
+ *  chips and banners, no queue and no results of the verification, and no dot on the tab; without
+ *  [ProfileCapabilities.interestTypes] there are no project-type chips in the editor
+ * @param submitForVerification sends a record that is already added. The forms do not use it: they send through
+ *  [saveWork] and [saveDocument], which also save what was changed first
  * @param clock and [timeZone] say when a decision of a moderator was made relative to "now" in the
  *  list of results on the viewer's profile
  */
@@ -26,14 +41,23 @@ class ProfileUiDependencies(
     val getUserProfile: GetUserProfileUseCase,
     val getUserWorks: GetUserWorksUseCase,
     val getUserReviews: GetUserReviewsUseCase,
+    val getReviewsPage: GetReviewsPageUseCase,
     val getReview: GetReviewUseCase,
     val observeMyProfile: ObserveMyProfileUseCase,
-    val updateAbout: UpdateAboutUseCase,
+    val refreshMyProfile: RefreshMyProfileUseCase,
+    val updateProfile: UpdateProfileUseCase,
     val addWork: AddWorkUseCase,
     val addDocument: AddDocumentUseCase,
+    val getMyWork: GetMyWorkUseCase,
+    val getMyDocument: GetMyDocumentUseCase,
+    val saveWork: SaveWorkUseCase,
+    val saveDocument: SaveDocumentUseCase,
+    val submitForVerification: SubmitForVerificationUseCase,
+    val deletePortfolioItem: DeletePortfolioItemUseCase,
     val observeVerificationResults: ObserveVerificationResultsUseCase,
     val observeHasUnseenResults: ObserveHasUnseenResultsUseCase,
     val markResultsSeen: MarkResultsSeenUseCase,
+    val capabilities: ProfileCapabilities,
     val clock: Clock = Clock.System,
     val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) {

@@ -21,6 +21,7 @@ import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsRepositoryImpl
@@ -93,7 +94,7 @@ class CollaboratorSearchViewModelTest {
     private class RecordingBackend : CollaboratorsRepository {
         val queries = mutableListOf<CollaboratorQuery>()
         private val person = ScoredCollaborator(
-            Collaborator(UserSummary(UserId("u1"), "Иван Иванов"), "МГУ", "магистрант", "физика"),
+            Collaborator(UserSummary(UserId("u1"), "Иван Иванов"), "МГУ", Study("Магистратура"), "физика"),
             matchPercent = 80,
         )
 
@@ -165,10 +166,13 @@ class CollaboratorSearchViewModelTest {
     }
 
     @Test
-    fun rowSubtitleJoinsUniversityStudyAndField() = runTest {
+    fun rowCarriesTheUniversityStudyAndFieldOfThePerson() = runTest {
         val first = viewModel().uiState.value.results.first()
 
-        assertEquals("Stanford · 3 курс бакалавриата · Computer Science", first.subtitle)
+        // The line under the name is made by the screen (`subtitleText`), in the language of the app.
+        assertEquals("Stanford", first.collaborator.university)
+        assertEquals(Study("Бакалавриат", 3), first.collaborator.study)
+        assertEquals("Computer Science", first.collaborator.field)
     }
 
     @Test

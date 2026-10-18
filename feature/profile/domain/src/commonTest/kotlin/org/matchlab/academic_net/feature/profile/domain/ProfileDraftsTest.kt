@@ -9,64 +9,6 @@ import org.matchlab.academic_net.common.model.ProjectType
 
 private fun text(length: Int) = "a".repeat(length)
 
-class AboutDraftTest {
-    @Test
-    fun emptyDraftIsValid() {
-        assertEquals(emptySet(), AboutDraft().validate())
-    }
-
-    @Test
-    fun aboutAtTheLimitIsValidAndOneMoreIsTooLong() {
-        assertEquals(emptySet(), AboutDraft(about = text(ProfileLimits.MaxAboutLength)).validate())
-        assertEquals(
-            setOf(AboutDraftError.AboutTooLong),
-            AboutDraft(about = text(ProfileLimits.MaxAboutLength + 1)).validate(),
-        )
-    }
-
-    @Test
-    fun tagsAtTheLimitAreValidAndOneMoreIsTooMany() {
-        val atLimit = List(ProfileLimits.MaxTags) { "tag $it" }
-        val over = atLimit + "one more"
-
-        assertEquals(emptySet(), AboutDraft(interests = atLimit, skills = atLimit).validate())
-        assertEquals(
-            setOf(AboutDraftError.TooManyInterests, AboutDraftError.TooManySkills),
-            AboutDraft(interests = over, skills = over).validate(),
-        )
-    }
-
-    @Test
-    fun normalizingTrimsTheTextAndCleansTheTags() {
-        val normalized = AboutDraft(
-            about = "  Люблю CV \n",
-            interestTypes = setOf(ProjectType.Practical),
-            interests = listOf(" Edge   AI ", "edge ai", ""),
-            skills = listOf("Python", " python "),
-        ).normalized()
-
-        assertEquals("Люблю CV", normalized.about)
-        assertEquals(setOf(ProjectType.Practical), normalized.interestTypes)
-        assertEquals(listOf("Edge AI"), normalized.interests)
-        assertEquals(listOf("Python"), normalized.skills)
-    }
-
-    @Test
-    fun spacesOnlyDoNotCountForTheLimitAfterNormalizing() {
-        val draft = AboutDraft(about = text(ProfileLimits.MaxAboutLength) + "   ")
-
-        assertEquals(setOf(AboutDraftError.AboutTooLong), draft.validate())
-        assertEquals(emptySet(), draft.normalized().validate())
-    }
-
-    @Test
-    fun duplicatesDoNotCountForTheTagLimitAfterNormalizing() {
-        val draft = AboutDraft(skills = List(ProfileLimits.MaxTags + 5) { "Python" })
-
-        assertEquals(emptySet(), draft.normalized().validate())
-    }
-}
-
 class WorkDraftTest {
     private val valid = WorkDraft(title = "Title", description = "Description")
 
@@ -123,15 +65,6 @@ class WorkDraftTest {
     }
 
     @Test
-    fun proofMustBeAWebLink() {
-        assertEquals(emptySet(), valid.copy(proof = ProofAttachment("https://files.example.com/a.pdf")).validate())
-        assertEquals(
-            setOf(WorkDraftError.ProofInvalid),
-            valid.copy(proof = ProofAttachment("not a link")).validate(),
-        )
-    }
-
-    @Test
     fun draftWithNothingOrBlankLinkIsNotSentForVerification() {
         assertFalse(valid.sendsForVerification)
         assertFalse(valid.copy(link = "   ").sendsForVerification)
@@ -140,7 +73,7 @@ class WorkDraftTest {
     @Test
     fun linkOrProofSendsTheWorkForVerification() {
         assertTrue(valid.copy(link = "https://github.com/a/b").sendsForVerification)
-        assertTrue(valid.copy(proof = ProofAttachment("https://files.example.com/a.pdf")).sendsForVerification)
+        assertTrue(valid.copy(hasEvidenceFile = true).sendsForVerification)
     }
 
     @Test
@@ -150,20 +83,13 @@ class WorkDraftTest {
             title = "  My   work ",
             description = "  Text \n",
             link = " https://github.com/a/b ",
-            proof = ProofAttachment(" https://files.example.com/a.pdf "),
         ).normalized()
 
         assertEquals(ProjectType.Practical, normalized.type)
         assertEquals("My work", normalized.title)
         assertEquals("Text", normalized.description)
         assertEquals("https://github.com/a/b", normalized.link)
-        assertEquals(ProofAttachment("https://files.example.com/a.pdf"), normalized.proof)
         assertEquals(emptySet(), normalized.validate())
-    }
-
-    @Test
-    fun normalizingKeepsAMissingProofMissing() {
-        assertNull(valid.normalized().proof)
     }
 }
 

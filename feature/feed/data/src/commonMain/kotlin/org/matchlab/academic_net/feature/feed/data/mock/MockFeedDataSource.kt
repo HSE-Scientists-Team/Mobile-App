@@ -2,6 +2,7 @@ package org.matchlab.academic_net.feature.feed.data.mock
 
 import kotlinx.coroutines.delay
 import org.matchlab.academic_net.common.model.Collaborator
+import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.data.FeedDataSource
@@ -44,19 +45,19 @@ object MockFeedData {
         Collaborator(
             user = UserSummary(UserId("user-arjun"), "Арджун Мехта", isVerified = true),
             university = "Stanford",
-            studyInfo = "3 курс бакалавриата",
+            study = Study("Бакалавриат", 3),
             field = "Computer Science",
         ),
         Collaborator(
             user = UserSummary(UserId("user-maria"), "Мария Соколова", isVerified = true),
             university = "МГУ",
-            studyInfo = "аспирантка",
+            study = Study("Аспирантура"),
             field = "биоинформатика",
         ),
         Collaborator(
             user = UserSummary(UserId("user-daniil"), "Даниил Крюков", isVerified = true),
             university = "ИТМО",
-            studyInfo = "магистрант",
+            study = Study("Магистратура"),
             field = "робототехника",
         ),
     )

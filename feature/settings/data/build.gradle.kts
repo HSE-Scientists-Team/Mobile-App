@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Settings feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockSettingsDataSource.
+// Settings feature, data layer: the repository, and the one server it talks to, the Gateway
+// (GatewaySettingsDataSource over the profile calls ProfilesApi).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.settings.data"
@@ -27,6 +27,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":feature:settings:domain"))
+            // ProfilesApi and RemoteFailure for GatewaySettingsDataSource; the feature never exposes them.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

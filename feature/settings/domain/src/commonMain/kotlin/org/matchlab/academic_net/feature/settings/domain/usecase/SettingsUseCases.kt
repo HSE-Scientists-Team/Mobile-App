@@ -1,21 +1,22 @@
 package org.matchlab.academic_net.feature.settings.domain.usecase
 
-import org.matchlab.academic_net.feature.settings.domain.PrivacyOption
-import org.matchlab.academic_net.feature.settings.domain.PrivacySettings
 import org.matchlab.academic_net.feature.settings.domain.SettingsRepository
 import org.matchlab.academic_net.utils.suspendRunCatching
 
-/** Loads the privacy settings; a network failure is a failed [Result], cancellation is rethrown. */
-class GetPrivacySettingsUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(): Result<PrivacySettings> =
-        suspendRunCatching { repository.getPrivacySettings() }
+/**
+ * Loads "Открыт к сотрудничеству": `true` or `false`, or `null` when the user has no profile yet. A failure is a
+ * failed [Result], cancellation is rethrown.
+ */
+class GetOpenToCollaborationUseCase(private val repository: SettingsRepository) {
+    suspend operator fun invoke(): Result<Boolean?> = suspendRunCatching { repository.getOpenToCollaboration() }
 }
 
 /**
- * Switches one privacy option and returns the settings after the change; a network failure is a
- * failed [Result], cancellation is rethrown.
+ * Switches "Открыт к сотрудничеству" and returns the value the server has after it. A failure is a failed [Result]
+ * ([org.matchlab.academic_net.feature.settings.domain.ProfileMissingException] when there is no profile to save it in),
+ * cancellation is rethrown.
  */
-class SetPrivacyOptionUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(option: PrivacyOption, enabled: Boolean): Result<PrivacySettings> =
-        suspendRunCatching { repository.setPrivacyOption(option, enabled) }
+class SetOpenToCollaborationUseCase(private val repository: SettingsRepository) {
+    suspend operator fun invoke(open: Boolean): Result<Boolean> =
+        suspendRunCatching { repository.setOpenToCollaboration(open) }
 }

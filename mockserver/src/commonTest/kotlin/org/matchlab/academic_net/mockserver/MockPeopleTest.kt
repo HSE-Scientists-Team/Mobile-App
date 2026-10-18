@@ -6,15 +6,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.datetime.YearMonth
-import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.UserId
 
 private fun person(key: String) = MockServerPerson(
     id = UserId("user-$key"),
     name = "Person $key",
     university = "University",
-    studyInfo = "study",
-    field = "field",
 )
 
 private fun document(
@@ -97,17 +94,6 @@ class MockPeopleTest {
 
         assertEquals(listOf("newer", "first", "second", "older"), people.reviewsAbout(UserId("user-a")).map { it.id })
     }
-
-    @Test
-    fun worksAndDocumentsAreFilteredByOwnerKeepingTheOrder() {
-        val works = listOf("a", "b", "a").mapIndexed { index, owner ->
-            MockServerWork("w$index", UserId("user-$owner"), ProjectType.Practical, "T", "D", state = MockCheckState.Unconfirmed)
-        }
-        val people = MockPeople(listOf(person("a"), person("b")), works = works)
-
-        assertEquals(listOf("w0", "w2"), people.worksOf(UserId("user-a")).map { it.id })
-        assertTrue(people.documentsOf(UserId("user-a")).isEmpty())
-    }
 }
 
 /** The seeded tables. */
@@ -145,12 +131,12 @@ class MockPeopleDefaultTest {
     }
 
     @Test
-    fun hasTheCollaboratorsUniversityStudyInfoAndField() {
+    fun hasTheCollaboratorsUniversity() {
         val arjun = people.person(UserId("user-arjun"))
         val maria = people.person(UserId("user-maria"))
 
-        assertEquals(Triple("Stanford", "3 курс бакалавриата", "Computer Science"), arjun?.let { Triple(it.university, it.studyInfo, it.field) })
-        assertEquals(Triple("МГУ", "аспирантка", "биоинформатика"), maria?.let { Triple(it.university, it.studyInfo, it.field) })
+        assertEquals("Stanford", arjun?.university)
+        assertEquals("МГУ", maria?.university)
     }
 
     @Test
@@ -189,10 +175,6 @@ class MockPeopleDefaultTest {
             people.documentsOf(UserId("user-me")).map { it.title },
         )
         assertEquals(MockCheckState.Pending, people.documentsOf(UserId("user-me")).last().state)
-        assertEquals(
-            MockCheckState.Rejected,
-            people.worksOf(UserId("user-me")).first { it.title == "Прототип AR-навигации" }.state,
-        )
     }
 
     @Test
@@ -227,7 +209,6 @@ class MockPeopleDefaultTest {
     @Test
     fun idsAreUniqueInEveryTable() {
         assertEquals(people.persons.size, people.persons.map { it.id }.toSet().size)
-        assertEquals(people.works.size, people.works.map { it.id }.toSet().size)
         assertEquals(people.documents.size, people.documents.map { it.id }.toSet().size)
         assertEquals(people.reviews.size, people.reviews.map { it.id }.toSet().size)
     }
@@ -236,7 +217,6 @@ class MockPeopleDefaultTest {
     fun everyRowPointsToAKnownPerson() {
         val known = people.persons.map { it.id }.toSet()
 
-        assertTrue(people.works.all { it.ownerId in known })
         assertTrue(people.documents.all { it.ownerId in known })
         assertTrue(people.reviews.all { it.authorId in known && it.subjectId in known })
     }
@@ -257,15 +237,6 @@ class MockPeopleDefaultTest {
 
         assertTrue(verified > 0)
         assertTrue(verified < people.persons.size)
-    }
-
-    @Test
-    fun hasWorksInEveryModerationState() {
-        val states = people.works.map { it.state }.toSet()
-
-        assertTrue(MockCheckState.Verified in states)
-        assertTrue(MockCheckState.Rejected in states)
-        assertTrue(MockCheckState.Unconfirmed in states)
     }
 
     @Test

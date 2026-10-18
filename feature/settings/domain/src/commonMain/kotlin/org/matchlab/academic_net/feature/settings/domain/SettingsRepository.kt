@@ -1,14 +1,25 @@
 package org.matchlab.academic_net.feature.settings.domain
 
-/** The signed-in user's settings. The calls throw when they fail (no network); use cases wrap them. */
+/**
+ * The signed-in user's settings: the one switch there is, "Открыт к сотрудничеству". The calls throw when they fail
+ * (no network, a server error); the use cases wrap them.
+ */
 interface SettingsRepository {
-    suspend fun getPrivacySettings(): PrivacySettings
+    /**
+     * Whether people can find the user in the people search and in the recommendations, or `null` when the user has
+     * no profile yet (API-GAP G19: an account that never saved the profile form has no name, and the switch is a
+     * field of the profile).
+     */
+    suspend fun getOpenToCollaboration(): Boolean?
 
     /**
-     * Switches one [option] and returns the whole settings as the server has them now.
+     * Saves [open] and returns the value the server has now. The profile is changed in this one field only: what was
+     * saved in the profile form stays.
      *
-     * Only the one field is sent (a patch), so two switches pressed one after another cannot
-     * overwrite each other with a stale copy of the other field.
+     * @throws ProfileMissingException when the user has no profile yet: there is nothing to put the switch in.
      */
-    suspend fun setPrivacyOption(option: PrivacyOption, enabled: Boolean): PrivacySettings
+    suspend fun setOpenToCollaboration(open: Boolean): Boolean
 }
+
+/** The user has no profile yet (no name), so a setting that lives in the profile cannot be saved. */
+class ProfileMissingException : IllegalStateException("The user has no profile yet")

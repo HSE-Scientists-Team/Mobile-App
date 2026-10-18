@@ -2,12 +2,13 @@ package org.matchlab.academic_net.feature.profile.domain.usecase
 
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.LoadResult
-import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileRepository
 import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
+import org.matchlab.academic_net.feature.profile.domain.ReviewsPage
 import org.matchlab.academic_net.feature.profile.domain.UserProfile
 import org.matchlab.academic_net.feature.profile.domain.UserReviews
+import org.matchlab.academic_net.feature.profile.domain.UserWorks
 import org.matchlab.academic_net.utils.suspendRunCatching
 
 /**
@@ -25,18 +26,24 @@ class GetUserProfileUseCase(private val repository: ProfileRepository) {
     suspend operator fun invoke(id: UserId): LoadResult<UserProfile> = loadResult { repository.getProfile(id) }
 }
 
-/** "Работы и публикации": all works of one person. */
+/** "Работы и публикации": the works of one person. */
 class GetUserWorksUseCase(private val repository: ProfileRepository) {
-    suspend operator fun invoke(id: UserId): LoadResult<List<PortfolioWork>> =
-        loadResult { repository.getWorks(id) }
+    suspend operator fun invoke(id: UserId): LoadResult<UserWorks> = loadResult { repository.getWorks(id) }
 }
 
-/** "Читать отзывы": all reviews about one person with their numbers. */
+/** "Читать отзывы": the numbers over the reviews of one person and the first page of them. */
 class GetUserReviewsUseCase(private val repository: ProfileRepository) {
-    suspend operator fun invoke(id: UserId): LoadResult<UserReviews> = loadResult { repository.getReviews(id) }
+    suspend operator fun invoke(id: UserId): LoadResult<UserReviews> = loadResult { repository.getUserReviews(id) }
+}
+
+/** The next page of the reviews of one person, [offset] being the number of the reviews already shown. */
+class GetReviewsPageUseCase(private val repository: ProfileRepository) {
+    suspend operator fun invoke(id: UserId, offset: Int): LoadResult<ReviewsPage> =
+        loadResult { repository.getReviewsPage(id, offset) }
 }
 
 /** One review in full. */
 class GetReviewUseCase(private val repository: ProfileRepository) {
-    suspend operator fun invoke(id: ReviewId): LoadResult<Review> = loadResult { repository.getReview(id) }
+    suspend operator fun invoke(userId: UserId, reviewId: ReviewId): LoadResult<Review> =
+        loadResult { repository.getReview(userId, reviewId) }
 }

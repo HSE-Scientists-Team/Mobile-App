@@ -32,10 +32,14 @@ import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorSearchRoute
 import org.matchlab.academic_net.feature.feed.ui.FeedRoute
+import org.matchlab.academic_net.feature.profile.domain.DocumentId
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
+import org.matchlab.academic_net.feature.profile.domain.WorkId
 import org.matchlab.academic_net.feature.profile.ui.my.AddDocumentRoute
 import org.matchlab.academic_net.feature.profile.ui.my.AddWorkRoute
+import org.matchlab.academic_net.feature.profile.ui.my.EditDocumentRoute
 import org.matchlab.academic_net.feature.profile.ui.my.EditProfileRoute
+import org.matchlab.academic_net.feature.profile.ui.my.EditWorkRoute
 import org.matchlab.academic_net.feature.profile.ui.my.MyProfileRoute
 import org.matchlab.academic_net.feature.profile.ui.my.profileTabHasBadge
 import org.matchlab.academic_net.feature.profile.ui.user.ReviewDetailsRoute
@@ -58,6 +62,8 @@ private object Routes {
     const val ConversationArgument = "conversationId"
     const val UserArgument = "userId"
     const val ReviewArgument = "reviewId"
+    const val WorkArgument = "workId"
+    const val DocumentArgument = "documentId"
 
     const val Project = "project/{$ProjectArgument}"
     const val ProjectDetails = "project_details/{$ProjectArgument}"
@@ -68,11 +74,13 @@ private object Routes {
     const val Profile = "profile/{$UserArgument}"
     const val ProfileWorks = "profile/{$UserArgument}/works"
     const val ProfileReviews = "profile/{$UserArgument}/reviews"
-    const val Review = "review/{$ReviewArgument}"
+    const val ProfileReview = "profile/{$UserArgument}/reviews/{$ReviewArgument}"
     const val EditProfile = "my_profile/edit"
     const val Settings = "settings"
     const val AddWork = "my_profile/add_work"
     const val AddDocument = "my_profile/add_document"
+    const val EditWork = "my_profile/works/{$WorkArgument}"
+    const val EditDocument = "my_profile/documents/{$DocumentArgument}"
 
     fun project(id: ProjectId) = "project/${id.value}"
     fun projectDetails(id: ProjectId) = "project_details/${id.value}"
@@ -81,7 +89,9 @@ private object Routes {
     fun profile(id: UserId) = "profile/${id.value}"
     fun profileWorks(id: UserId) = "profile/${id.value}/works"
     fun profileReviews(id: UserId) = "profile/${id.value}/reviews"
-    fun review(id: ReviewId) = "review/${id.value}"
+    fun profileReview(userId: UserId, reviewId: ReviewId) = "profile/${userId.value}/reviews/${reviewId.value}"
+    fun editWork(id: WorkId) = "my_profile/works/${id.value}"
+    fun editDocument(id: DocumentId) = "my_profile/documents/${id.value}"
 }
 
 private val StringArgument = NavType.StringType
@@ -207,7 +217,13 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         onSettingsClick = { navController.navigateSingleTop(entry, Routes.Settings) },
                         onAllWorksClick = { id -> navController.navigateOnce(entry, Routes.profileWorks(id)) },
                         onAllReviewsClick = { id -> navController.navigateOnce(entry, Routes.profileReviews(id)) },
-                        onReviewClick = { id -> navController.navigateOnce(entry, Routes.review(id)) },
+                        onReviewClick = { userId, reviewId ->
+                            navController.navigateOnce(entry, Routes.profileReview(userId, reviewId))
+                        },
+                        onAuthorClick = { userId -> openProfile(entry, userId) },
+                        onAuthorChatClick = { user -> openChatWith(entry, user) },
+                        onEditWork = { id -> navController.navigateOnce(entry, Routes.editWork(id)) },
+                        onEditDocument = { id -> navController.navigateOnce(entry, Routes.editDocument(id)) },
                     )
                     else -> TabPlaceholder(destination)
                 }
@@ -331,7 +347,11 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onMessageClick = { user -> openChatWith(entry, user) },
                     onAllWorksClick = { userId -> navController.navigateOnce(entry, Routes.profileWorks(userId)) },
                     onAllReviewsClick = { userId -> navController.navigateOnce(entry, Routes.profileReviews(userId)) },
-                    onReviewClick = { reviewId -> navController.navigateOnce(entry, Routes.review(reviewId)) },
+                    onReviewClick = { userId, reviewId ->
+                        navController.navigateOnce(entry, Routes.profileReview(userId, reviewId))
+                    },
+                    onAuthorClick = { authorId -> openProfile(entry, authorId) },
+                    onAuthorChatClick = { author -> openChatWith(entry, author) },
                 )
             }
         }
@@ -345,6 +365,8 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     dependencies = dependencies.profile,
                     userId = UserId(id),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
+                    // The viewer's own list: a work opens for editing.
+                    onEditWork = { workId -> navController.navigateOnce(entry, Routes.editWork(workId)) },
                 )
             }
         }
@@ -358,21 +380,31 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     dependencies = dependencies.profile,
                     userId = UserId(id),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
-                    onReviewClick = { reviewId -> navController.navigateOnce(entry, Routes.review(reviewId)) },
+                    onReviewClick = { userId, reviewId ->
+                        navController.navigateOnce(entry, Routes.profileReview(userId, reviewId))
+                    },
+                    onAuthorClick = { authorId -> openProfile(entry, authorId) },
+                    onAuthorChatClick = { author -> openChatWith(entry, author) },
                 )
             }
         }
         composable(
-            route = Routes.Review,
-            arguments = listOf(navArgument(Routes.ReviewArgument) { type = StringArgument }),
+            route = Routes.ProfileReview,
+            arguments = listOf(
+                navArgument(Routes.UserArgument) { type = StringArgument },
+                navArgument(Routes.ReviewArgument) { type = StringArgument },
+            ),
         ) { entry ->
-            val id = entry.arguments?.read { getStringOrNull(Routes.ReviewArgument) }
-            if (id != null) {
+            val userId = entry.arguments?.read { getStringOrNull(Routes.UserArgument) }
+            val reviewId = entry.arguments?.read { getStringOrNull(Routes.ReviewArgument) }
+            if (userId != null && reviewId != null) {
                 ReviewDetailsRoute(
                     dependencies = dependencies.profile,
-                    reviewId = ReviewId(id),
+                    userId = UserId(userId),
+                    reviewId = ReviewId(reviewId),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
-                    onAuthorClick = { userId -> openProfile(entry, userId) },
+                    onAuthorClick = { authorId -> openProfile(entry, authorId) },
+                    onAuthorChatClick = { author -> openChatWith(entry, author) },
                 )
             }
         }
@@ -390,6 +422,8 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                 onClose = { navController.popBackStackOnce(entry) },
                 onAddWorkClick = { navController.navigateSingleTop(entry, Routes.AddWork) },
                 onAddDocumentClick = { navController.navigateSingleTop(entry, Routes.AddDocument) },
+                onEditWork = { id -> navController.navigateOnce(entry, Routes.editWork(id)) },
+                onEditDocument = { id -> navController.navigateOnce(entry, Routes.editDocument(id)) },
             )
         }
         composable(Routes.AddWork) { entry ->
@@ -397,6 +431,32 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
         }
         composable(Routes.AddDocument) { entry ->
             AddDocumentRoute(dependencies = dependencies.profile, onClose = { navController.popBackStackOnce(entry) })
+        }
+        composable(
+            route = Routes.EditWork,
+            arguments = listOf(navArgument(Routes.WorkArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.WorkArgument) }
+            if (id != null) {
+                EditWorkRoute(
+                    dependencies = dependencies.profile,
+                    workId = WorkId(id),
+                    onClose = { navController.popBackStackOnce(entry) },
+                )
+            }
+        }
+        composable(
+            route = Routes.EditDocument,
+            arguments = listOf(navArgument(Routes.DocumentArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.DocumentArgument) }
+            if (id != null) {
+                EditDocumentRoute(
+                    dependencies = dependencies.profile,
+                    documentId = DocumentId(id),
+                    onClose = { navController.popBackStackOnce(entry) },
+                )
+            }
         }
     }
 }

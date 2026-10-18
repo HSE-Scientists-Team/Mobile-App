@@ -7,6 +7,17 @@ import org.matchlab.academic_net.utils.normalizeTags
 
 /** Limits of the profile forms. The design does not fix them: these are the app's own. */
 object ProfileLimits {
+    const val MaxNameLength = 100
+    const val MaxUniversityLength = 150
+    const val MaxFieldLength = 100
+
+    /** The level of study is a free text (API-GAP G10): a word or two. */
+    const val MaxStudyLevelLength = 50
+
+    /** The first and the last year of study a person may name. */
+    const val MinStudyYear = 1
+    const val MaxStudyYear = 6
+
     const val MaxAboutLength = 1000
     const val MaxTitleLength = 150
     const val MaxDescriptionLength = 500
@@ -20,8 +31,26 @@ object ProfileLimits {
     const val MaxYear = 2100
 }
 
-/** What is wrong with an [AboutDraft]; each entry is a limit of [ProfileLimits]. */
-enum class AboutDraftError {
+/** What is wrong with a [ProfileDraft]; each entry is a limit of [ProfileLimits], and the name is required. */
+enum class ProfileDraftError {
+    /** The name is blank: the API requires it, and a new account has none until the first save. */
+    NameEmpty,
+
+    /** Longer than [ProfileLimits.MaxNameLength]. */
+    NameTooLong,
+
+    /** Longer than [ProfileLimits.MaxUniversityLength]. */
+    UniversityTooLong,
+
+    /** Longer than [ProfileLimits.MaxStudyLevelLength]. */
+    StudyLevelTooLong,
+
+    /** The year is not a number from [ProfileLimits.MinStudyYear] to [ProfileLimits.MaxStudyYear]. */
+    StudyYearInvalid,
+
+    /** Longer than [ProfileLimits.MaxFieldLength]. */
+    FieldTooLong,
+
     /** The text about the person is longer than [ProfileLimits.MaxAboutLength]. */
     AboutTooLong,
 
@@ -33,27 +62,56 @@ enum class AboutDraftError {
 }
 
 /**
- * "Редактирование профиля": the text about the person, their interests and skills as the user
- * has filled them. Everything is optional, so only the limits are checked.
+ * "Редактирование профиля" as the user has filled it: who they are, what they study, the text about them, their
+ * interests and skills. Only the name is required.
+ *
+ * API-GAP G10: [studyLevel] is a free text, typed by the person, and goes to the server as it is. API-GAP G11:
+ * [interestTypes] is written only when [ProfileCapabilities.interestTypes]; otherwise the server's value stays.
  */
-data class AboutDraft(
+data class ProfileDraft(
+    val name: String = "",
+    val university: String = "",
+    /** The level of study as the person writes it ("Бакалавриат"); blank if they give none. */
+    val studyLevel: String = "",
+    /** The year of study as typed; blank if the person gives none. */
+    val studyYear: String = "",
+    /** Field of study: "Computer Science". */
+    val field: String = "",
     val about: String = "",
     val interestTypes: Set<ProjectType> = emptySet(),
     val interests: List<String> = emptyList(),
     val skills: List<String> = emptyList(),
 ) {
-    /** Outer spaces trimmed, tags normalized and deduplicated. */
-    fun normalized(): AboutDraft = copy(
+    /** The year as a number, `null` while it is blank or not a valid year (see [validate]). */
+    val studyYearNumber: Int?
+        get() = studyYear.trim()
+            .takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+            ?.toIntOrNull()
+            ?.takeIf { it in ProfileLimits.MinStudyYear..ProfileLimits.MaxStudyYear }
+
+    /** Outer spaces trimmed, one-line texts and tags normalized, tags deduplicated. */
+    fun normalized(): ProfileDraft = copy(
+        name = name.normalizeTag(),
+        university = university.normalizeTag(),
+        studyLevel = studyLevel.normalizeTag(),
+        studyYear = studyYear.trim(),
+        field = field.normalizeTag(),
         about = about.trim(),
         interests = interests.normalizeTags(),
         skills = skills.normalizeTags(),
     )
 
     /** Errors of the draft as typed (call on [normalized] to ignore stray spaces). */
-    fun validate(): Set<AboutDraftError> = buildSet {
-        if (about.length > ProfileLimits.MaxAboutLength) add(AboutDraftError.AboutTooLong)
-        if (interests.size > ProfileLimits.MaxTags) add(AboutDraftError.TooManyInterests)
-        if (skills.size > ProfileLimits.MaxTags) add(AboutDraftError.TooManySkills)
+    fun validate(): Set<ProfileDraftError> = buildSet {
+        if (name.isBlank()) add(ProfileDraftError.NameEmpty)
+        if (name.length > ProfileLimits.MaxNameLength) add(ProfileDraftError.NameTooLong)
+        if (university.length > ProfileLimits.MaxUniversityLength) add(ProfileDraftError.UniversityTooLong)
+        if (studyLevel.length > ProfileLimits.MaxStudyLevelLength) add(ProfileDraftError.StudyLevelTooLong)
+        if (studyYear.isNotBlank() && studyYearNumber == null) add(ProfileDraftError.StudyYearInvalid)
+        if (field.length > ProfileLimits.MaxFieldLength) add(ProfileDraftError.FieldTooLong)
+        if (about.length > ProfileLimits.MaxAboutLength) add(ProfileDraftError.AboutTooLong)
+        if (interests.size > ProfileLimits.MaxTags) add(ProfileDraftError.TooManyInterests)
+        if (skills.size > ProfileLimits.MaxTags) add(ProfileDraftError.TooManySkills)
     }
 }
 
@@ -70,31 +128,32 @@ enum class WorkDraftError {
 
     /** The link is not an http/https address. */
     LinkInvalid,
-
-    /** The attachment is not an http/https address. */
-    ProofInvalid,
 }
 
-/** "Добавить работу" as the user has filled it so far. */
+/**
+ * "Добавить работу" and the form of a work being edited, as the user has filled it so far. There is no file to
+ * attach yet: the proof of a work is its [link]. A work that came from the server with a proof file keeps it
+ * ([hasEvidenceFile]).
+ */
 data class WorkDraft(
     val type: ProjectType = ProjectType.Scientific,
     val title: String = "",
     val description: String = "",
     /** Address of the publication or the repository; blank if there is none. */
     val link: String = "",
-    val proof: ProofAttachment? = null,
+    /** The record being edited has a proof file on the server; the form shows it and the save keeps it. */
+    val hasEvidenceFile: Boolean = false,
 ) {
     /**
-     * With a link or a proof the work goes to moderation, otherwise it is added as unconfirmed
+     * With a link or a proof file the work can be sent for verification, otherwise it is added as unconfirmed
      * ("Добавить без подтверждения").
      */
-    val sendsForVerification: Boolean get() = link.isNotBlank() || proof != null
+    val sendsForVerification: Boolean get() = link.isNotBlank() || hasEvidenceFile
 
     fun normalized(): WorkDraft = copy(
         title = title.normalizeTag(),
         description = description.trim(),
         link = link.trim(),
-        proof = proof?.copy(url = proof.url.trim()),
     )
 
     /** Errors of the draft as typed (call on [normalized] to ignore stray spaces). */
@@ -104,11 +163,10 @@ data class WorkDraft(
         if (description.isBlank()) add(WorkDraftError.DescriptionEmpty)
         if (description.length > ProfileLimits.MaxDescriptionLength) add(WorkDraftError.DescriptionTooLong)
         if (link.isNotBlank() && !link.isWebLink()) add(WorkDraftError.LinkInvalid)
-        if (proof != null && !proof.url.isWebLink()) add(WorkDraftError.ProofInvalid)
     }
 }
 
-/** What is wrong with a [DocumentDraft]; the title, the issuer and the proof are required. */
+/** What is wrong with a [DocumentDraft]; the title, the issuer and a proof are required. */
 enum class DocumentDraftError {
     TitleEmpty,
 
@@ -122,14 +180,18 @@ enum class DocumentDraftError {
     /** The year is not a number between [ProfileLimits.MinYear] and [ProfileLimits.MaxYear]. */
     YearInvalid,
 
-    /** A document is always checked, so it needs a proof. */
+    /** A document is always checked, so it needs a proof: a link, or a file that is already attached. */
     ProofMissing,
 
     /** The attachment is not an http/https address. */
     ProofInvalid,
 }
 
-/** The "new document" form as the user has filled it so far. */
+/**
+ * The "new document" form and the form of a document being edited, as the user has filled it so far. The proof is
+ * a link (it is public, API-GAP G17); a document that came from the server with a proof file keeps it
+ * ([hasEvidenceFile]).
+ */
 data class DocumentDraft(
     val kind: DocumentKind = DocumentKind.Education,
     val title: String = "",
@@ -137,6 +199,8 @@ data class DocumentDraft(
     /** As typed; blank if the user did not give it. */
     val year: String = "",
     val proof: ProofAttachment? = null,
+    /** The record being edited has a proof file on the server; the form shows it and the save keeps it. */
+    val hasEvidenceFile: Boolean = false,
 ) {
     /** The year as a number, `null` while it is blank or not a valid year (see [validate]). */
     val yearNumber: Int?
@@ -144,6 +208,9 @@ data class DocumentDraft(
             .takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
             ?.toIntOrNull()
             ?.takeIf { it in ProfileLimits.MinYear..ProfileLimits.MaxYear }
+
+    /** A document is sent for verification when it has a proof; without one it is not valid (see [validate]). */
+    val sendsForVerification: Boolean get() = proof != null || hasEvidenceFile
 
     fun normalized(): DocumentDraft = copy(
         title = title.normalizeTag(),
@@ -160,9 +227,41 @@ data class DocumentDraft(
         if (issuer.length > ProfileLimits.MaxIssuerLength) add(DocumentDraftError.IssuerTooLong)
         if (year.isNotBlank() && yearNumber == null) add(DocumentDraftError.YearInvalid)
         if (proof == null) {
-            add(DocumentDraftError.ProofMissing)
+            if (!hasEvidenceFile) add(DocumentDraftError.ProofMissing)
         } else if (!proof.url.isWebLink()) {
             add(DocumentDraftError.ProofInvalid)
         }
     }
 }
+
+/** The form of the viewer's profile as it stands now: what the editor opens with. */
+fun MyProfile.toDraft(): ProfileDraft = ProfileDraft(
+    name = profile.person.user.name,
+    university = profile.person.university,
+    studyLevel = profile.person.study.level.orEmpty(),
+    studyYear = profile.person.study.year?.toString().orEmpty(),
+    field = profile.person.field,
+    about = profile.about,
+    interestTypes = profile.interests.projectTypes,
+    interests = profile.interests.topics,
+    skills = profile.skills,
+)
+
+/** The form of a work being edited, with the fields as the server has them. */
+fun PortfolioWork.toDraft(): WorkDraft = WorkDraft(
+    type = type,
+    title = title,
+    description = description,
+    link = link.orEmpty(),
+    hasEvidenceFile = hasEvidenceFile,
+)
+
+/** The form of a document being edited, with the fields as the server has them. */
+fun ProfileDocument.toDraft(): DocumentDraft = DocumentDraft(
+    kind = kind,
+    title = title,
+    issuer = issuer,
+    year = year?.toString().orEmpty(),
+    proof = proof,
+    hasEvidenceFile = hasEvidenceFile,
+)
