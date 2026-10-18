@@ -1,28 +1,24 @@
 package org.matchlab.academic_net.feature.chats.ui.list
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.LoadingState
+import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.format.chatListTimeText
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.ChatListItem
@@ -58,11 +54,9 @@ internal fun ChatsScreen(
     Column(modifier.fillMaxSize().background(colors.surface)) {
         AppTopBar(title = stringResource(Res.string.chats_title))
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.primary)
-            }
-            state.hasError -> CenteredMessage(stringResource(Res.string.chats_load_error))
-            state.chats.isEmpty() -> CenteredMessage(
+            state.isLoading -> LoadingState()
+            state.hasError -> MessageState(title = stringResource(Res.string.chats_load_error))
+            state.chats.isEmpty() -> MessageState(
                 title = stringResource(Res.string.chats_empty_title),
                 text = stringResource(Res.string.chats_empty_text),
             )
@@ -81,30 +75,6 @@ internal fun ChatsScreen(
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = colors.outlineVariant)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun CenteredMessage(title: String, text: String? = null) {
-    Column(
-        Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        if (text != null) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }

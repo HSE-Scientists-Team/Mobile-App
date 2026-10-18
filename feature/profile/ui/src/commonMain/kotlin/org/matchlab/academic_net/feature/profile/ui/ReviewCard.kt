@@ -1,6 +1,5 @@
 package org.matchlab.academic_net.feature.profile.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.interaction.onceClickable
 
 @Immutable
 data class ReviewCardUiModel(
@@ -50,7 +50,7 @@ fun ReviewCard(
     AppCard(modifier, onClick = onClick, spacing = 8.dp) {
         Row(
             modifier = if (onAuthorClick != null) {
-                Modifier.clickable(role = Role.Button, onClick = onAuthorClick)
+                Modifier.onceClickable(role = Role.Button, onClick = onAuthorClick)
             } else {
                 Modifier
             },

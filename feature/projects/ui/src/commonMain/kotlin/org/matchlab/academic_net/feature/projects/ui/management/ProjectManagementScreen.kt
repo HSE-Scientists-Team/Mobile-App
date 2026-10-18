@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,9 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +35,8 @@ import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.InfoBanner
+import org.matchlab.academic_net.components.LoadingState
+import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.person.personStatsText
@@ -181,17 +180,8 @@ internal fun ProjectManagementScreen(
                     }
                 }
             }
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.primary)
-            }
-            else -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    text = stringResource(Res.string.projects_not_found),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colors.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            state.isLoading -> LoadingState()
+            else -> MessageState(title = stringResource(Res.string.projects_not_found))
         }
     }
 }

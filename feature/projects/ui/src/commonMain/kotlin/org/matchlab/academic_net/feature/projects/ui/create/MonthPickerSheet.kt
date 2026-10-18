@@ -58,6 +58,8 @@ internal fun MonthPickerSheet(
                     contentDescription = stringResource(Res.string.projects_prev_year),
                     onClick = { year -= 1 },
                     enabled = year > minYear,
+                    // Meant to be tapped quickly to travel several years.
+                    repeatable = true,
                 )
                 Text(
                     text = year.toString(),
@@ -71,6 +73,7 @@ internal fun MonthPickerSheet(
                     contentDescription = stringResource(Res.string.projects_next_year),
                     onClick = { year += 1 },
                     enabled = year < maxYear,
+                    repeatable = true,
                 )
             }
             FlowRow(

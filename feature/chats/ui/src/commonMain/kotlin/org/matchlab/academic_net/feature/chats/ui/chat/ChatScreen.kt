@@ -1,7 +1,6 @@
 package org.matchlab.academic_net.feature.chats.ui.chat
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,8 +35,11 @@ import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppIcon
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.LoadingState
+import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonName
 import org.matchlab.academic_net.components.SecurityNote
+import org.matchlab.academic_net.components.interaction.onceClickable
 import org.matchlab.academic_net.feature.chats.domain.ChatLimits
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.ChatBubble
@@ -138,17 +139,8 @@ internal fun ChatScreen(
                     )
                 }
             }
-            state.isLoading -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.primary)
-            }
-            else -> Box(Modifier.weight(1f).fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    text = stringResource(Res.string.chat_not_found),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colors.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            state.isLoading -> LoadingState()
+            else -> MessageState(title = stringResource(Res.string.chat_not_found))
         }
     }
 }
@@ -213,7 +205,7 @@ private fun ChatTopBar(peer: ChatPeer?, onNavigateBack: () -> Unit, onPeerClick:
         Box(
             Modifier
                 .size(40.dp)
-                .clickable(role = Role.Button, onClick = onNavigateBack),
+                .onceClickable(role = Role.Button, onClick = onNavigateBack),
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(
@@ -226,7 +218,7 @@ private fun ChatTopBar(peer: ChatPeer?, onNavigateBack: () -> Unit, onPeerClick:
             Row(
                 Modifier
                     .weight(1f)
-                    .clickable(role = Role.Button) { onPeerClick(peer.userId) },
+                    .onceClickable(role = Role.Button) { onPeerClick(peer.userId) },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

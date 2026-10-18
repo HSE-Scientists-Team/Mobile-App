@@ -1,7 +1,6 @@
 package org.matchlab.academic_net.feature.chats.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.interaction.onceClickable
 
 @Immutable
 data class ChatListItemUiModel(
@@ -28,7 +28,7 @@ data class ChatListItemUiModel(
     val unreadCount: Int = 0,
 )
 
-/** "List item/Chat": chat in the chat list, with an unread counter. */
+/** "List item/Chat": chat in the chat list, with an unread counter. A burst of taps runs [onClick] once. */
 @Composable
 fun ChatListItem(
     model: ChatListItemUiModel,
@@ -40,7 +40,7 @@ fun ChatListItem(
         modifier = modifier
             .fillMaxWidth()
             .background(colors.surface)
-            .clickable(onClick = onClick)
+            .onceClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,

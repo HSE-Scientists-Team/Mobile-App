@@ -1,6 +1,5 @@
 package org.matchlab.academic_net.feature.profile.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,6 +18,7 @@ import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.SectionHeader
 import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
+import org.matchlab.academic_net.components.interaction.onceClickable
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
@@ -174,7 +174,7 @@ private fun EmptySection(title: String, onClick: () -> Unit) {
         SectionHeader(title)
         Text(
             text = stringResource(Res.string.profile_not_filled),
-            modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
+            modifier = Modifier.onceClickable(role = Role.Button, onClick = onClick),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.primary,
         )
