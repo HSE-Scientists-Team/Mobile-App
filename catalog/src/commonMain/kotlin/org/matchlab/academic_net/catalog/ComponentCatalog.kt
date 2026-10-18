@@ -329,8 +329,19 @@ private fun RepeatedTapComponents() {
 @Composable
 private fun SharedFeatureComponents() {
     Section(":components — общие для фич") {
+        // With the chat button and the rating line; without them; a long name and a long subtitle.
         PersonCard(Initiator)
         PersonCard(PersonCardUiModel(name = "Даниил Крюков", subtitle = "ИТМО", avatar = Elena))
+        PersonCard(
+            PersonCardUiModel(
+                name = "Александра Константинопольская-Вишневецкая",
+                subtitle = "Московский государственный университет имени М. В. Ломоносова · аспирантка · биоинформатика",
+                avatar = Arjun,
+                isVerified = true,
+                stats = "★ 4.9 · 12 завершённых проектов",
+                showChatButton = true,
+            ),
+        )
         PersonListItem(
             PersonListItemUiModel("Арджун Мехта", "Stanford · 3 курс · Computer Science", Arjun, isVerified = true),
             onClick = {},
@@ -541,6 +552,7 @@ private fun ProjectsComponents() {
         RoleCard(RoleCardUiModel("ML Engineer", "Арджун Мехта", Elena, canManage = true))
         VacantRoleCard(VacantRoleCardUiModel("ML Engineer", listOf("Machine Learning", "Machine Learning"), isEditable = true))
         VacantRoleCard(VacantRoleCardUiModel("Mobile Developer", listOf("Flutter", "Dart"), canFindPeople = true))
+        // Still the layout from before the redesign of "Card/Person" (48dp avatar, bottom-aligned).
         ParticipantManageCard(Initiator, onKickClick = {})
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard(StatCardUiModel("7", "новых откликов"), Modifier.weight(1f))
