@@ -86,4 +86,14 @@
     <string name="date_day_month">%2$s %1$d</string>
     <!-- The day before today in a time label, see chatListTimeText -->
     <string name="components_yesterday">Yesterday</string>
+
+    <!-- 1: how many of the 5 stars are filled -->
+    <string name="components_rating_value">Rating %1$d of 5</string>
+
+    <!-- The end of a list that loads more as it is scrolled -->
+    <string name="components_loading">Loading…</string>
+    <string name="components_load_failed">Couldn't load</string>
+
+    <!-- Shown instead of the name of a person whose name is empty -->
+    <string name="components_name_placeholder">No name</string>
 </resources>

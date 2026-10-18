@@ -35,6 +35,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.interaction.ClickDebouncer
 import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 
 /**
  * Base of the "Card/…" components: surface with a 1dp outline. The paddings are the Figma ones;
@@ -137,7 +138,10 @@ fun VerifiedBadge(modifier: Modifier = Modifier, size: Dp = 16.dp) {
     )
 }
 
-/** One-line name followed by the [VerifiedBadge] when [verified]. */
+/**
+ * One-line name followed by the [VerifiedBadge] when [verified]. An empty or blank [name] is shown as
+ * "Без имени" (see [nameOrPlaceholder]), so every card that has a person on it handles a missing name alike.
+ */
 @Composable
 fun PersonName(
     name: String,
@@ -151,7 +155,7 @@ fun PersonName(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = name,
+            text = nameOrPlaceholder(name),
             modifier = Modifier.weight(1f, fill = false),
             style = style,
             color = MaterialTheme.colorScheme.onSurface,

@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -22,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,7 @@ import org.matchlab.academic_net.components.AppBadgeDot
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppCard
+import org.matchlab.academic_net.components.AppConfirmDialog
 import org.matchlab.academic_net.components.AppFab
 import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppIconButton
@@ -76,6 +81,7 @@ import org.matchlab.academic_net.components.FilterChipGroup
 import org.matchlab.academic_net.components.FiltersButton
 import org.matchlab.academic_net.components.FiltersSheet
 import org.matchlab.academic_net.components.InfoBanner
+import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.InfoCard
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
@@ -85,9 +91,12 @@ import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
+import org.matchlab.academic_net.components.PersonName
 import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.RadioListItem
+import org.matchlab.academic_net.components.RatingStars
+import org.matchlab.academic_net.components.RatingStarsSize
 import org.matchlab.academic_net.components.ReportIconButton
 import org.matchlab.academic_net.components.RoleApplyCard
 import org.matchlab.academic_net.components.RoleApplyCardUiModel
@@ -99,11 +108,16 @@ import org.matchlab.academic_net.components.SettingListItem
 import org.matchlab.academic_net.components.SheetHeader
 import org.matchlab.academic_net.components.SkillChips
 import org.matchlab.academic_net.components.SpherePickerSheet
+import org.matchlab.academic_net.components.StatusBanner
+import org.matchlab.academic_net.components.StatusBannerStatus
 import org.matchlab.academic_net.components.TagsBlock
 import org.matchlab.academic_net.components.TextBlock
 import org.matchlab.academic_net.components.ToggleListItem
 import org.matchlab.academic_net.components.UploadCard
 import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.paging.LoadMoreEffect
+import org.matchlab.academic_net.components.paging.LoadMoreFooter
+import org.matchlab.academic_net.components.paging.LoadMoreState
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.person.ratingText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
@@ -157,6 +171,8 @@ fun ComponentCatalog() {
             item { AuthComponents() }
             item { RepeatedTapComponents() }
             item { SharedFeatureComponents() }
+            item { ReviewComponents() }
+            item { PagingComponents() }
             item { ProjectPageComponents() }
             item { SearchComponents() }
             item { ProjectsComponents() }
@@ -497,6 +513,150 @@ private fun SharedFeatureComponents() {
                 period = ProjectPeriod(YearMonth(2026, 11), YearMonth(2027, 5)),
             ),
         )
+    }
+}
+
+/**
+ * The pieces of the reviews and of the editing of a work or a document (frames 09, 09b, 11b-11g): the stars, the
+ * banner of the verification status, the banner of a conflict, the buttons and the dialog that delete.
+ */
+@Composable
+private fun ReviewComponents() {
+    Section(":components — отзывы и проверка") {
+        // "Rating" sm: five stars of 18dp, from none filled to all; the number is drawn next to them by a screen.
+        (0..5).forEach { value ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                RatingStars(value)
+                Text("$value", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+        // "Rating" md: 24dp. A number outside 0..5 is limited (7 draws five, -2 draws none).
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            RatingStars(4, size = RatingStarsSize.Medium)
+            Text("4.8", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            RatingStars(7, size = RatingStarsSize.Medium)
+            RatingStars(-2)
+        }
+        // "Banner/Status", the four statuses; the rejected one with the comment of the moderator.
+        StatusBanner(StatusBannerStatus.Unverified, "Не подтверждено")
+        StatusBanner(StatusBannerStatus.Pending, "На проверке")
+        StatusBanner(StatusBannerStatus.Verified, "Подтверждено")
+        StatusBanner(StatusBannerStatus.Rejected, "Отклонено", text = "Комментарий модератора: Нужны доказательства")
+        // "Banner/Info (ошибка)": the conflict of 11g; the default icon is the crossed circle.
+        InfoBanner("Запись изменилась. Обновите экран и повторите", tone = InfoBannerTone.Error)
+        // The buttons in the error color: "Удалить работу" under a form, "Выйти из аккаунта" (outlined).
+        AppButton("Удалить работу", {}, Modifier.fillMaxWidth(), variant = AppButtonVariant.TextError)
+        AppButton("Выйти из аккаунта", {}, Modifier.fillMaxWidth(), variant = AppButtonVariant.OutlinedError)
+        AppButton("Удалить документ", {}, variant = AppButtonVariant.TextError, enabled = false)
+        // The dialog that confirms a deletion has the confirming button in the error color; the plain one does not.
+        var destructiveDialog by remember { mutableStateOf(false) }
+        var plainDialog by remember { mutableStateOf(false) }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppButton("Диалог удаления", { destructiveDialog = true }, variant = AppButtonVariant.Outlined)
+            AppButton("Обычный диалог", { plainDialog = true }, variant = AppButtonVariant.Outlined)
+        }
+        if (destructiveDialog) {
+            AppConfirmDialog(
+                title = "Удалить работу?",
+                text = "Работа будет удалена из портфолио. Запись о проверке сохранится в истории.",
+                confirmText = "Удалить",
+                dismissText = "Отмена",
+                onConfirm = { destructiveDialog = false },
+                onDismiss = { destructiveDialog = false },
+                destructive = true,
+            )
+        }
+        if (plainDialog) {
+            AppConfirmDialog(
+                title = "Отозвать отклик?",
+                text = "Инициатор больше не увидит ваш отклик на эту роль.",
+                confirmText = "Отозвать",
+                dismissText = "Отмена",
+                onConfirm = { plainDialog = false },
+                onDismiss = { plainDialog = false },
+            )
+        }
+        // A person whose name is empty gets "Без имени" instead of an empty line, on every card.
+        PersonName("", verified = false, style = MaterialTheme.typography.titleMedium)
+        PersonName("   ", verified = true, style = MaterialTheme.typography.titleMedium)
+        PersonCard(PersonCardUiModel(name = "", subtitle = "Stanford University", avatar = Arjun, showChatButton = true))
+    }
+}
+
+/**
+ * The end of a list that loads more as it is scrolled: the four states of the footer and a list that works
+ * (40 items in pages of 10; the first page is short, so the second is asked for at once; the third fails once, so
+ * "Повторить" can be tried).
+ */
+@Composable
+private fun PagingComponents() {
+    Section(":components — списки с догрузкой") {
+        Text("Loading", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LoadMoreFooter(LoadMoreState.Loading, onRetry = {})
+        Text("Failed", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LoadMoreFooter(LoadMoreState.Failed, onRetry = {})
+        Text(
+            text = "Idle и End ничего не рисуют: ниже пусто",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LoadMoreFooter(LoadMoreState.Idle, onRetry = {})
+        LoadMoreFooter(LoadMoreState.End, onRetry = {})
+        var run by remember { mutableIntStateOf(0) }
+        AppButton("Начать заново", { run++ }, variant = AppButtonVariant.Outlined)
+        key(run) { LoadMoreDemo() }
+    }
+}
+
+/**
+ * A list of 40 items that loads 10 at a time, driven by [LoadMoreEffect]. The first page has 3 items and does not
+ * fill the list, which makes the effect ask for the next page at once; the page after that fails once.
+ */
+@Composable
+private fun LoadMoreDemo() {
+    val total = 40
+    val pageSize = 10
+    var loaded by remember { mutableIntStateOf(3) }
+    var state by remember { mutableStateOf(LoadMoreState.Idle) }
+    var failNext by remember { mutableStateOf(true) }
+    var asked by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    // The guard that the screen must have: nothing is asked for while a page is on its way.
+    val loadMore = {
+        if (state != LoadMoreState.Loading && state != LoadMoreState.End) {
+            asked++
+            state = LoadMoreState.Loading
+            scope.launch {
+                delay(1000)
+                if (failNext && loaded > 12) {
+                    failNext = false
+                    state = LoadMoreState.Failed
+                } else {
+                    loaded = minOf(total, loaded + pageSize)
+                    state = if (loaded >= total) LoadMoreState.End else LoadMoreState.Idle
+                }
+            }
+        }
+    }
+    LoadMoreEffect(listState = listState, state = state, onLoadMore = loadMore)
+    Text(
+        text = "Загружено $loaded из $total, запросов страницы: $asked, состояние: $state",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    LazyColumn(Modifier.fillMaxWidth().height(260.dp), state = listState) {
+        items(loaded) { index ->
+            Text(
+                text = "Элемент ${index + 1}",
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        item { LoadMoreFooter(state, onRetry = loadMore) }
     }
 }
 

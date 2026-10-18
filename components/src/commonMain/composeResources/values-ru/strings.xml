@@ -90,4 +90,14 @@
     <string name="date_day_month">%1$d %2$s</string>
     <!-- The day before today in a time label, see chatListTimeText -->
     <string name="components_yesterday">Вчера</string>
+
+    <!-- 1: how many of the 5 stars are filled -->
+    <string name="components_rating_value">Оценка %1$d из 5</string>
+
+    <!-- The end of a list that loads more as it is scrolled -->
+    <string name="components_loading">Загрузка…</string>
+    <string name="components_load_failed">Не удалось загрузить</string>
+
+    <!-- Shown instead of the name of a person whose name is empty -->
+    <string name="components_name_placeholder">Без имени</string>
 </resources>
