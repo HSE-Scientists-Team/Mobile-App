@@ -21,13 +21,13 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
-import kotlinx.coroutines.launch
 import org.matchlab.academic_net.AppDependencies
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
@@ -157,28 +157,40 @@ fun AppNavHost(dependencies: AppDependencies) {
     }
 }
 
-/** The email, then the code from the letter; signing in is done by the root when the state changes. */
+/**
+ * The email, then the code from the letter; signing in is done by the root when the state changes.
+ *
+ * Every navigation names the entry of the screen that asks for it (`navigateSingleTop(entry, ...)`,
+ * `popBackStackOnce(entry)`): see [isCurrentEntry].
+ */
 @Composable
 private fun AuthNavHost(dependencies: AppDependencies) {
     val navController = rememberNavController()
     // Kept here, not in the route: an address has characters that routes do not carry well ("+").
     var email by rememberSaveable { mutableStateOf("") }
 
-    NavHost(navController = navController, startDestination = AuthRoutes.Email) {
-        composable(AuthRoutes.Email) {
+    NavHost(
+        navController = navController,
+        startDestination = AuthRoutes.Email,
+        enterTransition = NavTransitions.enter,
+        exitTransition = NavTransitions.exit,
+        popEnterTransition = NavTransitions.enter,
+        popExitTransition = NavTransitions.exit,
+    ) {
+        composable(AuthRoutes.Email) { entry ->
             SignInRoute(
                 dependencies = dependencies.auth,
                 onCodeSent = { sent ->
                     email = sent
-                    navController.navigate(AuthRoutes.Verify)
+                    navController.navigateSingleTop(entry, AuthRoutes.Verify)
                 },
             )
         }
-        composable(AuthRoutes.Verify) {
+        composable(AuthRoutes.Verify) { entry ->
             VerifyEmailRoute(
                 dependencies = dependencies.auth,
                 email = email,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOnce(entry) },
             )
         }
     }
@@ -187,23 +199,46 @@ private fun AuthNavHost(dependencies: AppDependencies) {
 /**
  * Screens above the tabs. Features know nothing about navigation: each screen reports what
  * happened through callbacks and the routes are wired here.
+ *
+ * Every transition goes through [navigateOnce], [navigateSingleTop] or [popBackStackOnce], never
+ * through `navigate` or `popBackStack`, and names the entry of the screen that asks for it (the
+ * `entry` of `composable(...) { entry -> ... }`). The request is carried out only while that
+ * screen is the current one ([isCurrentEntry]): repeated taps open one screen, and an event of a
+ * screen the user has already left does nothing.
  */
 @Composable
 private fun MainNavHost(dependencies: AppDependencies) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
+    val chatOpener = remember { ExclusiveLauncher() }
+    val signOutLauncher = remember { ExclusiveLauncher() }
 
-    val openProfile: (UserId) -> Unit = { id -> navController.navigate(Routes.profile(id)) }
-    val openChatWith: (UserSummary) -> Unit = { user ->
-        scope.launch {
-            dependencies.chats.openConversation(user).onSuccess { id ->
-                navController.navigate(Routes.chat(id))
+    val openProfile: (NavBackStackEntry, UserId) -> Unit = { from, id ->
+        navController.navigateOnce(from, Routes.profile(id))
+    }
+    // The chat opens after the conversation exists, so the tap has to ask first. A tap from a screen
+    // that is no longer the current one, or while the previous request runs, does nothing. The answer
+    // opens the chat only if the user is still on the screen that asked: after "back" it would
+    // otherwise open over whatever is below.
+    val openChatWith: (NavBackStackEntry, UserSummary) -> Unit = { from, user ->
+        if (navController.isCurrent(from)) {
+            chatOpener.launchIn(scope) {
+                dependencies.chats.openConversation(user).onSuccess { id ->
+                    navController.navigateOnce(from, Routes.chat(id))
+                }
             }
         }
     }
 
-    NavHost(navController = navController, startDestination = Routes.Main) {
-        composable(Routes.Main) {
+    NavHost(
+        navController = navController,
+        startDestination = Routes.Main,
+        enterTransition = NavTransitions.enter,
+        exitTransition = NavTransitions.exit,
+        popEnterTransition = NavTransitions.enter,
+        popExitTransition = NavTransitions.exit,
+    ) {
+        composable(Routes.Main) { entry ->
             val profileBadge = profileTabHasBadge(dependencies.profile)
             MainScaffold(
                 badges = if (profileBadge) setOf(TopLevelDestination.Profile) else emptySet(),
@@ -212,38 +247,38 @@ private fun MainNavHost(dependencies: AppDependencies) {
                     TopLevelDestination.Feed -> FeedRoute(
                         dependencies = dependencies.feed,
                         onProfileClick = { selectTab(TopLevelDestination.Profile) },
-                        onSearchPeopleClick = { navController.navigate(Routes.PeopleSearch) },
-                        onSearchProjectsClick = { navController.navigate(Routes.ProjectSearch) },
-                        onPersonClick = { user -> openProfile(user.id) },
+                        onSearchPeopleClick = { navController.navigateSingleTop(entry, Routes.PeopleSearch) },
+                        onSearchProjectsClick = { navController.navigateSingleTop(entry, Routes.ProjectSearch) },
+                        onPersonClick = { user -> openProfile(entry, user.id) },
                     )
                     TopLevelDestination.Projects -> MyProjectsRoute(
                         dependencies = dependencies.projects,
-                        onCreateProject = { navController.navigate(Routes.CreateProject) },
-                        onProjectClick = { id -> navController.navigate(Routes.project(id)) },
+                        onCreateProject = { navController.navigateSingleTop(entry, Routes.CreateProject) },
+                        onProjectClick = { id -> navController.navigateOnce(entry, Routes.project(id)) },
                     )
                     TopLevelDestination.Chats -> ChatsRoute(
                         dependencies = dependencies.chats,
-                        onChatClick = { id -> navController.navigate(Routes.chat(id)) },
+                        onChatClick = { id -> navController.navigateOnce(entry, Routes.chat(id)) },
                     )
                     TopLevelDestination.Profile -> MyProfileRoute(
                         dependencies = dependencies.profile,
-                        onEditClick = { navController.navigate(Routes.EditProfile) },
-                        onSettingsClick = { navController.navigate(Routes.Settings) },
-                        onAllWorksClick = { id -> navController.navigate(Routes.profileWorks(id)) },
-                        onAllReviewsClick = { id -> navController.navigate(Routes.profileReviews(id)) },
-                        onReviewClick = { id -> navController.navigate(Routes.review(id)) },
+                        onEditClick = { navController.navigateSingleTop(entry, Routes.EditProfile) },
+                        onSettingsClick = { navController.navigateSingleTop(entry, Routes.Settings) },
+                        onAllWorksClick = { id -> navController.navigateOnce(entry, Routes.profileWorks(id)) },
+                        onAllReviewsClick = { id -> navController.navigateOnce(entry, Routes.profileReviews(id)) },
+                        onReviewClick = { id -> navController.navigateOnce(entry, Routes.review(id)) },
                     )
                     else -> TabPlaceholder(destination)
                 }
             }
         }
-        composable(Routes.CreateProject) {
+        composable(Routes.CreateProject) { entry ->
             CreateProjectRoute(
                 dependencies = dependencies.projects,
-                onClose = { navController.popBackStack() },
+                onClose = { navController.popBackStackOnce(entry) },
                 // The form is replaced by the new project, so "back" returns to the list.
                 onPublished = { id ->
-                    navController.navigate(Routes.project(id)) {
+                    navController.navigateOnce(entry, Routes.project(id)) {
                         popUpTo(Routes.CreateProject) { inclusive = true }
                     }
                 },
@@ -258,9 +293,9 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 ProjectManagementRoute(
                     dependencies = dependencies.projects,
                     projectId = ProjectId(id),
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
                     onFindCollaborators = { projectId, roleId ->
-                        navController.navigate(Routes.collaborators(projectId, roleId))
+                        navController.navigateOnce(entry, Routes.collaborators(projectId, roleId))
                     },
                 )
             }
@@ -278,29 +313,29 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 CollaboratorSearchRoute(
                     dependencies = dependencies.collaborators,
                     role = RoleReference(ProjectId(projectId), RoleId(roleId)),
-                    onNavigateBack = { navController.popBackStack() },
-                    onCollaboratorClick = { user -> openProfile(user.id) },
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onCollaboratorClick = { user -> openProfile(entry, user.id) },
                 )
             }
         }
-        composable(Routes.PeopleSearch) {
+        composable(Routes.PeopleSearch) { entry ->
             // Opened from the search bar of the feed: everyone, with the cursor in the search bar.
             CollaboratorSearchRoute(
                 dependencies = dependencies.collaborators,
                 role = null,
                 autoFocusSearch = true,
-                onNavigateBack = { navController.popBackStack() },
-                onCollaboratorClick = { user -> openProfile(user.id) },
+                onNavigateBack = { navController.popBackStackOnce(entry) },
+                onCollaboratorClick = { user -> openProfile(entry, user.id) },
             )
         }
-        composable(Routes.ProjectSearch) {
+        composable(Routes.ProjectSearch) { entry ->
             // Opened from the search bar of the feed in the "Projects" mode: every published project, with
             // the cursor in the search bar. A card opens the page of the project.
             ProjectSearchRoute(
                 dependencies = dependencies.projectSearch,
                 autoFocusSearch = true,
-                onNavigateBack = { navController.popBackStack() },
-                onProjectClick = { id -> navController.navigate(Routes.projectDetails(id)) },
+                onNavigateBack = { navController.popBackStackOnce(entry) },
+                onProjectClick = { id -> navController.navigateOnce(entry, Routes.projectDetails(id)) },
             )
         }
         composable(
@@ -312,9 +347,9 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 ProjectDetailsRoute(
                     dependencies = dependencies.projectDetails,
                     projectId = ProjectId(id),
-                    onNavigateBack = { navController.popBackStack() },
-                    onContactInitiator = openChatWith,
-                    onInitiatorClick = openProfile,
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onContactInitiator = { user -> openChatWith(entry, user) },
+                    onInitiatorClick = { userId -> openProfile(entry, userId) },
                 )
             }
         }
@@ -327,13 +362,17 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 ChatRoute(
                     dependencies = dependencies.chats,
                     conversationId = ConversationId(id),
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
                     onPeerClick = { userId ->
                         // A profile opened from this chat leads back here: do not stack the two.
                         val previous = navController.previousBackStackEntry
                         val cameFromTheSameProfile = previous?.destination?.route == Routes.Profile &&
                             previous.arguments?.read { getStringOrNull(Routes.UserArgument) } == userId.value
-                        if (cameFromTheSameProfile) navController.popBackStack() else openProfile(userId)
+                        if (cameFromTheSameProfile) {
+                            navController.popBackStackOnce(entry)
+                        } else {
+                            openProfile(entry, userId)
+                        }
                     },
                 )
             }
@@ -347,11 +386,11 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 UserProfileRoute(
                     dependencies = dependencies.profile,
                     userId = UserId(id),
-                    onNavigateBack = { navController.popBackStack() },
-                    onMessageClick = openChatWith,
-                    onAllWorksClick = { userId -> navController.navigate(Routes.profileWorks(userId)) },
-                    onAllReviewsClick = { userId -> navController.navigate(Routes.profileReviews(userId)) },
-                    onReviewClick = { reviewId -> navController.navigate(Routes.review(reviewId)) },
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onMessageClick = { user -> openChatWith(entry, user) },
+                    onAllWorksClick = { userId -> navController.navigateOnce(entry, Routes.profileWorks(userId)) },
+                    onAllReviewsClick = { userId -> navController.navigateOnce(entry, Routes.profileReviews(userId)) },
+                    onReviewClick = { reviewId -> navController.navigateOnce(entry, Routes.review(reviewId)) },
                 )
             }
         }
@@ -364,7 +403,7 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 UserWorksRoute(
                     dependencies = dependencies.profile,
                     userId = UserId(id),
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
                 )
             }
         }
@@ -377,8 +416,8 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 UserReviewsRoute(
                     dependencies = dependencies.profile,
                     userId = UserId(id),
-                    onNavigateBack = { navController.popBackStack() },
-                    onReviewClick = { reviewId -> navController.navigate(Routes.review(reviewId)) },
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onReviewClick = { reviewId -> navController.navigateOnce(entry, Routes.review(reviewId)) },
                 )
             }
         }
@@ -391,32 +430,32 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 ReviewDetailsRoute(
                     dependencies = dependencies.profile,
                     reviewId = ReviewId(id),
-                    onNavigateBack = { navController.popBackStack() },
-                    onAuthorClick = openProfile,
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onAuthorClick = { userId -> openProfile(entry, userId) },
                 )
             }
         }
-        composable(Routes.Settings) {
+        composable(Routes.Settings) { entry ->
             SettingsRoute(
                 dependencies = dependencies.settings,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOnce(entry) },
                 // The root swaps the graphs when the session ends, so no navigation is needed here.
-                onSignOut = { scope.launch { dependencies.auth.signOut() } },
+                onSignOut = { signOutLauncher.launchIn(scope) { dependencies.auth.signOut() } },
             )
         }
-        composable(Routes.EditProfile) {
+        composable(Routes.EditProfile) { entry ->
             EditProfileRoute(
                 dependencies = dependencies.profile,
-                onClose = { navController.popBackStack() },
-                onAddWorkClick = { navController.navigate(Routes.AddWork) },
-                onAddDocumentClick = { navController.navigate(Routes.AddDocument) },
+                onClose = { navController.popBackStackOnce(entry) },
+                onAddWorkClick = { navController.navigateSingleTop(entry, Routes.AddWork) },
+                onAddDocumentClick = { navController.navigateSingleTop(entry, Routes.AddDocument) },
             )
         }
-        composable(Routes.AddWork) {
-            AddWorkRoute(dependencies = dependencies.profile, onClose = { navController.popBackStack() })
+        composable(Routes.AddWork) { entry ->
+            AddWorkRoute(dependencies = dependencies.profile, onClose = { navController.popBackStackOnce(entry) })
         }
-        composable(Routes.AddDocument) {
-            AddDocumentRoute(dependencies = dependencies.profile, onClose = { navController.popBackStack() })
+        composable(Routes.AddDocument) { entry ->
+            AddDocumentRoute(dependencies = dependencies.profile, onClose = { navController.popBackStackOnce(entry) })
         }
     }
 }
