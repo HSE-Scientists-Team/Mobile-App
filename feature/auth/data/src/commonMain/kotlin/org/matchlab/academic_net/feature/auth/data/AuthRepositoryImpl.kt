@@ -78,12 +78,6 @@ class AuthRepositoryImpl(
 
     private class SentRegistration(val password: Password, val sentAt: TimeMark)
 
-    /**
-     * Set when a sign-out could not erase the saved session. The record may still be on the
-     * disk, so this process must not raise a session from the store again.
-     */
-    private val erasureFailed = MutableStateFlow(false)
-
     /** Held while the session is signed in, expired or signed out, together with the saved record. */
     private val sessionChanges = Mutex()
 
@@ -97,10 +91,13 @@ class AuthRepositoryImpl(
         if (state.value !is AuthState.Restoring) return
 
         // An unreadable store is "no session", not a crash on every launch and not a reason to erase
-        // anything; so is a record that a sign-out of this process failed to erase.
+        // anything. If a sign-out takes the state while the store is read (and could not erase the record), the
+        // compare below fails and what was read is dropped; after it the check above ends the call at once.
         val stored = withContext(io) {
-            val session = if (erasureFailed.value) null else runCatching { storage.load() }.getOrNull()
-            StoredState(session, runCatching { storage.loadLastEmail() }.getOrNull())
+            StoredState(
+                runCatching { storage.load() }.getOrNull(),
+                runCatching { storage.loadLastEmail() }.getOrNull(),
+            )
         }
         // A sign-in that finished meanwhile wins over the restored session, and then the saved
         // one is not checked: it is not the session of this process any more.
@@ -311,9 +308,9 @@ class AuthRepositoryImpl(
 
     /**
      * Erases the saved session: [ERASE_ATTEMPTS] tries of [SessionStorage.clear], as a failure of
-     * the platform store is often temporary. If none succeeded the failure is remembered in
-     * [erasureFailed] and the store is wiped as a whole, which leaves nothing readable even when
-     * single entries cannot be removed. If that fails too, nothing more can be done here.
+     * the platform store is often temporary. If none succeeded the store is wiped as a whole, which
+     * leaves nothing readable even when single entries cannot be removed. If that fails too, nothing
+     * more can be done here.
      */
     private suspend fun eraseSavedSession() {
         repeat(ERASE_ATTEMPTS) { attempt ->
@@ -321,7 +318,6 @@ class AuthRepositoryImpl(
             if (erased) return
             if (attempt < ERASE_ATTEMPTS - 1) delay(ERASE_RETRY_DELAY)
         }
-        erasureFailed.value = true
         withContext(io) { runCatching { storage.wipe() } }
     }
 

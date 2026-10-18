@@ -41,7 +41,7 @@ class GatewayAuthDataSource(private val api: AccountApi) : AuthDataSource {
             }
         }
 
-    // The shape of the link in the letter is not defined by the API: ConfirmationLinks guesses it.
+    // API-GAP G01: the shape of the link in the letter is not defined by the API: ConfirmationLinks guesses it.
     @OptIn(UnverifiedContract::class)
     override suspend fun confirmEmail(linkOrToken: String): ConfirmReply {
         val token = ConfirmationLinks.extractToken(linkOrToken) ?: return ConfirmReply.InvalidLink

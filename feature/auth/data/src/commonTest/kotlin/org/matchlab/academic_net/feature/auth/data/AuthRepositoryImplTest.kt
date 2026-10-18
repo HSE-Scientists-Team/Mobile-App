@@ -1213,22 +1213,22 @@ class AuthRepositoryImplTest : AuthRepositoryTestBase() {
     }
 
     @Test
-    fun restoreThatWasUnderWayDoesNotReadARecordThatASignOutCouldNotErase() = runTest {
+    fun restoreThatWasUnderWayDoesNotSignInARecordThatASignOutCouldNotErase() = runTest {
         SessionStorage(store).save(SavedSession)
         val flaky = FlakyStore(store, failingWipe = true)
         val io = HoldFirstDispatcher(StandardTestDispatcher(testScheduler))
         val repository = repository(secureStore = flaky, io = io)
         val restoring = launch { repository.restoreSession() }
         runCurrent()
+        assertEquals(AuthState.Restoring, repository.authState.value)
 
         // The restore waits for the store; meanwhile a sign-out cannot erase the record from the disk.
         repository.signOut()
-        val readsBefore = flaky.reads
         io.release()
         restoring.join()
 
-        // It read the address and nothing else: the record of the session was left alone.
-        assertEquals(readsBefore + 1, flaky.reads)
+        // What the restore read is dropped: the state the sign-out left is the state of this process, and the record,
+        // still readable on the disk, is neither signed in nor asked about.
         assertEquals(AuthState.SignedOut(), repository.authState.value)
         assertEquals(emptyList(), source.checked)
     }
