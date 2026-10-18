@@ -13,16 +13,15 @@ import org.matchlab.academic_net.securestore.SecureStore
  * is the sign-in (its data source, repository and use cases) and the Gateway client it talks through; everything
  * else belongs to one signed-in user and lives in the [SessionComponent] of that session, a child of this graph.
  *
- * The sign-in data source is the only thing here that depends on the [backend]: the mock in [Backend.Mock], the
- * Gateway in [Backend.Gateway] (see [AuthModule]). Replacing a mock of any other feature with the real source is
- * done in [DataSourcesModule].
+ * The sign-in data source is the Gateway's (see [AuthModule]); the source of every other feature is picked in
+ * [DataSourcesModule].
  */
 @AppScope
 @Component
 internal abstract class AppComponent(
     /** The platform's encrypted storage (Android Keystore, iOS Keychain); the app gets it from its entry point. */
     @get:Provides val secureStore: SecureStore,
-    /** Where the data comes from; fixed for the process. */
+    /** The address of the Gateway; fixed for the process. */
     @get:Provides val backend: Backend,
     /** How the Gateway client is made; the platform's engine, except in tests. */
     @get:Provides val gateways: GatewayFactory,
@@ -37,7 +36,7 @@ internal abstract class AppComponent(
 
 /**
  * Creates the process graph; the implementation is generated for each target. [gateways] is the platform's by
- * default; a test passes its own to run the Gateway mode over a mock engine.
+ * default; a test passes its own to run the graph over a mock engine.
  */
 @KmpComponentCreate
 internal expect fun createAppComponent(

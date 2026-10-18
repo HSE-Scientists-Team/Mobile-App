@@ -3,12 +3,10 @@ package org.matchlab.academic_net.di
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import me.tatarka.inject.annotations.Provides
-import org.matchlab.academic_net.Backend
 import org.matchlab.academic_net.feature.auth.data.AuthDataSource
 import org.matchlab.academic_net.feature.auth.data.AuthRepositoryImpl
 import org.matchlab.academic_net.feature.auth.data.GatewayAuthDataSource
 import org.matchlab.academic_net.feature.auth.data.SessionStorage
-import org.matchlab.academic_net.feature.auth.data.mock.MockAuthDataSource
 import org.matchlab.academic_net.feature.auth.domain.AuthRepository
 import org.matchlab.academic_net.feature.auth.domain.usecase.ConfirmEmailUseCase
 import org.matchlab.academic_net.feature.auth.domain.usecase.GetPendingRegistrationUseCase
@@ -32,16 +30,10 @@ internal interface AuthModule {
     @Provides
     fun sessionStorage(store: SecureStore): SessionStorage = SessionStorage(store)
 
-    /**
-     * The server of the accounts: the Gateway in the [Backend.Gateway] mode, the mock that plays it in the
-     * [Backend.Mock] mode. The Gateway is asked for only in the first, so the mock mode creates no client.
-     */
+    /** The server of the accounts: the Gateway. */
     @Provides
     @AppScope
-    fun authDataSource(backend: Backend, gateway: Lazy<Gateway>): AuthDataSource = when (backend) {
-        Backend.Mock -> MockAuthDataSource()
-        is Backend.Gateway -> GatewayAuthDataSource(gateway.value.account)
-    }
+    fun authDataSource(gateway: Gateway): AuthDataSource = GatewayAuthDataSource(gateway.account)
 
     @Provides
     @AppScope

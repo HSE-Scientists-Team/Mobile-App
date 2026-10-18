@@ -87,7 +87,7 @@ internal class AppGraphs(val app: AppComponent, val sessions: SessionGraphs) {
 }
 
 /**
- * Holds the graphs of the process. It outlives activities, so the state of the session and the mock data keep what
+ * Holds the graphs of the process. It outlives activities, so the state of the session and the local chats keep what
  * the user has changed on rotation. The secure store is created by the platform on the first use.
  */
 internal object AppGraph {

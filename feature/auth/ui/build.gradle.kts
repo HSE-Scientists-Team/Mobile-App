@@ -44,7 +44,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
-            // View models are tested against the mock server, as the app runs today.
+            // View models are tested over the real repository and a played account server (see PlayedAccountServer).
             implementation(project(":feature:auth:data"))
         }
     }

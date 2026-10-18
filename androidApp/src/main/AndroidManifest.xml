@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- The Gateway is reached over the network. The mock backend (-Pmatchlab.backend=mock) does not need it, but the
-         permission is harmless there and the manifest stays the same for both. -->
+    <!-- The Gateway is reached over the network. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application

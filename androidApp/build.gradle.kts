@@ -5,16 +5,11 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-// Where the app gets its data from, chosen at build time (see Backend in :shared):
-//   -Pmatchlab.backend=gateway|mock   the MatchLab Gateway (default) or the in-memory mock that plays it
-//   -Pmatchlab.gatewayUrl=<url>       the Gateway to talk to; empty (default) is the production server.
+// The MatchLab Gateway the app talks to, chosen at build time (see Backend in :shared):
+//   -Pmatchlab.gatewayUrl=<url>       empty (default) is the production server.
 //                                     A local Docker Compose is http://10.0.2.2:8080 from an emulator (cleartext is
 //                                     allowed to 10.0.2.2 and localhost in debug builds only)
-val matchlabBackend: String = providers.gradleProperty("matchlab.backend").orElse("gateway").get().trim().lowercase()
 val matchlabGatewayUrl: String = providers.gradleProperty("matchlab.gatewayUrl").orElse("").get().trim()
-require(matchlabBackend == "gateway" || matchlabBackend == "mock") {
-    "matchlab.backend must be gateway or mock, not '$matchlabBackend'"
-}
 require(
     matchlabGatewayUrl.isEmpty() ||
         matchlabGatewayUrl.startsWith("https://", ignoreCase = true) ||
@@ -54,7 +49,6 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("boolean", "MOCK_BACKEND", (matchlabBackend == "mock").toString())
         buildConfigField("String", "GATEWAY_URL", javaString(matchlabGatewayUrl))
     }
     packaging {

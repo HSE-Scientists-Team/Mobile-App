@@ -70,7 +70,7 @@ fun hostIsOf(host: String, site: String): Boolean = host == site || host.endsWit
  * (just "DOI" without an identifier), `github.com` is "GitHub", `arxiv.org` is "arXiv", any other site is its
  * domain without `www.` (see [webLinkHost]). `null` when there is no link or it is not an http/https link.
  *
- * The API of the Gateway has no such field, so the app derives it; the mock server did it the same way.
+ * The API of the Gateway has no such field, so the app derives it.
  */
 fun linkSource(link: String?): String? {
     if (link == null) return null

@@ -9,8 +9,7 @@ import org.matchlab.academic_net.gateway.GatewaySession
 
 /**
  * The calls of the signed-in user to the Gateway. The data sources of the features that talk to the server take a
- * `Lazy<GatewaySession>` (see [DataSourcesModule]): it is opened at the first call of the session, and the
- * mock mode never opens it.
+ * `Lazy<GatewaySession>` (see [DataSourcesModule]): it is opened at the first call of the session.
  */
 internal interface SessionGatewayModule {
     /**

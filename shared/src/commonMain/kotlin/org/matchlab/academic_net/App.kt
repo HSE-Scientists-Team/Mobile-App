@@ -15,8 +15,8 @@ import org.matchlab.academic_net.ui.navigation.AppNavHost
  *
  * @param secureStore creates the platform's encrypted storage, where the session is kept; called once per process,
  * when the object graph is built
- * @param backend where the data comes from: the Gateway server (the default, and what the iOS app uses) or the mock
- * that plays it; fixed for the process by the first call
+ * @param backend the Gateway server to talk to (the production one by default, and what the iOS app uses); fixed for
+ * the process by the first call
  */
 @Composable
 fun App(secureStore: () -> SecureStore, backend: Backend = Backend.Gateway()) {

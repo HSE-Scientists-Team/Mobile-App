@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Auth feature, data layer: the session in the secure store, the repository, and two servers it can
-// talk to: the Gateway (GatewayAuthDataSource over AccountApi) and the in-memory MockAuthDataSource.
+// Auth feature, data layer: the session in the secure store, the repository, and the server it talks to: the
+// Gateway (GatewayAuthDataSource over AccountApi).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.auth.data"
@@ -32,7 +32,6 @@ kotlin {
             implementation(project(":utils"))
             // AccountApi and its DTOs for GatewayAuthDataSource; the feature never exposes them.
             implementation(project(":gateway"))
-            implementation(project(":mockserver"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

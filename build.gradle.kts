@@ -19,7 +19,6 @@ dependencies {
     kover(project(":securestore"))
     kover(project(":gateway"))
     kover(project(":common"))
-    kover(project(":mockserver"))
     kover(project(":components"))
     kover(project(":catalog"))
     kover(project(":feature:projects:domain"))

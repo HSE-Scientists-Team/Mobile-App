@@ -28,7 +28,7 @@ internal class GraphViewModelStores : ViewModel() {
      *   cleared.
      * - `SignedOut`: the session is over, by the user's choice or the server's refusal. The view models of the tabs
      *   and everything above them (the states of the screens, the drafts, the running work) are cleared first, and
-     *   then the [sessions] graph is closed (its caches, its mock chats, its Gateway session). After that nothing of
+     *   then the [sessions] graph is closed (its caches, its local chats, its Gateway session). After that nothing of
      *   the account is alive. The saved session is not touched here: the sign-out that ended the session erased it,
      *   and a start in this state has nothing to erase.
      * - `Restoring`: nothing is decided yet, nothing is released.

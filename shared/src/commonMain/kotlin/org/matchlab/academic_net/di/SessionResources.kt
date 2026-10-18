@@ -27,8 +27,7 @@ import me.tatarka.inject.annotations.Inject
 internal class SessionResources {
     /**
      * The scope for the background work of the session's data sources. It is cancelled by [close], so that work started
-     * for one account never runs on for the next one. (Nothing uses it right now: the profile's mock moderation, which
-     * did, is gone with the mock.)
+     * for one account never runs on for the next one. (Nothing uses it right now.)
      */
     val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 

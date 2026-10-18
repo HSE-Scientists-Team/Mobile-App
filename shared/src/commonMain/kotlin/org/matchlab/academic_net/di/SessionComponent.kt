@@ -13,7 +13,7 @@ import org.matchlab.academic_net.gateway.GatewaySession
  * The object graph of one session, a child of the process's [AppComponent]: the data sources and repositories of
  * every feature, the adapters that connect the features to each other, and the session client of the Gateway. It is
  * made when the user signs in and [close]d when the session ends, so each account gets graphs of its own: the caches,
- * the mock chats, the running work and the client of the previous one are gone, not hidden.
+ * the local chats, the running work and the client of the previous one are gone, not hidden.
  *
  * It is the only place that knows which data source stands behind each repository (see [DataSourcesModule]).
  */
@@ -41,8 +41,8 @@ internal abstract class SessionComponent(
     abstract val resources: SessionResources
 
     /**
-     * The calls of this session to the Gateway, opened at the first request for it. Only the Gateway mode has one;
-     * the data sources connected to the server take it as a `Lazy`.
+     * The calls of this session to the Gateway, opened at the first request for it; the data sources connected to the
+     * server take it as a `Lazy`.
      */
     abstract val gatewaySession: GatewaySession
 

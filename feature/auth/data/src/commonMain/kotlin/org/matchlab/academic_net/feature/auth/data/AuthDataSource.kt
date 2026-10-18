@@ -6,9 +6,8 @@ import org.matchlab.academic_net.feature.auth.domain.Credentials
 import org.matchlab.academic_net.feature.auth.domain.Session
 
 /**
- * The account server: the Gateway ([GatewayAuthDataSource]) or the mock that plays it
- * ([org.matchlab.academic_net.feature.auth.data.mock.MockAuthDataSource]). It only translates what
- * the server says into replies; what a reply means for the user is decided by [AuthRepositoryImpl].
+ * The account server, the Gateway ([GatewayAuthDataSource]). It only translates what the server says into
+ * replies; what a reply means for the user is decided by [AuthRepositoryImpl].
  *
  * The addresses are normalized (trimmed, lower case) by the caller. A call throws when it fails:
  * `RemoteFailure.NoConnection`, `Timeout`, `Malformed`, or `Http` for a status that has no reply of

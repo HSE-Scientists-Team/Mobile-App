@@ -15,16 +15,12 @@ import org.matchlab.academic_net.securestore.InMemorySecureStore
 private val LegacyNavigationBarScrim = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
 
 /**
- * Where this build gets its data from, as the Gradle properties `matchlab.backend` and `matchlab.gatewayUrl` set it
- * (see `androidApp/build.gradle.kts`): the mock for `-Pmatchlab.backend=mock`, otherwise the Gateway, the production
- * server unless an address is given. Debug builds log the calls (method, URL and status, never a body or a token).
+ * The Gateway this build talks to, as the Gradle property `matchlab.gatewayUrl` sets it (see
+ * `androidApp/build.gradle.kts`): the production server unless an address is given. Debug builds log the calls (method,
+ * URL and status, never a body or a token).
  */
 internal fun buildBackend(): Backend =
-    if (BuildConfig.MOCK_BACKEND) {
-        Backend.Mock
-    } else {
-        Backend.Gateway(baseUrl = BuildConfig.GATEWAY_URL.ifBlank { null }, logCalls = BuildConfig.DEBUG)
-    }
+    Backend.Gateway(baseUrl = BuildConfig.GATEWAY_URL.ifBlank { null }, logCalls = BuildConfig.DEBUG)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,9 +40,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** The preview runs on the mock: it has no network, and no session to restore. */
+/**
+ * The preview has no session to restore (an empty in-memory store), so it shows the sign-in and makes no request until
+ * somebody signs in.
+ */
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App(secureStore = { InMemorySecureStore() }, backend = Backend.Mock)
+    App(secureStore = { InMemorySecureStore() }, backend = Backend.Gateway())
 }

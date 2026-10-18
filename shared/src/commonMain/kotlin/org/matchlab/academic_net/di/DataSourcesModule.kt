@@ -1,7 +1,6 @@
 package org.matchlab.academic_net.di
 
 import me.tatarka.inject.annotations.Provides
-import org.matchlab.academic_net.Backend
 import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.feature.chats.data.ChatsDataSource
 import org.matchlab.academic_net.feature.chats.data.mock.MockChatsDataSource
@@ -28,13 +27,12 @@ import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
  * The sign-in is not here, it is process-wide (see [AuthModule]).
  *
  * Every source is [SessionScope]d, so it is made when the user signs in and is gone when they sign out: the next
- * account never sees the caches, the drafts and the mock state of the previous one.
+ * account never sees the caches, the drafts and the local chats of the previous one.
  *
  * **Sources.** The profiles, the settings, the people search, the feed and the projects (their list, the search and the
  * page of a project) are the Gateway's and have no mock: their sources are made over the [GatewaySession] of the
- * session, in both backends. In [Backend.Mock] there is no Gateway, so asking for them there fails with the
- * `IllegalStateException` of the Gateway provider (see [GatewayModule]). Only the chats run on their mock in both modes
- * (API-GAP G50: the API has none). The Gateway sources take `session.userId`.
+ * session. Only the chats run on their local mock (API-GAP G50: the API has none). The Gateway sources take
+ * `session.userId`.
  */
 internal interface DataSourcesModule {
     /** API-GAP G47: a project names its owner by id only; owners are read through the session's directory. */
@@ -49,13 +47,10 @@ internal interface DataSourcesModule {
     fun projectsDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ProjectsDataSource =
         GatewayProjectsDataSource(gateway.projects, assembler)
 
-    /**
-     * API-GAP G50: the API has no chats, so they are local in both modes and messages go nowhere. The demo chats exist
-     * in the mock mode only, because their people do not exist on the server: opening one of them would fail there.
-     */
+    /** API-GAP G50: the API has no chats, so they are local: they start empty and messages go nowhere. */
     @Provides
     @SessionScope
-    fun chatsDataSource(backend: Backend): ChatsDataSource = MockChatsDataSource(seed = backend == Backend.Mock)
+    fun chatsDataSource(): ChatsDataSource = MockChatsDataSource()
 
     /** "Открыт к сотрудничеству" is a field of the profile, so the settings go through the profile call. */
     @Provides

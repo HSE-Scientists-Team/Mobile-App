@@ -3,26 +3,14 @@ package org.matchlab.academic_net
 import org.matchlab.academic_net.gateway.GatewayConfig
 
 /**
- * Where the app gets its data from: the server of the MatchLab Gateway, or the in-memory mock that plays it.
+ * Where the app gets its data from: the server of the MatchLab Gateway.
  *
- * The platform entry points choose it and hand it to [App]: the Android build from the Gradle property
- * `matchlab.backend` (`-Pmatchlab.backend=mock`), the iOS app always [Gateway]. It is fixed for the whole process:
- * the object graph is built once for it.
- *
- * What each mode means:
- * - [Mock]: every feature, the sign-in included, runs on the `Mock…DataSource`s. Nothing touches the network and no
- *   Gateway client is created. A new account needs no server: any address of a trusted domain registers, and the
- *   letter's link is `123456`. This is the mode to check the screens in, because with an unreachable server the
- *   Gateway mode shows only error screens.
- * - [Gateway]: the sign-in, the registration and the session check go to the server. The features that are not
- *   connected to it yet (all but the sign-in, in this build) still run on the mocks, as in [Mock]; the chats are
- *   local in both modes (the API has none), but without the demo chats, because their people do not exist on the
- *   server.
+ * The platform entry points choose the address and hand it to [App]: the Android build from the Gradle property
+ * `matchlab.gatewayUrl`, the iOS app always the production server. It is fixed for the whole process: the object graph
+ * is built once for it. Everything but the chats (the API has none, API-GAP G50) goes to the server, the sign-in
+ * included; there is no in-memory mode that plays the server.
  */
 sealed interface Backend {
-    /** The in-memory mock server. */
-    data object Mock : Backend
-
     /**
      * The MatchLab Gateway.
      *
@@ -42,5 +30,7 @@ sealed interface Backend {
 }
 
 /** The settings of the Gateway client for this backend. */
-internal fun Backend.Gateway.toConfig(): GatewayConfig =
-    GatewayConfig(baseUrl = baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: GatewayConfig.PRODUCTION_BASE_URL, logCalls = logCalls)
+internal fun Backend.toConfig(): GatewayConfig = when (this) {
+    is Backend.Gateway ->
+        GatewayConfig(baseUrl = baseUrl?.trim()?.takeIf { it.isNotEmpty() } ?: GatewayConfig.PRODUCTION_BASE_URL, logCalls = logCalls)
+}
