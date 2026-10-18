@@ -177,6 +177,81 @@ class UserReviewsViewModelTest {
         assertEquals(listOf("r1", "r2", "r3", "r4", "r5"), viewModel.content().items.map { it.id.value })
     }
 
+    // ---- where the next page starts when the server repeated a review ----
+
+    @Test
+    fun theNextPageStartsAfterEverythingTheServerSentEvenWhenARepeatIsShownOnce() {
+        // Three reviews came, one of them twice: two are shown, and the next page is still the one after the three.
+        firstPage(listOf(review("r1"), review("r2"), review("r1")), hasMore = true)
+        repository.onGetReviewsPage = { _, offset -> ReviewsPage(reviews(2, from = offset + 1), hasMore = false) }
+        val viewModel = viewModel()
+        assertEquals(listOf("r1", "r2"), viewModel.content().items.map { it.id.value })
+        assertEquals(3, viewModel.content().nextOffset, "what the server sent, not what is shown")
+
+        viewModel.onLoadMore()
+
+        assertEquals(listOf(3), repository.reviewPageOffsets, "offset 2 would ask for the third review again")
+        assertEquals(listOf("r1", "r2", "r4", "r5"), viewModel.content().items.map { it.id.value })
+        assertEquals(5, viewModel.content().nextOffset)
+    }
+
+    @Test
+    fun aPageThatRepeatsAReviewMovesTheNextRequestByEverythingThatCame() {
+        firstPage(reviews(3), hasMore = true)
+        val pages = mapOf(
+            3 to ReviewsPage(reviews(3, from = 3), hasMore = true), // r3 again, then r4 and r5
+            6 to ReviewsPage(reviews(2, from = 6), hasMore = false),
+        )
+        repository.onGetReviewsPage = { _, offset -> pages.getValue(offset) }
+        val viewModel = viewModel()
+
+        viewModel.onLoadMore()
+
+        assertEquals(listOf("r1", "r2", "r3", "r4", "r5"), viewModel.content().items.map { it.id.value })
+        assertEquals(6, viewModel.content().nextOffset, "three came: 3 + 3, not the 5 that are shown")
+        viewModel.onLoadMore()
+
+        assertEquals(listOf(3, 6), repository.reviewPageOffsets, "offset 5 would ask for r5 again")
+        assertEquals(listOf("r1", "r2", "r3", "r4", "r5", "r6", "r7"), viewModel.content().items.map { it.id.value })
+        assertEquals(8, viewModel.content().nextOffset)
+        assertEquals(false, viewModel.content().hasMore)
+    }
+
+    @Test
+    fun aPageOfRepeatsOnlyStillMovesTheNextRequestForward() {
+        firstPage(reviews(3), hasMore = true)
+        repository.onGetReviewsPage = { _, offset ->
+            // The list shifted by a page: the same three reviews come first, the new ones after them.
+            if (offset == 3) ReviewsPage(reviews(3), hasMore = true) else ReviewsPage(reviews(2, from = 4), hasMore = false)
+        }
+        val viewModel = viewModel()
+
+        viewModel.onLoadMore()
+        assertEquals(listOf("r1", "r2", "r3"), viewModel.content().items.map { it.id.value }, "nothing new is shown")
+        assertEquals(6, viewModel.content().nextOffset)
+        viewModel.onLoadMore()
+
+        assertEquals(listOf(3, 6), repository.reviewPageOffsets, "asking offset 3 again would never get past the repeats")
+        assertEquals(listOf("r1", "r2", "r3", "r4", "r5"), viewModel.content().items.map { it.id.value })
+    }
+
+    @Test
+    fun aFailedPageDoesNotMoveTheOffsetAndRetryAsksTheSamePage() {
+        firstPage(listOf(review("r1"), review("r2"), review("r1")), hasMore = true)
+        repository.onGetReviewsPage = { _, _ -> throw IllegalStateException("no network") }
+        val viewModel = viewModel()
+
+        viewModel.onLoadMore()
+        assertEquals(3, viewModel.content().nextOffset)
+
+        repository.onGetReviewsPage = { _, offset -> ReviewsPage(reviews(1, from = offset + 1), hasMore = false) }
+        viewModel.onRetryLoadMore()
+
+        assertEquals(listOf(3, 3), repository.reviewPageOffsets)
+        assertEquals(listOf("r1", "r2", "r4"), viewModel.content().items.map { it.id.value })
+        assertEquals(4, viewModel.content().nextOffset)
+    }
+
     // ---- a page that fails ----
 
     @Test

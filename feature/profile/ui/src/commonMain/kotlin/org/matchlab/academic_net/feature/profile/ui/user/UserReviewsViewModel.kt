@@ -34,6 +34,9 @@ sealed interface UserReviewsUiState {
      * @property isLoadingMore the next page is on its way: the footer of the list says "Загрузка…"
      * @property loadMoreFailure the next page could not be loaded because of this; the footer says so and offers
      *  "Повторить", and no page is asked for until it is pressed
+     * @property nextOffset where the next page starts: how many reviews the server has sent so far, a repeat that
+     *  [items] dropped included (API-GAP G21, G34: the list may shift between two requests). It is not the size of
+     *  [items]: counting only what is kept would start the next page too early and ask for the same reviews again
      */
     @Immutable
     data class Content(
@@ -42,13 +45,16 @@ sealed interface UserReviewsUiState {
         val hasMore: Boolean,
         val isLoadingMore: Boolean = false,
         val loadMoreFailure: Throwable? = null,
+        val nextOffset: Int = items.size,
     ) : UserReviewsUiState
 }
 
 /**
  * "09b Отзывы о пользователе": "читать отзывы о других клиентах". The first page comes with the numbers
- * ([GetUserReviewsUseCase]); the following ones are asked for as the list is scrolled ([onLoadMore]) by the number of
- * reviews already shown, which is the `offset` of the API.
+ * ([GetUserReviewsUseCase]); the following ones are asked for as the list is scrolled ([onLoadMore]) from the number of
+ * reviews the server has sent so far ([UserReviewsUiState.Content.nextOffset]), which is the `offset` of the API. It
+ * counts what came, not what was kept: a review shown once although it came twice is still two places of the server's
+ * list.
  *
  * API-GAP G21: the API does not describe the order of the list; it is shown as it comes and taken as the newest first.
  *
@@ -93,14 +99,15 @@ class UserReviewsViewModel(
     private fun loadNextPage(content: UserReviewsUiState.Content) {
         state.value = content.copy(isLoadingMore = true, loadMoreFailure = null)
         viewModelScope.launch {
-            // The number of reviews already shown is where the next page starts.
-            val result = getReviewsPage(userId, offset = content.items.size)
+            // The next page starts after everything the server has sent, repeats included (not after what is shown).
+            val result = getReviewsPage(userId, offset = content.nextOffset)
             updateContent { current ->
                 when (result) {
                     is LoadResult.Found -> current.copy(
                         items = (current.items + result.value.items).distinctBy { it.id },
                         hasMore = result.value.hasMore,
                         isLoadingMore = false,
+                        nextOffset = current.nextOffset + result.value.items.size,
                     )
                     // The person is gone since the first page: nothing more to ask for.
                     LoadResult.NotFound -> current.copy(hasMore = false, isLoadingMore = false)
@@ -117,6 +124,7 @@ class UserReviewsViewModel(
                     summary = result.value.summary,
                     items = result.value.firstPage.items.distinctBy { it.id },
                     hasMore = result.value.firstPage.hasMore,
+                    nextOffset = result.value.firstPage.items.size,
                 )
                 LoadResult.NotFound -> UserReviewsUiState.NotFound
                 is LoadResult.Failure -> UserReviewsUiState.Error(result.cause)

@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.LoadResult
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
+import org.matchlab.academic_net.feature.profile.domain.UserWorks
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetUserWorksUseCase
 
 /** What "09e Все работы" shows: the loading, the answer of the server or the failure. */
@@ -25,6 +26,8 @@ sealed interface UserWorksUiState {
     /**
      * The works of the person, newest first; the list may be empty.
      *
+     * @property works each work once: the list of the screen is keyed by the id of a work, and a key used twice would
+     *  crash it, so a work that came twice (whatever the server does) is kept once
      * @property isViewer the works are the viewer's own: a card opens the work for editing instead of its link
      */
     data class Content(val works: List<PortfolioWork>, val isViewer: Boolean) : UserWorksUiState
@@ -69,7 +72,7 @@ class UserWorksViewModel(
         refreshJob = viewModelScope.launch {
             val result = getUserWorks(userId)
             if (result is LoadResult.Found) {
-                state.value = UserWorksUiState.Content(result.value.items, result.value.isViewer)
+                state.value = result.value.toContent()
             }
         }
     }
@@ -77,10 +80,12 @@ class UserWorksViewModel(
     private fun load() {
         viewModelScope.launch {
             state.value = when (val result = getUserWorks(userId)) {
-                is LoadResult.Found -> UserWorksUiState.Content(result.value.items, result.value.isViewer)
+                is LoadResult.Found -> result.value.toContent()
                 LoadResult.NotFound -> UserWorksUiState.NotFound
                 is LoadResult.Failure -> UserWorksUiState.Error(result.cause)
             }
         }
     }
+
+    private fun UserWorks.toContent() = UserWorksUiState.Content(items.distinctBy { it.id }, isViewer)
 }

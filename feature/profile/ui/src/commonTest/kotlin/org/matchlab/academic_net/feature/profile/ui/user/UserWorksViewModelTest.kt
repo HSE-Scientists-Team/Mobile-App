@@ -161,4 +161,69 @@ class UserWorksViewModelTest {
 
         assertEquals(3, repository.calls.size)
     }
+
+    // ---- a work that came twice ----
+
+    // The list of the screen is keyed by the id of a work, and a key used twice crashes it: every id is there once.
+
+    @Test
+    fun aWorkThatCameTwiceIsShownOnceInTheOrderOfItsFirstPlace() {
+        repository.onGetWorks = { UserWorks(listOf(work("w1"), work("w2"), work("w1")), isViewer = false) }
+
+        val content = viewModel().content()
+
+        assertEquals(listOf("w1", "w2"), content.works.map { it.id.value })
+        assertEquals(false, content.isViewer)
+    }
+
+    @Test
+    fun aListOfTheSameWorkIsOneWork() {
+        repository.onGetWorks = { UserWorks(listOf(work("w1"), work("w1"), work("w1")), isViewer = false) }
+
+        assertEquals(listOf("w1"), viewModel().content().works.map { it.id.value })
+    }
+
+    @Test
+    fun worksThatLookAlikeButHaveOtherIdsAreAllShown() {
+        repository.onGetWorks = {
+            UserWorks(listOf(work("w1", title = "Одно"), work("w2", title = "Одно"), work("w3", title = "Одно")), isViewer = false)
+        }
+
+        assertEquals(listOf("w1", "w2", "w3"), viewModel().content().works.map { it.id.value })
+    }
+
+    @Test
+    fun aWorkThatCameTwiceIsShownOnceAfterRetryToo() {
+        repository.onGetWorks = { throw IllegalStateException("no network") }
+        val viewModel = viewModel()
+
+        repository.onGetWorks = { UserWorks(listOf(work("w1"), work("w1"), work("w2")), isViewer = false) }
+        viewModel.onRetry()
+
+        assertEquals(listOf("w1", "w2"), viewModel.content().works.map { it.id.value })
+    }
+
+    @Test
+    fun aWorkThatCameTwiceInTheRefreshOfTheViewersListIsShownOnce() {
+        repository.onGetWorks = { UserWorks(listOf(work("w1")), isViewer = true) }
+        val viewModel = viewModel(Viewer)
+
+        repository.onGetWorks = { UserWorks(listOf(work("w2"), work("w1"), work("w2"), work("w3"), work("w1")), isViewer = true) }
+        viewModel.onScreenShown()
+
+        val content = viewModel.content()
+        assertEquals(listOf("w2", "w1", "w3"), content.works.map { it.id.value })
+        assertEquals(true, content.isViewer)
+        assertEquals(2, repository.calls.size)
+    }
+
+    @Test
+    fun aWorkThatCameTwiceInTheFirstLoadOfTheViewersListIsShownOnce() {
+        repository.onGetWorks = { UserWorks(listOf(work("w1"), work("w1")), isViewer = true) }
+
+        val content = viewModel(Viewer).content()
+
+        assertEquals(listOf("w1"), content.works.map { it.id.value })
+        assertEquals(true, content.isViewer)
+    }
 }
