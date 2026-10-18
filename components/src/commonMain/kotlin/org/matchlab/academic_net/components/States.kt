@@ -13,11 +13,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.matchlab.academic_net.components.interaction.blockPointerInput
 
-/** A list that is being loaded: the progress indicator in the middle of the free space. */
+/**
+ * A list that is being loaded: the progress indicator in the middle of the free space.
+ *
+ * The space takes the touches ([blockPointerInput]): while a screen slides in with its content
+ * still loading, a tap on the empty space must not land on the screen that is going away.
+ */
 @Composable
 fun LoadingState(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(modifier.fillMaxSize().blockPointerInput(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }
@@ -26,6 +32,9 @@ fun LoadingState(modifier: Modifier = Modifier) {
  * A screen or a list with nothing to show: an empty result, an error. The [title] and the optional
  * explaining [text] are centered in the free space; with [actionText] and [onAction] an outlined
  * button below offers the way out ("Повторить", "Сбросить фильтры").
+ *
+ * The space takes the touches ([blockPointerInput]), like [LoadingState]; the button inside works
+ * as usual.
  */
 @Composable
 fun MessageState(
@@ -36,7 +45,7 @@ fun MessageState(
     onAction: (() -> Unit)? = null,
 ) {
     Column(
-        modifier.fillMaxSize().padding(32.dp),
+        modifier.fillMaxSize().blockPointerInput().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {

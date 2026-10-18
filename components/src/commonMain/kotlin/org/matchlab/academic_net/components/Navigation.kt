@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.interaction.rememberOnceClick
 
 /**
  * "Navigation bar": 78dp bar with flush items and a 64x32 pill indicator.
@@ -135,6 +137,9 @@ fun RowScope.AppNavigationBarItem(
 /**
  * "App bar": back arrow (or [navigationIcon]), title with an optional subtitle and up to three
  * actions (use [AppIconButton] in [actions]). The white background extends under the status bar.
+ *
+ * A burst of taps on the arrow runs [onNavigateBack] once, so a double tap does not leave two
+ * screens at once.
  */
 @Composable
 fun AppTopBar(
@@ -167,7 +172,7 @@ fun AppTopBar(
                         interactionSource = null,
                         indication = ripple(bounded = false, radius = 20.dp),
                         role = Role.Button,
-                        onClick = onNavigateBack,
+                        onClick = rememberOnceClick(onNavigateBack),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -234,7 +239,10 @@ fun AppTabs(
     }
 }
 
-/** "Section header": section title with an optional "see all" style action. */
+/**
+ * "Section header": section title with an optional "see all" style action. A burst of taps on the
+ * action runs [onAction] once.
+ */
 @Composable
 fun SectionHeader(
     title: String,
@@ -306,7 +314,7 @@ private fun HeaderRow(
             Text(
                 text = action,
                 modifier = if (onAction != null) {
-                    Modifier.clickable(role = Role.Button, onClick = onAction)
+                    Modifier.onceClickable(role = Role.Button, onClick = onAction)
                 } else {
                     Modifier
                 },

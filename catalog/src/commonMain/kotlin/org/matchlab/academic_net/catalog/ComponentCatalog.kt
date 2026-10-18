@@ -41,6 +41,7 @@ import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.AppBadgeDot
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
+import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppFab
 import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppIconButton
@@ -145,6 +146,7 @@ fun ComponentCatalog() {
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item { BaseComponents() }
+            item { RepeatedTapComponents() }
             item { SharedFeatureComponents() }
             item { ProjectPageComponents() }
             item { SearchComponents() }
@@ -277,6 +279,50 @@ private fun BaseComponents() {
             variant = AppButtonVariant.Outlined,
         )
         AppSnackbarHost(snackbars)
+    }
+}
+
+/**
+ * The protection from repeated taps, to try by hand: a burst of taps on a button or a card counts
+ * once, the arrows of a stepper count every tap, and a loading state takes the taps that would
+ * land on the button under it.
+ */
+@Composable
+private fun RepeatedTapComponents() {
+    Section(":components — повторные нажатия") {
+        var opened by remember { mutableIntStateOf(0) }
+        Text(
+            text = "Открытий: $opened. Нажмите несколько раз подряд: засчитается одно нажатие за полсекунды",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            AppButton("Открыть экран", { opened++ })
+            AppIconButton(AppIcons.Pencil, "Изменить", { opened++ })
+        }
+        AppCard(onClick = { opened++ }) {
+            Text(
+                text = "Карточка: открывает экран",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        var steps by remember { mutableIntStateOf(0) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            AppIconButton(AppIcons.ArrowLeft, "Меньше", { steps-- }, repeatable = true)
+            Text("Шагов: $steps (каждое нажатие считается)", color = MaterialTheme.colorScheme.onSurface)
+            AppIconButton(AppIcons.ArrowRight, "Больше", { steps++ }, repeatable = true)
+        }
+        var underState by remember { mutableIntStateOf(0) }
+        Text(
+            text = "Нажатий на кнопку под загрузкой: $underState (должно остаться 0)",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Box(Modifier.fillMaxWidth().height(120.dp)) {
+            AppButton("Старый экран", { underState++ }, Modifier.align(Alignment.Center))
+            LoadingState()
+        }
     }
 }
 

@@ -4,7 +4,6 @@ import academicnet.components.generated.resources.Res
 import academicnet.components.generated.resources.components_remove
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -21,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.onceClickable
 import org.matchlab.academic_net.theme.extendedColors
 
 /** "Chip/Tag": read-only tag. */
@@ -32,14 +32,21 @@ fun AppTagChip(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** "Chip/Input": entered value with a leading remove icon; tapping the chip removes it. */
+/**
+ * "Chip/Input": entered value with a leading remove icon; tapping the chip removes it.
+ *
+ * A burst of taps removes once. That matters in a row: when a chip goes, the next one slides under
+ * the finger, and a second tap would remove it too. The rows of the app compose their chips by
+ * position (no `key`), so the guard of the chip that went stays with its position and holds the
+ * chip that took its place for the same window.
+ */
 @Composable
 fun AppInputChip(text: String, onRemove: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     ChipRow(
         modifier
             .background(colors.surfaceContainer)
-            .clickable(onClickLabel = stringResource(Res.string.components_remove), onClick = onRemove),
+            .onceClickable(onClickLabel = stringResource(Res.string.components_remove), onClick = onRemove),
     ) {
         AppIcon(AppIcons.X, contentDescription = null, size = 16.dp, tint = colors.onSurfaceVariant)
         ChipText(text, colors.onSurfaceVariant)

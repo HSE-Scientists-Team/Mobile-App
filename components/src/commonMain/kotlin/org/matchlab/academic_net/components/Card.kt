@@ -6,7 +6,6 @@ import academicnet.components.generated.resources.components_decline
 import academicnet.components.generated.resources.components_verified
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -18,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,10 +33,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.ClickDebouncer
+import org.matchlab.academic_net.components.interaction.onceClickable
 
 /**
  * Base of the "Card/…" components: surface with a 1dp outline. The paddings are the Figma ones;
  * as in Figma the outline adds to the size, so 1dp is added to them.
+ *
+ * With [onClick] the whole card is clickable, and a burst of taps runs it once (see
+ * [onceClickable]): a card that opens a screen cannot open it twice.
  */
 @Composable
 fun AppCard(
@@ -72,14 +77,21 @@ fun AppCard(
             .clip(shape)
             .background(colors.surface)
             .then(outline)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.onceClickable(onClick = onClick) else Modifier)
             .padding(horizontal = horizontalPadding + 1.dp, vertical = verticalPadding + 1.dp),
         verticalArrangement = Arrangement.spacedBy(spacing),
         content = content,
     )
 }
 
-/** Accept and decline on the left, chat on the right, as on invitations and candidates. */
+/**
+ * Accept and decline on the left, chat on the right, as on invitations and candidates.
+ *
+ * The three buttons share one guard: of all the taps within a short time (see [ClickDebouncer]) only
+ * the first runs its action, so a candidate is not accepted and declined at once, nor accepted twice.
+ * That holds within the window only: the guard of the screen's view model, which refuses an action
+ * that is already done or running, is still needed.
+ */
 @Composable
 fun AcceptDeclineActions(
     onAcceptClick: () -> Unit,
@@ -88,6 +100,7 @@ fun AcceptDeclineActions(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    val guard = remember { ClickDebouncer() }
     Row(
         modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -96,19 +109,19 @@ fun AcceptDeclineActions(
         CardIconButton(
             AppIcons.Check,
             stringResource(Res.string.components_accept),
-            onAcceptClick,
+            { if (guard.tryAccept()) onAcceptClick() },
             colors.tertiaryContainer,
             colors.onTertiaryContainer,
         )
         CardIconButton(
             AppIcons.X,
             stringResource(Res.string.components_decline),
-            onDeclineClick,
+            { if (guard.tryAccept()) onDeclineClick() },
             colors.errorContainer,
             colors.error,
         )
         Spacer(Modifier.weight(1f))
-        ChatIconButton(onChatClick)
+        ChatIconButton(onClick = { if (guard.tryAccept()) onChatClick() })
     }
 }
 
@@ -161,7 +174,7 @@ fun InfoCard(text: String, icon: DrawableResource, modifier: Modifier = Modifier
     }
 }
 
-/** "Card/Upload": dashed drop zone for attaching a file. */
+/** "Card/Upload": dashed drop zone for attaching a file. A burst of taps runs [onClick] once. */
 @Composable
 fun UploadCard(
     title: String,

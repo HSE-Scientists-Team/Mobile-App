@@ -2,7 +2,6 @@ package org.matchlab.academic_net.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,8 +25,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
+import org.matchlab.academic_net.components.interaction.onceClickable
 
-/** "List item/Action": action row in a list or a sheet. */
+/** "List item/Action": action row in a list or a sheet. A burst of taps runs [onClick] once. */
 @Composable
 fun ActionListItem(
     title: String,
@@ -36,14 +36,14 @@ fun ActionListItem(
     subtitle: String? = null,
     icon: DrawableResource = AppIcons.Check,
 ) {
-    OutlinedRow(modifier.clickable(onClick = onClick), MaterialTheme.shapes.large) {
+    OutlinedRow(modifier.onceClickable(onClick = onClick), MaterialTheme.shapes.large) {
         AppIcon(icon, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.primary)
         TitleWithSubtitle(title, subtitle)
         Chevron()
     }
 }
 
-/** "List item/Setting": setting row that opens another screen. */
+/** "List item/Setting": setting row that opens another screen. A burst of taps runs [onClick] once. */
 @Composable
 fun SettingListItem(
     title: String,
@@ -52,7 +52,7 @@ fun SettingListItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
 ) {
-    OutlinedRow(modifier.clickable(onClick = onClick), MaterialTheme.shapes.large) {
+    OutlinedRow(modifier.onceClickable(onClick = onClick), MaterialTheme.shapes.large) {
         AppIcon(icon, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         TitleWithSubtitle(title, subtitle)
         Chevron()
@@ -114,7 +114,8 @@ data class PersonListItemUiModel(
 
 /**
  * "List item/Person": person in a list; clickable rows get a chevron. [outlined] puts the row in
- * a rounded card with an outline, as on the collaborators search screen.
+ * a rounded card with an outline, as on the collaborators search screen. A burst of taps runs
+ * [onClick] once.
  */
 @Composable
 fun PersonListItem(
@@ -124,7 +125,7 @@ fun PersonListItem(
     outlined: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
-    val clickable = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    val clickable = if (onClick != null) Modifier.onceClickable(onClick = onClick) else Modifier
     val row = @Composable { content: @Composable RowScope.() -> Unit ->
         if (outlined) {
             // Figma padding 16x12 plus the 1dp outline.
@@ -169,7 +170,7 @@ data class NotificationListItemUiModel(
     val icon: DrawableResource = AppIcons.Message,
 )
 
-/** "List item/Notification": notification with an icon and when it arrived. */
+/** "List item/Notification": notification with an icon and when it arrived. A burst of taps runs [onClick] once. */
 @Composable
 fun NotificationListItem(
     model: NotificationListItemUiModel,
@@ -180,7 +181,7 @@ fun NotificationListItem(
     PlainRow(
         modifier
             .clip(MaterialTheme.shapes.medium)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .then(if (onClick != null) Modifier.onceClickable(onClick = onClick) else Modifier),
     ) {
         Box(Modifier.background(colors.surface, CircleShape).padding(8.dp)) {
             AppIcon(model.icon, contentDescription = null, size = 20.dp, tint = colors.primary)

@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.onceClickable
 
 // In the design the 1dp outline adds to the component size, so the inner padding is 1dp larger
 // than the Figma padding (the text stays exactly where Figma puts it).
@@ -84,7 +85,8 @@ fun AppSearchBar(
 
 /**
  * "Search bar" that is a button: looks like [AppSearchBar] but does not take input; tapping it
- * opens the search screen (the feed). With `onClick = null` it is a plain, inactive bar.
+ * opens the search screen (the feed). With `onClick = null` it is a plain, inactive bar. A burst
+ * of taps runs [onClick] once.
  */
 @Composable
 fun AppSearchBarButton(
@@ -99,7 +101,7 @@ fun AppSearchBarButton(
             .clip(CircleShape)
             .background(colors.surface, CircleShape)
             .border(1.dp, colors.outlineVariant, CircleShape)
-            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.onceClickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(horizontal = 17.dp, vertical = 13.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -163,7 +165,7 @@ fun AppTextField(
 
 /**
  * "Text field/Outlined" that opens a picker instead of taking input (sphere, dates): shows
- * [value], or [placeholder] while nothing is chosen.
+ * [value], or [placeholder] while nothing is chosen. A burst of taps runs [onClick] once.
  */
 @Composable
 fun AppSelectField(
@@ -181,7 +183,7 @@ fun AppSelectField(
             Modifier
                 .fillMaxWidth()
                 .fieldBox(focused = false, isError = errorText != null)
-                .clickable(role = Role.DropdownList, onClick = onClick)
+                .onceClickable(role = Role.DropdownList, onClick = onClick)
                 .padding(horizontal = 17.dp, vertical = 15.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,

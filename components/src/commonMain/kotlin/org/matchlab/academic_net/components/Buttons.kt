@@ -5,7 +5,6 @@ import academicnet.components.generated.resources.components_message
 import academicnet.components.generated.resources.components_report
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
@@ -34,6 +33,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.interaction.rememberOnceClick
 
 enum class AppButtonVariant {
     Filled,
@@ -45,7 +46,12 @@ enum class AppButtonVariant {
     Text,
 }
 
-/** "Button/Filled", "Button/Tonal", "Button/Outlined" and "Button/Text": 40dp, full-round. */
+/**
+ * "Button/Filled", "Button/Tonal", "Button/Outlined" and "Button/Text": 40dp, full-round.
+ *
+ * A burst of taps runs [onClick] once (see [rememberOnceClick]): a double tap cannot start the
+ * action twice.
+ */
 @Composable
 fun AppButton(
     text: String,
@@ -55,12 +61,13 @@ fun AppButton(
     enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
+    val onceClick = rememberOnceClick(onClick)
     val label: @Composable RowScope.() -> Unit = {
         Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
     when (variant) {
         AppButtonVariant.Filled -> Button(
-            onClick = onClick,
+            onClick = onceClick,
             modifier = modifier,
             enabled = enabled,
             shape = CircleShape,
@@ -71,7 +78,7 @@ fun AppButton(
             content = label,
         )
         AppButtonVariant.Tonal -> FilledTonalButton(
-            onClick = onClick,
+            onClick = onceClick,
             modifier = modifier,
             enabled = enabled,
             shape = CircleShape,
@@ -84,7 +91,7 @@ fun AppButton(
         AppButtonVariant.Outlined, AppButtonVariant.OutlinedError -> {
             val isError = variant == AppButtonVariant.OutlinedError
             OutlinedButton(
-                onClick = onClick,
+                onClick = onceClick,
                 modifier = modifier,
                 enabled = enabled,
                 shape = CircleShape,
@@ -103,7 +110,7 @@ fun AppButton(
             )
         }
         AppButtonVariant.Text -> TextButton(
-            onClick = onClick,
+            onClick = onceClick,
             modifier = modifier,
             enabled = enabled,
             shape = CircleShape,
@@ -115,7 +122,7 @@ fun AppButton(
     }
 }
 
-/** "FAB": 56dp primary circle with a soft shadow. */
+/** "FAB": 56dp primary circle with a soft shadow. A burst of taps runs [onClick] once, like [AppButton]. */
 @Composable
 fun AppFab(
     onClick: () -> Unit,
@@ -124,7 +131,7 @@ fun AppFab(
     icon: DrawableResource = AppIcons.Plus,
 ) {
     FloatingActionButton(
-        onClick = onClick,
+        onClick = rememberOnceClick(onClick),
         modifier = modifier.dropShadow(CircleShape, FabShadow),
         shape = CircleShape,
         containerColor = MaterialTheme.colorScheme.primary,
@@ -144,7 +151,13 @@ private val FabShadow = Shadow(
 
 enum class AppIconButtonVariant { Standard, Tonal }
 
-/** "Icon button": 40dp circle with a 24dp icon. */
+/**
+ * "Icon button": 40dp circle with a 24dp icon.
+ *
+ * A burst of taps runs [onClick] once, like [AppButton]: the actions of a bar (back, filters, edit)
+ * open something and must not run twice. Pass `repeatable = true` for a button that is meant to be
+ * tapped quickly several times, e.g. the arrows of a stepper.
+ */
 @Composable
 fun AppIconButton(
     icon: DrawableResource,
@@ -157,10 +170,13 @@ fun AppIconButton(
         AppIconButtonVariant.Standard -> MaterialTheme.colorScheme.onSurfaceVariant
         AppIconButtonVariant.Tonal -> MaterialTheme.colorScheme.onSecondaryContainer
     },
+    repeatable: Boolean = false,
 ) {
+    val onceClick = rememberOnceClick(onClick)
+    val handleClick = if (repeatable) onClick else onceClick
     when (variant) {
         AppIconButtonVariant.Standard -> IconButton(
-            onClick = onClick,
+            onClick = handleClick,
             modifier = modifier,
             enabled = enabled,
             colors = IconButtonDefaults.iconButtonColors(contentColor = contentColor),
@@ -169,7 +185,7 @@ fun AppIconButton(
             AppIcon(icon, contentDescription)
         }
         AppIconButtonVariant.Tonal -> FilledTonalIconButton(
-            onClick = onClick,
+            onClick = handleClick,
             modifier = modifier,
             enabled = enabled,
             shape = CircleShape,
@@ -199,7 +215,7 @@ fun ReportIconButton(
     )
 }
 
-/** Round 36dp button with a 20dp icon, used for actions inside cards. */
+/** Round 36dp button with a 20dp icon, used for actions inside cards. A burst of taps runs [onClick] once. */
 @Composable
 fun CardIconButton(
     icon: DrawableResource,
@@ -213,7 +229,7 @@ fun CardIconButton(
         modifier
             .clip(CircleShape)
             .background(containerColor)
-            .clickable(role = Role.Button, onClick = onClick)
+            .onceClickable(role = Role.Button, onClick = onClick)
             .padding(8.dp),
     ) {
         AppIcon(icon, contentDescription, size = 20.dp, tint = contentColor)
