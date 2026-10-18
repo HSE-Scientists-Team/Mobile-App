@@ -29,13 +29,18 @@ import org.matchlab.academic_net.components.format.monthRangeText
 
 /**
  * The top of a project page, shared by "07 Управление проектом" and "04 Проект": the title with
- * the chips of the project [type], [status] and [sphere] under it.
+ * the chips of the project [type], [status] and [sphere] under it. A chip is drawn only for what is known (API-GAP G40,
+ * G41: the server gives no type and no status): `null` leaves the chip out, a blank [sphere] too, and a project with no
+ * chip at all has no row under the title.
+ *
+ * @param type the project type, `null` when unknown
+ * @param status the project status, `null` when unknown
  */
 @Composable
 fun ProjectHeader(
     title: String,
-    type: ProjectType,
-    status: ProjectStatus,
+    type: ProjectType?,
+    status: ProjectStatus?,
     sphere: String,
     modifier: Modifier = Modifier,
 ) {
@@ -45,13 +50,15 @@ fun ProjectHeader(
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AppTagChip(type.label())
-            AppTagChip(status.label())
-            AppTagChip(sphere)
+        if (type != null || status != null || sphere.isNotBlank()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (type != null) AppTagChip(type.label())
+                if (status != null) AppTagChip(status.label())
+                if (sphere.isNotBlank()) AppTagChip(sphere)
+            }
         }
     }
 }
@@ -81,9 +88,15 @@ fun ProjectPeriodCard(period: ProjectPeriod, modifier: Modifier = Modifier) {
 }
 
 /**
- * The heading of the roles of a project with the counter of the filled ones on the right:
+ * The heading of the roles of a project with the counter of the filled places on the right:
  * "Вакантные роли" and "2 из 4 занято". The [title] is passed in because the pages call the list
  * differently ("Роли" for the initiator, "Вакантные роли" for the others).
+ *
+ * The counter counts places, not roles, as a role can be for several people (API-GAP G49): pass
+ * `Project.occupiedPlaces` and `Project.totalPlaces`.
+ *
+ * @param occupiedCount the places of all roles that are taken
+ * @param totalCount the places of all roles
  */
 @Composable
 fun RolesSectionHeader(

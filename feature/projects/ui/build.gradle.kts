@@ -47,8 +47,6 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
-            // View models are tested against the mock data source, as the app runs today.
-            implementation(project(":feature:projects:data"))
         }
     }
 }

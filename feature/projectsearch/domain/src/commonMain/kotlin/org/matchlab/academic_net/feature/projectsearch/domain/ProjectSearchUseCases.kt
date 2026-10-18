@@ -1,12 +1,14 @@
 package org.matchlab.academic_net.feature.projectsearch.domain
 
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.paging.Page
+import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.utils.suspendRunCatching
 
-/** "Найти подходящий проект": the search is the server's, this only asks. */
+/** "Найти подходящий проект": one page of the server's answer; the search itself is the server's. */
 class SearchProjectsUseCase(private val repository: ProjectSearchRepository) {
-    suspend operator fun invoke(query: ProjectQuery): Result<List<FoundProject>> =
-        suspendRunCatching { repository.search(query) }
+    suspend operator fun invoke(query: ProjectQuery, page: PageRequest): Result<Page<FoundProject>> =
+        suspendRunCatching { repository.search(query, page) }
 }
 
 /** The spheres to pick from in the filters sheet. */

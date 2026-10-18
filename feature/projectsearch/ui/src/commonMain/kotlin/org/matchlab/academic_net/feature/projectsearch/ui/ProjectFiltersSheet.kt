@@ -34,6 +34,10 @@ import org.matchlab.academic_net.utils.withoutTag
  * "03 Фильтры (bottom sheet)": type and duration chips, the sphere and keywords. It edits the
  * draft only; the applied filters change on "Применить". The sphere choice is a second sheet the
  * screen opens on [onSphereFieldClick].
+ *
+ * The groups of chips are drawn only as far as the server can filter by them: "Тип проекта" with
+ * [ProjectFiltersSheetState.typeFilter] (API-GAP G40), "Сроки" with [ProjectFiltersSheetState.durationFilter]
+ * (API-GAP G45). The sphere and the keywords (sent as tags) are always there.
  */
 @Composable
 internal fun ProjectFiltersSheet(
@@ -57,14 +61,16 @@ internal fun ProjectFiltersSheet(
         headerActionText = stringResource(Res.string.projectsearch_reset),
         onHeaderAction = onReset,
     ) {
-        FilterChipGroup(stringResource(Res.string.projectsearch_group_type)) {
-            ProjectType.entries.forEach { type ->
-                val selected = type in draft.types
-                AppFilterChip(
-                    text = type.label(),
-                    selected = selected,
-                    onClick = { onDraftChange(draft.copy(types = draft.types.toggled(type, !selected))) },
-                )
+        if (state.typeFilter) {
+            FilterChipGroup(stringResource(Res.string.projectsearch_group_type)) {
+                ProjectType.entries.forEach { type ->
+                    val selected = type in draft.types
+                    AppFilterChip(
+                        text = type.label(),
+                        selected = selected,
+                        onClick = { onDraftChange(draft.copy(types = draft.types.toggled(type, !selected))) },
+                    )
+                }
             }
         }
         AppSelectField(
@@ -73,14 +79,18 @@ internal fun ProjectFiltersSheet(
             placeholder = stringResource(Res.string.projectsearch_sphere_any),
             onClick = onSphereFieldClick,
         )
-        FilterChipGroup(stringResource(Res.string.projectsearch_group_duration)) {
-            ProjectDuration.entries.forEach { duration ->
-                val selected = duration in draft.durations
-                AppFilterChip(
-                    text = duration.label(),
-                    selected = selected,
-                    onClick = { onDraftChange(draft.copy(durations = draft.durations.toggled(duration, !selected))) },
-                )
+        if (state.durationFilter) {
+            FilterChipGroup(stringResource(Res.string.projectsearch_group_duration)) {
+                ProjectDuration.entries.forEach { duration ->
+                    val selected = duration in draft.durations
+                    AppFilterChip(
+                        text = duration.label(),
+                        selected = selected,
+                        onClick = {
+                            onDraftChange(draft.copy(durations = draft.durations.toggled(duration, !selected)))
+                        },
+                    )
+                }
             }
         }
         AppTagsField(

@@ -30,5 +30,6 @@ internal interface ProjectSearchModule {
     ): ProjectSearchUiDependencies = ProjectSearchUiDependencies(
         searchProjects = SearchProjectsUseCase(repository),
         getSpheres = GetSearchSpheresUseCase(spheres),
+        capabilities = repository.capabilities,
     )
 }

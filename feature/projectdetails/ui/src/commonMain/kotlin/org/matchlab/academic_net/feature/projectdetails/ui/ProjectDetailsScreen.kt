@@ -29,6 +29,8 @@ import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.RoleApplyCard
 import org.matchlab.academic_net.components.RoleApplyCardUiModel
+import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
 import org.matchlab.academic_net.components.project.ProjectHeader
@@ -49,6 +51,8 @@ import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.p
 /**
  * "04 Проект": the page of a published project of someone else, to decide whether to join it.
  * Read-only: applying to a role ("Откликнуться"), sharing and reporting belong to later stories.
+ * What the server does not tell (API-GAP G40, G41, G43) is left out: no chips of the type and the status, no card of
+ * the months. The counter of the roles counts places, and a role of several places says how many are taken.
  *
  * @param onNavigateBack the back arrow of the app bar
  * @param onInitiatorClick the initiator card itself, which leads to the initiator's profile
@@ -103,8 +107,9 @@ internal fun ProjectDetailsScreen(
                 title = stringResource(Res.string.projectdetails_not_found_title),
                 text = stringResource(Res.string.projectdetails_not_found_text),
             )
-            ProjectDetailsUiState.Error -> MessageState(
+            is ProjectDetailsUiState.Error -> MessageState(
                 title = stringResource(Res.string.projectdetails_error),
+                text = failureText(state.cause),
                 actionText = stringResource(Res.string.projectdetails_retry),
                 onAction = onRetry,
             )
@@ -135,25 +140,25 @@ private fun ColumnScope.ProjectContent(
         )
         ProjectDescriptionBlocks(project.problem, project.goal, project.tags)
         RolesSection(project)
-        ProjectPeriodCard(project.period)
+        project.period?.let { ProjectPeriodCard(it) }
     }
 }
 
 /**
- * The open roles with "N из M занято". A project without roles has no section; with every role
- * taken the section says so instead of listing nothing.
+ * The open roles with "N из M занято" counted in places. A project without roles has no section; with every role
+ * taken the section says so instead of listing nothing. A role of several places says how many are taken.
  */
 @Composable
 private fun ColumnScope.RolesSection(project: ProjectDetailsUiModel) {
     if (project.rolesCount == 0) return
     RolesSectionHeader(
         title = stringResource(Res.string.projectdetails_open_roles),
-        occupiedCount = project.occupiedRolesCount,
-        totalCount = project.rolesCount,
+        occupiedCount = project.occupiedPlaces,
+        totalCount = project.totalPlaces,
     )
     project.vacantRoles.forEach { role ->
         // No button yet: applying belongs to the next sprint.
-        RoleApplyCard(RoleApplyCardUiModel(role.title, role.skills))
+        RoleApplyCard(RoleApplyCardUiModel(role.title, role.skills, occupied = role.occupied, slots = role.slots))
     }
     if (project.vacantRoles.isEmpty()) {
         Text(
@@ -166,7 +171,7 @@ private fun ColumnScope.RolesSection(project: ProjectDetailsUiModel) {
 
 @Composable
 private fun InitiatorUiModel.toCardUiModel(): PersonCardUiModel = PersonCardUiModel(
-    name = user.name,
+    name = nameOrPlaceholder(user.name),
     subtitle = if (university.isBlank()) {
         stringResource(Res.string.projectdetails_initiator)
     } else {

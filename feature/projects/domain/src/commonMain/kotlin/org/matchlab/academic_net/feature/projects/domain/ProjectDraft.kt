@@ -17,7 +17,10 @@ enum class RoleDraftError {
     TitleTooLong,
 }
 
-/** A role as filled in the form; what is still missing is reported by [validate]. */
+/**
+ * A role as filled in the form; what is still missing is reported by [validate]. A role is for one person: the place
+ * count is not asked, the data source sends one place (API-GAP G49).
+ */
 data class RoleDraft(
     val title: String = "",
     val skills: List<String> = emptyList(),
@@ -48,7 +51,13 @@ enum class ProjectDraftError {
     EndBeforeStart,
 }
 
-/** The "new project" form as the user has filled it so far. */
+/**
+ * The "new project" form as the user has filled it so far.
+ *
+ * API-GAP G40, G43: the form asks for what the API requires to create a project but does not define (`type`, the
+ * months of `planned_*`), so the Gateway cannot take a finished draft and creating is off in
+ * [ProjectsCapabilities.canCreate].
+ */
 data class ProjectDraft(
     val title: String = "",
     val type: ProjectType? = null,
@@ -84,7 +93,10 @@ data class ProjectDraft(
     }
 }
 
-/** A project that passed validation and is ready to be sent to the server. */
+/**
+ * A project that passed validation and is ready to be sent to the server (see [ProjectDraft] for what the Gateway
+ * cannot take: API-GAP G40, G43).
+ */
 data class NewProject(
     val title: String,
     val type: ProjectType,

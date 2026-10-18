@@ -75,6 +75,12 @@ fun RoleCard(
     }
 }
 
+/**
+ * What [VacantRoleCard] shows.
+ *
+ * @property places the line of taken places under the role name, e.g. the result of `rolePlacesText`; `null` for none
+ *  (a role of one person with nothing taken needs no line)
+ */
 @Immutable
 data class VacantRoleCardUiModel(
     val role: String,
@@ -83,9 +89,14 @@ data class VacantRoleCardUiModel(
     val isEditable: Boolean = false,
     /** Search for people for this role: the only way to it, shown to the project initiator only. */
     val canFindPeople: Boolean = false,
+    val places: String? = null,
 )
 
-/** "Card/Role" (vacant): open role with the skills it needs. The card itself is not clickable. */
+/**
+ * "Card/Role" (vacant): open role with the skills it needs. The card itself is not clickable. It also stands for a
+ * role with no free place whose people the app does not know (API-GAP G52), with the [VacantRoleCardUiModel.places]
+ * line telling how many places are taken.
+ */
 @Composable
 fun VacantRoleCard(
     model: VacantRoleCardUiModel,
@@ -96,33 +107,36 @@ fun VacantRoleCard(
 ) {
     val colors = MaterialTheme.colorScheme
     AppCard(modifier, spacing = 8.dp, cornerRadius = 12.dp, verticalPadding = 12.dp) {
-        RoleCardTitle(model.role)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            SkillChips(model.skills, Modifier.weight(1f))
-            if (model.isEditable) {
-                CardIconButton(
-                    icon = AppIcons.Trash,
-                    contentDescription = stringResource(Res.string.projects_delete),
-                    onClick = onDeleteClick,
-                    containerColor = colors.errorContainer,
-                    contentColor = colors.error,
-                )
-                CardIconButton(
-                    icon = AppIcons.Pencil,
-                    contentDescription = stringResource(Res.string.projects_edit),
-                    onClick = onEditClick,
-                    containerColor = colors.primaryContainer,
-                    contentColor = colors.primary,
-                )
-            }
-            if (model.canFindPeople) {
-                CardIconButton(
-                    icon = AppIcons.Search,
-                    contentDescription = stringResource(Res.string.projects_find_people),
-                    onClick = onFindPeopleClick,
-                    containerColor = colors.primaryContainer,
-                    contentColor = colors.primary,
-                )
+        RoleCardTitle(model.role, places = model.places)
+        // A role with no skills and no buttons has nothing under its name: no empty row, which would still add its gap.
+        if (model.skills.isNotEmpty() || model.isEditable || model.canFindPeople) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                SkillChips(model.skills, Modifier.weight(1f))
+                if (model.isEditable) {
+                    CardIconButton(
+                        icon = AppIcons.Trash,
+                        contentDescription = stringResource(Res.string.projects_delete),
+                        onClick = onDeleteClick,
+                        containerColor = colors.errorContainer,
+                        contentColor = colors.error,
+                    )
+                    CardIconButton(
+                        icon = AppIcons.Pencil,
+                        contentDescription = stringResource(Res.string.projects_edit),
+                        onClick = onEditClick,
+                        containerColor = colors.primaryContainer,
+                        contentColor = colors.primary,
+                    )
+                }
+                if (model.canFindPeople) {
+                    CardIconButton(
+                        icon = AppIcons.Search,
+                        contentDescription = stringResource(Res.string.projects_find_people),
+                        onClick = onFindPeopleClick,
+                        containerColor = colors.primaryContainer,
+                        contentColor = colors.primary,
+                    )
+                }
             }
         }
     }

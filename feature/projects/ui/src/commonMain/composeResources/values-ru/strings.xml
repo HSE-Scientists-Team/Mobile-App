@@ -15,6 +15,9 @@
     <string name="projects_participant_empty_title">Пока нет участия</string>
     <string name="projects_participant_empty_text">Здесь появятся проекты, в которых вы участвуете</string>
     <string name="projects_load_error">Не удалось загрузить проекты</string>
+    <!-- API-GAP G44, G40, G43: the server cannot list the user's projects or create one yet -->
+    <string name="projects_list_unavailable">Список ваших проектов пока недоступен на сервере</string>
+    <string name="projects_create_unavailable">Создание проектов пока недоступно на сервере</string>
 
     <!-- Create project -->
     <string name="projects_new_title">Новый проект</string>
@@ -77,4 +80,10 @@
     <string name="projects_unpublish_confirm">Снять</string>
     <string name="projects_action_error">Не удалось выполнить действие. Попробуйте ещё раз</string>
     <string name="projects_not_found">Проект не найден</string>
+    <string name="projects_load_project_error">Не удалось загрузить проект</string>
+    <string name="projects_retry">Повторить</string>
+    <!-- API-GAP G41: the server does not say in which status the project is -->
+    <string name="projects_banner_status_unknown">Сервер пока не сообщает статус проекта: действия управления недоступны</string>
+    <!-- A role could not be added because the project changed on the server meanwhile (a 409) -->
+    <string name="projects_conflict">Проект изменился на сервере — проверьте данные и повторите действие</string>
 </resources>

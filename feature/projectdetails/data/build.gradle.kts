@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Project details feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockProjectDetailsDataSource.
+// Project details feature, data layer: the repository, and the one server it talks to, the Gateway
+// (GatewayProjectDetailsDataSource over ProjectCatalogApi and ProjectAssembler).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.projectdetails.data"
@@ -27,8 +27,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":feature:projectdetails:domain"))
-            // MockProjectDetailsDataSource takes the mock server's projects in its constructor.
-            api(project(":mockserver"))
+            // ProjectCatalogApi, the DTOs and the project assembler for GatewayProjectDetailsDataSource; the feature
+            // never exposes them.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

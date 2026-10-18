@@ -6,15 +6,21 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.feature.projects.domain.NewProject
+import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 
+/** [ProjectsRepository] over a [ProjectsDataSource]: passes everything to the source as it is; `publishProject` is `createProject`. */
 class ProjectsRepositoryImpl(
     private val dataSource: ProjectsDataSource,
 ) : ProjectsRepository {
+    override val capabilities: ProjectsCapabilities get() = dataSource.capabilities
+
     override fun observeMyProjects(): Flow<List<Project>> = dataSource.observeMyProjects()
 
     override fun observeProject(id: ProjectId): Flow<Project?> = dataSource.observeProject(id)
+
+    override suspend fun loadProject(id: ProjectId): Project? = dataSource.loadProject(id)
 
     override suspend fun getProject(id: ProjectId): Project? = dataSource.getProject(id)
 

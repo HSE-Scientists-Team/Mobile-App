@@ -13,15 +13,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 
+/**
+ * What [ProjectCard] shows.
+ *
+ * @property type the project type, the first chip, e.g. "Научный"; `null` leaves the chip out (API-GAP G40: the
+ *  server gives no type)
+ * @property footer the line with the team size and, when the months are known, the dates (see `projectCardFooter`)
+ * @property tags the chips after the type, e.g. the status and the sphere; the card draws no row of chips when there
+ *  is neither a [type] nor a tag
+ */
 @Immutable
 data class ProjectCardUiModel(
     val title: String,
     /** Author line, e.g. "Проф. Елена Васкес · Stanford". */
     val author: String,
     val authorAvatar: DrawableResource,
-    /** Project type shown as the first chip, e.g. "Научный". */
-    val type: String,
-    /** Line with the team size and dates. */
+    val type: String?,
     val footer: String,
     val tags: List<String> = emptyList(),
     val isAuthorVerified: Boolean = false,
@@ -54,12 +61,14 @@ fun ProjectCard(
             )
             if (model.isAuthorVerified) VerifiedBadge()
         }
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AppFilterChip(model.type, selected = false, onClick = null)
-            model.tags.forEach { AppTagChip(it) }
+        if (model.type != null || model.tags.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (model.type != null) AppFilterChip(model.type, selected = false, onClick = null)
+                model.tags.forEach { AppTagChip(it) }
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AppIcon(AppIcons.Users, contentDescription = null, size = 16.dp, tint = colors.onSurfaceVariant)

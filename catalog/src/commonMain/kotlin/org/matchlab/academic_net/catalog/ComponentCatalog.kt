@@ -133,6 +133,7 @@ import org.matchlab.academic_net.components.project.ProjectPeriodCard
 import org.matchlab.academic_net.components.project.RolesSectionHeader
 import org.matchlab.academic_net.components.project.label
 import org.matchlab.academic_net.components.project.projectCardUiModel
+import org.matchlab.academic_net.components.project.rolePlacesText
 import org.matchlab.academic_net.feature.chats.ui.ChatBubble
 import org.matchlab.academic_net.feature.chats.ui.ChatBubbleUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatComposer
@@ -535,6 +536,20 @@ private fun SharedFeatureComponents() {
                 period = ProjectPeriod(YearMonth(2026, 11), YearMonth(2027, 5)),
             ),
         )
+        // As the Gateway gives a project: no type, no status, no months, so only the sphere and the number of roles.
+        ProjectCard(
+            projectCardUiModel(
+                title = "Анализ научных публикаций",
+                author = "Вы инициатор",
+                avatarKey = "u-anna",
+                isAuthorVerified = false,
+                type = null,
+                status = null,
+                sphere = "Computer Science",
+                rolesCount = 2,
+                period = null,
+            ),
+        )
     }
 }
 
@@ -692,6 +707,9 @@ private fun ProjectPageComponents() {
             status = ProjectStatus.Recruiting,
             sphere = "Computer Science",
         )
+        // Only the sphere is known (the Gateway gives no type and no status), and not even that: no row of chips.
+        ProjectHeader(title = "Анализ научных публикаций", type = null, status = null, sphere = "Computer Science")
+        ProjectHeader(title = "Проект без сферы", type = null, status = null, sphere = "")
         // The line under the name: with the rating, and for a person with no reviews yet.
         PersonCard(
             PersonCardUiModel(
@@ -722,7 +740,13 @@ private fun ProjectPageComponents() {
         RoleApplyCard(RoleApplyCardUiModel("Mobile Developer", listOf("Flutter", "Dart")), onApplyClick = {})
         // Without the button: applying is not available on the project page yet.
         RoleApplyCard(RoleApplyCardUiModel("UX Researcher", listOf("Figma", "Интервью")))
+        // A role of several places says how many are taken; one that needs no skills has no row of chips.
+        RoleApplyCard(RoleApplyCardUiModel("Data Analyst", listOf("SQL", "Python"), occupied = 1, slots = 3))
+        RoleApplyCard(RoleApplyCardUiModel("Project Manager", emptyList(), occupied = 0, slots = 2))
         RoleCardTitle("ML Engineer")
+        // The plural form of the places follows their number: "21 из 21 места", "2 из 4 мест".
+        RoleCardTitle("ML Engineer", places = rolePlacesText(occupied = 21, slots = 21))
+        RoleCardTitle("ML Engineer", places = rolePlacesText(occupied = 2, slots = 4))
         SkillChips(listOf("Python", "PyTorch", "OpenCV"))
         ProjectPeriodCard(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)))
     }
@@ -835,6 +859,16 @@ private fun ProjectsComponents() {
         RoleCard(RoleCardUiModel("ML Engineer", "Арджун Мехта", Elena, canManage = true))
         VacantRoleCard(VacantRoleCardUiModel("ML Engineer", listOf("Machine Learning", "Machine Learning"), isEditable = true))
         VacantRoleCard(VacantRoleCardUiModel("Mobile Developer", listOf("Flutter", "Dart"), canFindPeople = true))
+        // A role of several places, and a role with no free place whose people the app does not know (the Gateway).
+        VacantRoleCard(
+            VacantRoleCardUiModel(
+                "Data Scientist",
+                listOf("Python", "SQL"),
+                canFindPeople = true,
+                places = rolePlacesText(occupied = 1, slots = 3),
+            ),
+        )
+        VacantRoleCard(VacantRoleCardUiModel("UX Researcher", emptyList(), places = rolePlacesText(occupied = 1, slots = 1)))
         // Still the layout from before the redesign of "Card/Person" (48dp avatar, bottom-aligned).
         ParticipantManageCard(Initiator, onKickClick = {})
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -11,8 +11,11 @@
     <string name="projectsearch_empty_title">Ничего не найдено</string>
     <string name="projectsearch_empty_text">Измените запрос или фильтры</string>
     <string name="projectsearch_reset_filters">Сбросить фильтры</string>
-    <string name="projectsearch_error">Не удалось загрузить проекты. Попробуйте ещё раз</string>
+    <!-- The reason (no connection, timeout, ...) is written under it, see failureText -->
+    <string name="projectsearch_error">Не удалось загрузить проекты</string>
     <string name="projectsearch_retry">Повторить</string>
+    <!-- The author line of the viewer's own project in the results -->
+    <string name="projectsearch_you_initiator">Вы инициатор</string>
 
     <!-- Filters sheet -->
     <string name="projectsearch_filters_title">Фильтры</string>

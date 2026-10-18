@@ -6,6 +6,7 @@ import academicnet.components.generated.resources.components_project_status_recr
 import academicnet.components.generated.resources.components_project_status_unpublished
 import academicnet.components.generated.resources.components_project_type_practical
 import academicnet.components.generated.resources.components_project_type_scientific
+import academicnet.components.generated.resources.components_role_places
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -40,21 +41,31 @@ fun rolesCountText(count: Int): String =
     pluralStringResource(Res.plurals.components_project_roles_count, count, count)
 
 /**
- * The last line of a project card: the team size and the months the project runs, e.g.
- * "4 роли · окт 2026 — мар 2027". Dates follow the app language, see `monthRangeText`.
+ * The last line of a project card: the team size and, when the months the project runs are known, the months, e.g.
+ * "4 роли · окт 2026 — мар 2027". Without a [period] (API-GAP G43: the server gives none) it is the team size alone:
+ * "4 роли". Dates follow the app language, see `monthRangeText`.
+ *
+ * @param rolesCount how many roles the project has
+ * @param period the months the project runs, `null` while they are unknown
  */
 @Composable
-fun projectCardFooter(rolesCount: Int, period: ProjectPeriod): String =
-    "${rolesCountText(rolesCount)} · ${monthRangeText(period.start, period.end)}"
+fun projectCardFooter(rolesCount: Int, period: ProjectPeriod?): String {
+    val roles = rolesCountText(rolesCount)
+    return if (period == null) roles else "$roles · ${monthRangeText(period.start, period.end)}"
+}
 
 /**
  * Builds the [ProjectCardUiModel] every list of projects shows, so the chips and the footer look
- * the same in "Мои проекты" and in the search: the type chip first, then [status] and [sphere]
- * as tags.
+ * the same in "Мои проекты" and in the search: the type chip first, then the [status] and the [sphere]
+ * as tags. What the server does not tell is left out, not guessed (API-GAP G40, G41, G43): no [type] means no type
+ * chip, no [status] no status tag, a blank [sphere] no sphere tag, no [period] no months in the footer.
  *
  * @param author the author line, e.g. "Проф. Елена Васкес · Stanford" or "Вы инициатор"
  * @param avatarKey stands in for the author's picture until profiles carry images
  *  (see [AppAvatars.forKey])
+ * @param type the project type, `null` when unknown
+ * @param status the project status, `null` when unknown
+ * @param period the months the project runs, `null` when unknown
  */
 @Composable
 fun projectCardUiModel(
@@ -62,17 +73,28 @@ fun projectCardUiModel(
     author: String,
     avatarKey: String,
     isAuthorVerified: Boolean,
-    type: ProjectType,
-    status: ProjectStatus,
+    type: ProjectType?,
+    status: ProjectStatus?,
     sphere: String,
     rolesCount: Int,
-    period: ProjectPeriod,
+    period: ProjectPeriod?,
 ): ProjectCardUiModel = ProjectCardUiModel(
     title = title,
     author = author,
     authorAvatar = AppAvatars.forKey(avatarKey),
-    type = type.label(),
+    type = type?.label(),
     footer = projectCardFooter(rolesCount, period),
-    tags = listOf(status.label(), sphere),
+    tags = listOfNotNull(status?.label(), sphere.takeIf { it.isNotBlank() }),
     isAuthorVerified = isAuthorVerified,
 )
+
+/**
+ * How many places of a role are taken, with the plural form of the places: "1 из 3 мест занято", "0 из 1 места занято"
+ * | "1 of 3 spots filled", "0 of 1 spot filled". The form follows [slots], the number the places are counted in.
+ *
+ * @param occupied places of the role that are taken
+ * @param slots places of the role
+ */
+@Composable
+fun rolePlacesText(occupied: Int, slots: Int): String =
+    pluralStringResource(Res.plurals.components_role_places, slots, occupied, slots)

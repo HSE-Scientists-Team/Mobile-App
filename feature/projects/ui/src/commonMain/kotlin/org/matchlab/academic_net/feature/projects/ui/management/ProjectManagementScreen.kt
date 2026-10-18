@@ -39,11 +39,14 @@ import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
+import org.matchlab.academic_net.components.format.failureText
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
 import org.matchlab.academic_net.components.project.ProjectHeader
 import org.matchlab.academic_net.components.project.ProjectPeriodCard
 import org.matchlab.academic_net.components.project.RolesSectionHeader
+import org.matchlab.academic_net.components.project.rolePlacesText
+import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
@@ -54,12 +57,16 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_add_role
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_back
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_recruiting
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_status_unknown
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_unpublished
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_cancel
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_conflict
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_load_project_error
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_manage
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_overview
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_roles
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_not_found
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_retry
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_empty
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_header
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_unpublish_confirm
@@ -69,7 +76,8 @@ import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
  * "07 Управление проектом" for the initiator. Editing the project and the lifecycle actions
- * (start, finish, cancel) of the design belong to later sprints and are not shown.
+ * (start, finish, cancel) of the design belong to later sprints and are not shown. What the server does not tell or
+ * cannot do (API-GAP G41, G42, G43, G52) is left out, see [ProjectManagementViewModel].
  */
 @Composable
 fun ProjectManagementRoute(
@@ -83,8 +91,10 @@ fun ProjectManagementRoute(
         ProjectManagementViewModel(
             projectId = projectId,
             observeProject = dependencies.observeProject,
+            loadProject = dependencies.loadProject,
             unpublishProject = dependencies.unpublishProject,
             addRole = dependencies.addRole,
+            capabilities = dependencies.capabilities,
         )
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -95,6 +105,7 @@ fun ProjectManagementRoute(
         onAddRoleClick = viewModel::onAddRoleClick,
         onUnpublishClick = viewModel::onUnpublishClick,
         onFindPeopleClick = { roleId -> onFindCollaborators(projectId, roleId) },
+        onRetry = viewModel::onRetry,
         modifier = modifier,
     )
 
@@ -117,6 +128,7 @@ fun ProjectManagementRoute(
             onSave = viewModel::onRoleSave,
             onDismiss = viewModel::onRoleEditorDismiss,
             isSaving = state.isSavingRole,
+            errorText = state.roleFailure?.let { roleFailureText(it) },
         )
     }
 }
@@ -128,6 +140,7 @@ internal fun ProjectManagementScreen(
     onAddRoleClick: () -> Unit,
     onUnpublishClick: () -> Unit,
     onFindPeopleClick: (RoleId) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -180,23 +193,41 @@ internal fun ProjectManagementScreen(
                     }
                 }
             }
+            state.loadFailure != null -> MessageState(
+                title = stringResource(Res.string.projects_load_project_error),
+                text = failureText(state.loadFailure),
+                actionText = stringResource(Res.string.projects_retry),
+                onAction = onRetry,
+            )
             state.isLoading -> LoadingState()
             else -> MessageState(title = stringResource(Res.string.projects_not_found))
         }
     }
 }
 
-/** "07 … Обзор". */
+/**
+ * What the role sheet says when sending the role failed: a project that changed on the server (a 409) is told in its
+ * own words, anything else by the kind of the failure.
+ */
+@Composable
+private fun roleFailureText(cause: Throwable): String =
+    if (cause is ProjectConflictException) stringResource(Res.string.projects_conflict) else failureText(cause)
+
+/** "07 … Обзор". The chips of the type and the status and the card of the months are drawn for what is known. */
 @Composable
 private fun ColumnScope.OverviewTab(project: ProjectDetails) {
     ProjectHeader(project.title, project.type, project.status, project.sphere)
     ProjectDescriptionBlocks(project.problem, project.goal, project.tags)
-    ProjectPeriodCard(project.period)
+    project.period?.let { ProjectPeriodCard(it) }
 }
 
 /**
  * "07b … Роли". The kick button and the chat button of members need later stories, so members
- * are plain cards; the search button of a vacant role opens "08 Поиск коллабораторов" for it.
+ * are plain cards; the search button of a role with a free place opens "08 Поиск коллабораторов" for it.
+ *
+ * The counter is of places. Each role shows its people (API-GAP G52: the Gateway gives none), then a card of the role
+ * when it has a free place or has places taken by people the app does not know; that card has the line of taken places
+ * when the role has several or none is free.
  */
 @Composable
 private fun RolesTab(
@@ -207,19 +238,24 @@ private fun RolesTab(
     val colors = MaterialTheme.colorScheme
     RolesSectionHeader(
         title = stringResource(Res.string.projects_roles_header),
-        occupiedCount = project.occupiedRoles.size,
-        totalCount = project.rolesCount,
+        occupiedCount = project.occupiedPlaces,
+        totalCount = project.totalPlaces,
     )
-    project.occupiedRoles.forEach { role ->
-        PersonCard(role.toCardUiModel())
-    }
-    project.vacantRoles.forEach { role ->
-        // The search for people who could take the role starts from the button of the card, which
-        // only the initiator gets; the rest of the card is not clickable.
-        VacantRoleCard(
-            model = VacantRoleCardUiModel(role.title, role.skills, canFindPeople = role.canFindPeople),
-            onFindPeopleClick = { onFindPeopleClick(role.id) },
-        )
+    project.roles.forEach { role ->
+        role.members.forEach { member -> PersonCard(member.toCardUiModel(role.title)) }
+        if (role.showsCard) {
+            // The search for people who could take the role starts from the button of the card, which
+            // only the initiator gets for a role with a free place; the rest of the card is not clickable.
+            VacantRoleCard(
+                model = VacantRoleCardUiModel(
+                    role = role.title,
+                    skills = role.skills,
+                    canFindPeople = role.canFindPeople,
+                    places = if (role.showsPlaces) rolePlacesText(role.occupied, role.slots) else null,
+                ),
+                onFindPeopleClick = { onFindPeopleClick(role.id) },
+            )
+        }
     }
     if (project.rolesCount == 0) {
         Text(
@@ -236,7 +272,10 @@ private fun RolesTab(
     )
 }
 
-/** "07c … Управление": only "Снять с публикации" belongs to the first sprint. */
+/**
+ * "07c … Управление": only "Снять с публикации" belongs to the first sprint, and only when the server can do it and
+ * the project is recruiting (API-GAP G42). API-GAP G41: with an unknown status the banner says so.
+ */
 @Composable
 private fun ManageTab(project: ProjectDetails, isUnpublishing: Boolean, onUnpublishClick: () -> Unit) {
     InfoBanner(
@@ -244,6 +283,7 @@ private fun ManageTab(project: ProjectDetails, isUnpublishing: Boolean, onUnpubl
             when (project.status) {
                 ProjectStatus.Recruiting -> Res.string.projects_banner_recruiting
                 ProjectStatus.Unpublished -> Res.string.projects_banner_unpublished
+                null -> Res.string.projects_banner_status_unknown
             },
         ),
     )
@@ -258,11 +298,12 @@ private fun ManageTab(project: ProjectDetails, isUnpublishing: Boolean, onUnpubl
     }
 }
 
+/** A person on a role as the person card shows them: the role is the line under the name. */
 @Composable
-private fun OccupiedRoleItem.toCardUiModel(): PersonCardUiModel = PersonCardUiModel(
-    name = memberName,
+private fun RoleMemberItem.toCardUiModel(roleTitle: String): PersonCardUiModel = PersonCardUiModel(
+    name = name,
     subtitle = roleTitle,
     avatar = AppAvatars.forKey(avatarKey),
-    isVerified = isMemberVerified,
+    isVerified = isVerified,
     stats = personStatsText(rating, completedProjects),
 )

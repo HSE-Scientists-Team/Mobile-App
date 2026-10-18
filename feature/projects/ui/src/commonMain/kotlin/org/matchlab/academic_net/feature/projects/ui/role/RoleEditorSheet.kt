@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +35,10 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 /**
  * Bottom sheet to name a role and list its skills. The design has no such screen, so it is put
  * together from the filter sheet's parts (sheet header, fields, cancel / apply buttons).
+ *
+ * @param isSaving the role is being sent: "Сохранить" is switched off
+ * @param errorText why sending the role has failed, in the error color above the buttons; `null` for none. The sheet
+ *  stays open after a failure so that the user can check the role and send it again
  */
 @Composable
 fun RoleEditorSheet(
@@ -44,6 +50,7 @@ fun RoleEditorSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     isSaving: Boolean = false,
+    errorText: String? = null,
 ) {
     val titleError = when {
         RoleDraftError.TitleEmpty in state.errors -> stringResource(Res.string.projects_error_required)
@@ -77,6 +84,13 @@ fun RoleEditorSheet(
                 onRemoveTag = onRemoveSkill,
                 placeholder = stringResource(Res.string.projects_role_skills_hint),
             )
+            if (errorText != null) {
+                Text(
+                    text = errorText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppButton(
                     text = stringResource(Res.string.projects_cancel),

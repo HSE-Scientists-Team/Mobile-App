@@ -47,6 +47,7 @@ import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_add_role
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_close
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_create_unavailable
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_end_sheet_title
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_end_before_start
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_month
@@ -330,7 +331,10 @@ internal fun CreateProjectScreen(
         ) {
             if (state.publishFailed) {
                 Text(
-                    text = stringResource(Res.string.projects_publish_error),
+                    // API-GAP G40, G43: a server that cannot create projects is not a failure to try again.
+                    text = stringResource(
+                        if (state.publishUnavailable) Res.string.projects_create_unavailable else Res.string.projects_publish_error,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.error,
                 )

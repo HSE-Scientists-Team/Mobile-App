@@ -6,9 +6,9 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// The mock server's "database": the seeded data several features' mock data sources answer from
-// (project search and project details read the same projects). Depends only on the shared model,
-// has no data sources of its own and no feature knows another through it.
+// The mock server's "database": what the mock sign-in answers from, the account every sign-in lands on and the
+// registry of trusted e-mail domains. Everything else (people, projects) is the Gateway's now. Depends only on the
+// shared model, has no data sources of its own and no feature knows another through it.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.mockserver"
@@ -27,7 +27,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The catalog is made of the common model, and the model's dates need kotlinx-datetime.
+            // The account is made of the common model.
             api(project(":common"))
         }
         commonTest.dependencies {

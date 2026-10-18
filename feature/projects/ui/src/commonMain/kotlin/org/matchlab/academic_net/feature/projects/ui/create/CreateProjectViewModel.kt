@@ -13,6 +13,7 @@ import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.result.FeatureUnavailableException
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraft
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
@@ -38,10 +39,20 @@ data class CreateProjectUiState(
     /** The role sheet, `null` while it is closed. */
     val roleEditor: RoleEditorState? = null,
     val isPublishing: Boolean = false,
-    val publishFailed: Boolean = false,
+    /** Why publishing has failed; cleared by the next edit and by the next attempt. `null` while nothing has failed. */
+    val publishFailure: Throwable? = null,
     /** Set once the project is published: the screen leaves for it. */
     val publishedProjectId: ProjectId? = null,
-)
+) {
+    /** Publishing has failed, for whatever reason. */
+    val publishFailed: Boolean get() = publishFailure != null
+
+    /**
+     * The server cannot create projects at all (API-GAP G40, G43), which is not a failure to try again: the screen says
+     * "Создание проектов пока недоступно на сервере" instead of "Не удалось опубликовать проект".
+     */
+    val publishUnavailable: Boolean get() = publishFailure is FeatureUnavailableException
+}
 
 /** "05 Создание проекта": "опубликовать новый проект", "объявить роли", "выбрать сферу проекта". */
 class CreateProjectViewModel(
@@ -152,7 +163,7 @@ class CreateProjectViewModel(
             state.update { it.copy(errors = errors) }
             return
         }
-        state.update { it.copy(errors = emptySet(), isPublishing = true, publishFailed = false) }
+        state.update { it.copy(errors = emptySet(), isPublishing = true, publishFailure = null) }
         viewModelScope.launch {
             when (val result = publishProject(current.draft)) {
                 is SubmitResult.Success -> state.update {
@@ -162,7 +173,7 @@ class CreateProjectViewModel(
                     it.copy(isPublishing = false, errors = result.errors)
                 }
                 is SubmitResult.Failure -> state.update {
-                    it.copy(isPublishing = false, publishFailed = true)
+                    it.copy(isPublishing = false, publishFailure = result.cause)
                 }
             }
         }
@@ -174,7 +185,7 @@ class CreateProjectViewModel(
             current.copy(
                 draft = draft,
                 errors = if (showErrors) draft.normalized().validate() else current.errors,
-                publishFailed = false,
+                publishFailure = null,
             )
         }
     }

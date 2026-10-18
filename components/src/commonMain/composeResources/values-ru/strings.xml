@@ -35,9 +35,16 @@
     <string name="components_project_block_problem">Проблема</string>
     <string name="components_project_block_goal">Цель</string>
     <string name="components_project_block_tags">Теги</string>
-    <!-- 1: roles filled, 2: roles in total -->
+    <!-- 1: places filled, 2: places in total (a role can be for several people) -->
     <string name="components_project_roles_occupied">%1$d из %2$d занято</string>
     <string name="components_role_apply">Откликнуться</string>
+    <!-- 1: places of a role that are taken, 2: places of the role; the form follows the second number -->
+    <plurals name="components_role_places">
+        <item quantity="one">%1$d из %2$d места занято</item>
+        <item quantity="few">%1$d из %2$d мест занято</item>
+        <item quantity="many">%1$d из %2$d мест занято</item>
+        <item quantity="other">%1$d из %2$d мест занято</item>
+    </plurals>
 
     <!-- A person's numbers on their card: the rating line and the completed projects -->
     <string name="components_person_rating">★ %1$s</string>

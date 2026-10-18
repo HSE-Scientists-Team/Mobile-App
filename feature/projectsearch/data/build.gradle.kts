@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Project search feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockProjectSearchDataSource.
+// Project search feature, data layer: the repository, and the one server it talks to, the Gateway
+// (GatewayProjectSearchDataSource over ProjectCatalogApi and ProjectAssembler).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.projectsearch.data"
@@ -27,9 +27,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":feature:projectsearch:domain"))
-            // MockProjectSearchDataSource takes the mock server's projects in its constructor.
-            api(project(":mockserver"))
             implementation(project(":utils"))
+            // ProjectCatalogApi, the page mapping and the project assembler for GatewayProjectSearchDataSource; the
+            // feature never exposes them.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

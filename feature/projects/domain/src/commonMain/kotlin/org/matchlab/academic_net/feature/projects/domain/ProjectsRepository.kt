@@ -11,25 +11,53 @@ class ProjectNotFoundException(val projectId: ProjectId) :
     NoSuchElementException("Project ${projectId.value} not found")
 
 /**
- * Projects of the current user as their initiator. Suspending functions throw on failure
- * (e.g. no network); the use cases turn that into results.
+ * The server refused a change because the project had changed since it was read (a 409). By the time this is thrown
+ * the project has been read again where possible, so [ProjectsRepository.observeProject] shows what the server has:
+ * the user checks and tries again.
+ */
+class ProjectConflictException(val projectId: ProjectId) :
+    IllegalStateException("Project ${projectId.value} changed on the server")
+
+/**
+ * Projects of the current user as their initiator. Suspending functions throw on failure (no network, a server
+ * error, [org.matchlab.academic_net.common.result.FeatureUnavailableException] for what [capabilities] switch off);
+ * the use cases turn that into results.
  */
 interface ProjectsRepository {
+    /** What the server behind the projects can do; the screens hide the rest. */
+    val capabilities: ProjectsCapabilities
+
+    /** The viewer's projects, newest first. API-GAP G44: fails unless [ProjectsCapabilities.canListMine]. */
     fun observeMyProjects(): Flow<List<Project>>
 
-    /** Emits `null` if there is no such project. */
+    /**
+     * The project as last read or changed in this session: `null` until [loadProject] has read it, and after the
+     * server said there is no such project. Never fails.
+     */
     fun observeProject(id: ProjectId): Flow<Project?>
 
+    /** Reads the project from the server into [observeProject]; `null` when the viewer may not see such a project. */
+    suspend fun loadProject(id: ProjectId): Project?
+
+    /** The project as last read in this session, else as [loadProject] reads it. */
     suspend fun getProject(id: ProjectId): Project?
 
-    /** Creates the project already published ([org.matchlab.academic_net.common.model.ProjectStatus.Recruiting]). */
+    /** Creates the project already published. API-GAP G40, G43: only with [ProjectsCapabilities.canCreate]. */
     suspend fun publishProject(project: NewProject): Project
 
-    /** Hides the project from search. @throws ProjectNotFoundException */
+    /**
+     * Hides the project from search. API-GAP G42: only with [ProjectsCapabilities.canUnpublish].
+     * @throws ProjectNotFoundException
+     */
     suspend fun unpublishProject(id: ProjectId): Project
 
-    /** Adds a vacant role to the project. @throws ProjectNotFoundException */
+    /**
+     * Adds a vacant role for one person to the project (API-GAP G49).
+     * @throws ProjectNotFoundException the project is gone (404)
+     * @throws ProjectConflictException the project changed meanwhile (409); it has been read again
+     */
     suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role
 
+    /** The spheres a project can belong to: the app's list (API-GAP G46). */
     suspend fun getSpheres(): List<Sphere>
 }

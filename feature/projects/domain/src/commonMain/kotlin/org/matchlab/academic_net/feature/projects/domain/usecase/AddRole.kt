@@ -8,7 +8,14 @@ import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
 import org.matchlab.academic_net.utils.suspendRunCatching
 
-/** "Объявить роли": adds a vacant role to a project that is already published. */
+/**
+ * "Объявить роли": adds a vacant role for one person to a project that is already published (API-GAP G49).
+ *
+ * A draft that does not pass validation is [SubmitResult.Invalid] and nothing is sent. A failure of the repository is
+ * [SubmitResult.Failure]: among them [org.matchlab.academic_net.feature.projects.domain.ProjectConflictException] (the
+ * project changed on the server; it has been read again) and
+ * [org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundException] (the project is gone).
+ */
 class AddRoleUseCase(private val repository: ProjectsRepository) {
     suspend operator fun invoke(
         projectId: ProjectId,

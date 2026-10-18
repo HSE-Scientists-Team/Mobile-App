@@ -15,6 +15,9 @@
     <string name="projects_participant_empty_title">No participation yet</string>
     <string name="projects_participant_empty_text">Projects you take part in will appear here</string>
     <string name="projects_load_error">Could not load projects</string>
+    <!-- API-GAP G44, G40, G43: the server cannot list the user's projects or create one yet -->
+    <string name="projects_list_unavailable">The server can't list your projects yet</string>
+    <string name="projects_create_unavailable">The server can't create projects yet</string>
 
     <!-- Create project -->
     <string name="projects_new_title">New project</string>
@@ -77,4 +80,10 @@
     <string name="projects_unpublish_confirm">Unpublish</string>
     <string name="projects_action_error">Could not complete the action. Please try again</string>
     <string name="projects_not_found">Project not found</string>
+    <string name="projects_load_project_error">Couldn't load the project</string>
+    <string name="projects_retry">Retry</string>
+    <!-- API-GAP G41: the server does not say in which status the project is -->
+    <string name="projects_banner_status_unknown">The server doesn't report the project's status yet: no management actions are available</string>
+    <!-- A role could not be added because the project changed on the server meanwhile (a 409) -->
+    <string name="projects_conflict">The project has changed on the server: check it and try again</string>
 </resources>

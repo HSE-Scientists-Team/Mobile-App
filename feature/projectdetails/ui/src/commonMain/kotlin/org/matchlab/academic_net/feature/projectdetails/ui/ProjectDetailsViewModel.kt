@@ -32,30 +32,48 @@ data class InitiatorUiModel(
     val canContact: Boolean,
 )
 
-/** An open role of the project with the skills it needs. */
+/**
+ * A role of the project that has a free place, with the skills it needs.
+ *
+ * @property occupied places of the role that are taken, never more than [slots]
+ * @property slots places of the role (API-GAP G49); the card says "N из M мест занято" when it is more than 1
+ */
 @Immutable
 data class VacantRoleUiModel(
     val id: RoleId,
     val title: String,
     val skills: List<String>,
+    val occupied: Int,
+    val slots: Int,
 )
 
-/** The project as the page shows it; carries no localized text, the screen builds the labels. */
+/**
+ * The project as the page shows it; carries no localized text, the screen builds the labels.
+ *
+ * @property type `null` when the server gives none (API-GAP G40): the header has no chip
+ * @property status `null` when the server gives none (API-GAP G41): the header has no chip
+ * @property period `null` when the server gives none (API-GAP G43): the page has no card of the months
+ * @property vacantRoles only the roles with a free place: the others are counted in [occupiedPlaces]
+ * @property occupiedPlaces taken places of all roles, the "2" of "2 из 4 занято"
+ * @property totalPlaces places of all roles, the "4" of "2 из 4 занято"
+ * @property rolesCount how many roles the project has, whether they have free places or not; a project with none has
+ *  no section of roles
+ */
 @Immutable
 data class ProjectDetailsUiModel(
     val title: String,
-    val type: ProjectType,
-    val status: ProjectStatus,
+    val type: ProjectType?,
+    val status: ProjectStatus?,
     val sphere: String,
     val problem: String,
     val goal: String,
     val tags: List<String>,
     val initiator: InitiatorUiModel,
-    /** Only the open roles: the filled ones are counted in [occupiedRolesCount]. */
     val vacantRoles: List<VacantRoleUiModel>,
-    val occupiedRolesCount: Int,
+    val occupiedPlaces: Int,
+    val totalPlaces: Int,
     val rolesCount: Int,
-    val period: ProjectPeriod,
+    val period: ProjectPeriod?,
 )
 
 /** What the project page shows: the loading, the answer of the server or the failure. */
@@ -66,16 +84,17 @@ sealed interface ProjectDetailsUiState {
     /** The server has no such project for the viewer: unknown or taken off publication. */
     data object NotFound : ProjectDetailsUiState
 
-    /** The request failed; "Повторить" asks again. */
-    data object Error : ProjectDetailsUiState
+    /** The request failed for [cause]; the screen says why (see `failureText`) and "Повторить" asks again. */
+    data class Error(val cause: Throwable) : ProjectDetailsUiState
 
     /** The project was found; [project] is everything the page shows. */
     data class Content(val project: ProjectDetailsUiModel) : ProjectDetailsUiState
 }
 
 /**
- * "04 Проект": the page of someone else's project, read-only. It loads the project once, when it
- * is created, and again on [onRetry]. Applying to a role belongs to a later story.
+ * "04 Проект": the page of a published project, read-only. The viewer's own project can be here too (the search may
+ * find it, API-GAP G53): it is shown the same way, without the chat with its initiator. It loads the project once, when
+ * it is created, and again on [onRetry], which works only after a failure. Applying to a role belongs to a later story.
  */
 class ProjectDetailsViewModel(
     private val projectId: ProjectId,
@@ -91,7 +110,7 @@ class ProjectDetailsViewModel(
 
     /** "Повторить" after a failed load; a request that is still running is not doubled. */
     fun onRetry() {
-        if (state.value is ProjectDetailsUiState.Loading) return
+        if (state.value !is ProjectDetailsUiState.Error) return
         state.value = ProjectDetailsUiState.Loading
         load()
     }
@@ -101,7 +120,7 @@ class ProjectDetailsViewModel(
             state.value = when (val result = getProjectDetails(projectId)) {
                 is ProjectDetailsResult.Found -> ProjectDetailsUiState.Content(result.details.toUiModel())
                 ProjectDetailsResult.NotFound -> ProjectDetailsUiState.NotFound
-                is ProjectDetailsResult.Failure -> ProjectDetailsUiState.Error
+                is ProjectDetailsResult.Failure -> ProjectDetailsUiState.Error(result.cause)
             }
         }
     }
@@ -123,8 +142,17 @@ private fun LoadedProject.toUiModel(): ProjectDetailsUiModel = ProjectDetailsUiM
         completedProjects = initiator.completedProjects,
         canContact = !project.viewerIsInitiator,
     ),
-    vacantRoles = project.vacantRoles.map { VacantRoleUiModel(it.id, it.title, it.skills) },
-    occupiedRolesCount = project.occupiedRolesCount,
+    vacantRoles = project.vacantRoles.map { role ->
+        VacantRoleUiModel(
+            id = role.id,
+            title = role.title,
+            skills = role.skills,
+            occupied = minOf(role.occupied, role.slots),
+            slots = role.slots,
+        )
+    },
+    occupiedPlaces = project.occupiedPlaces,
+    totalPlaces = project.totalPlaces,
     rolesCount = project.roles.size,
     period = project.period,
 )

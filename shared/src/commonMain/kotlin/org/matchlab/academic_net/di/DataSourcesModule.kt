@@ -11,15 +11,17 @@ import org.matchlab.academic_net.feature.feed.data.FeedDataSource
 import org.matchlab.academic_net.feature.feed.data.GatewayFeedDataSource
 import org.matchlab.academic_net.feature.profile.data.GatewayProfileDataSource
 import org.matchlab.academic_net.feature.profile.data.ProfileDataSource
-import org.matchlab.academic_net.feature.projectdetails.data.MockProjectDetailsDataSource
+import org.matchlab.academic_net.feature.projectdetails.data.GatewayProjectDetailsDataSource
 import org.matchlab.academic_net.feature.projectdetails.data.ProjectDetailsDataSource
+import org.matchlab.academic_net.feature.projects.data.GatewayProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
-import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
-import org.matchlab.academic_net.feature.projectsearch.data.MockProjectSearchDataSource
+import org.matchlab.academic_net.feature.projectsearch.data.GatewayProjectSearchDataSource
 import org.matchlab.academic_net.feature.projectsearch.data.ProjectSearchDataSource
 import org.matchlab.academic_net.feature.settings.data.GatewaySettingsDataSource
 import org.matchlab.academic_net.feature.settings.data.SettingsDataSource
 import org.matchlab.academic_net.gateway.GatewaySession
+import org.matchlab.academic_net.gateway.mapping.DirectoryProjectAssembler
+import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
 
 /**
  * Where the data source of every feature comes from, for one session: this is the only place that picks the sources.
@@ -28,18 +30,24 @@ import org.matchlab.academic_net.gateway.GatewaySession
  * Every source is [SessionScope]d, so it is made when the user signs in and is gone when they sign out: the next
  * account never sees the caches, the drafts and the mock state of the previous one.
  *
- * **Sources.** The profiles, the settings, the people search and the feed are the Gateway's and have no mock: their
- * sources are made over the [GatewaySession] of the session, in both backends. In [Backend.Mock] there is no Gateway,
- * so asking for them there fails with the `IllegalStateException` of the Gateway provider (see [GatewayModule]); that
- * mode is for the features that still run on their mocks. A feature that is not connected to the Gateway yet runs on
- * its mock in both modes; those mocks keep the viewer they were written for (`MockAccounts.viewer`, `user-me`): the
- * mock world has people under its own ids only, and an id given by the server would show an empty profile. In the mock
- * mode the id of the session is that same one. The Gateway sources take `session.userId`.
+ * **Sources.** The profiles, the settings, the people search, the feed and the projects (their list, the search and the
+ * page of a project) are the Gateway's and have no mock: their sources are made over the [GatewaySession] of the
+ * session, in both backends. In [Backend.Mock] there is no Gateway, so asking for them there fails with the
+ * `IllegalStateException` of the Gateway provider (see [GatewayModule]). Only the chats run on their mock in both modes
+ * (API-GAP G50: the API has none). The Gateway sources take `session.userId`.
  */
 internal interface DataSourcesModule {
+    /** API-GAP G47: a project names its owner by id only; owners are read through the session's directory. */
     @Provides
     @SessionScope
-    fun projectsDataSource(): ProjectsDataSource = MockProjectsDataSource()
+    fun projectAssembler(gateway: GatewaySession, session: Session): ProjectAssembler =
+        DirectoryProjectAssembler(gateway.users, viewerId = session.userId)
+
+    /** API-GAP G40, G43, G44, G42: creating, "Мои проекты" and unpublishing are off in the source's capabilities. */
+    @Provides
+    @SessionScope
+    fun projectsDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ProjectsDataSource =
+        GatewayProjectsDataSource(gateway.projects, assembler)
 
     /**
      * API-GAP G50: the API has no chats, so they are local in both modes and messages go nowhere. The demo chats exist
@@ -63,13 +71,17 @@ internal interface DataSourcesModule {
     fun profileDataSource(gateway: GatewaySession): ProfileDataSource =
         GatewayProfileDataSource(gateway.profiles, gateway.achievements, gateway.reviews, gateway.users)
 
+    /** The page of a project (04). API-GAP G40, G41, G43: no type, status or period. */
     @Provides
     @SessionScope
-    fun projectDetailsDataSource(): ProjectDetailsDataSource = MockProjectDetailsDataSource()
+    fun projectDetailsDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ProjectDetailsDataSource =
+        GatewayProjectDetailsDataSource(gateway.projectCatalog, assembler)
 
+    /** API-GAP G40, G45: the type and duration filters are off; only `q`, `field` and `tag` are sent. */
     @Provides
     @SessionScope
-    fun projectSearchDataSource(): ProjectSearchDataSource = MockProjectSearchDataSource()
+    fun projectSearchDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ProjectSearchDataSource =
+        GatewayProjectSearchDataSource(gateway.projectCatalog, assembler)
 
     /**
      * The people of the feed (01c). API-GAP G32: random people open to collaboration; G33: the viewer and the repeats

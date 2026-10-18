@@ -9,8 +9,11 @@
     <string name="projectsearch_empty_title">No projects found</string>
     <string name="projectsearch_empty_text">Change your query or filters</string>
     <string name="projectsearch_reset_filters">Reset filters</string>
-    <string name="projectsearch_error">Could not load projects. Please try again</string>
+    <!-- The reason (no connection, timeout, ...) is written under it, see failureText -->
+    <string name="projectsearch_error">Couldn't load projects</string>
     <string name="projectsearch_retry">Retry</string>
+    <!-- The author line of the viewer's own project in the results -->
+    <string name="projectsearch_you_initiator">You're the initiator</string>
 
     <!-- Filters sheet -->
     <string name="projectsearch_filters_title">Filters</string>

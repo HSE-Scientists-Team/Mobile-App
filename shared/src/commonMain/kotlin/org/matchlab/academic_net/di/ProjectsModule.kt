@@ -6,6 +6,7 @@ import org.matchlab.academic_net.feature.projects.data.ProjectsRepositoryImpl
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.GetSpheresUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.PublishProjectUseCase
@@ -22,9 +23,11 @@ internal interface ProjectsModule {
     fun projectsUiDependencies(repository: ProjectsRepository): ProjectsUiDependencies = ProjectsUiDependencies(
         observeMyProjects = ObserveMyProjectsUseCase(repository),
         observeProject = ObserveProjectUseCase(repository),
+        loadProject = LoadProjectUseCase(repository),
         publishProject = PublishProjectUseCase(repository),
         unpublishProject = UnpublishProjectUseCase(repository),
         addRole = AddRoleUseCase(repository),
         getSpheres = GetSpheresUseCase(repository),
+        capabilities = repository.capabilities,
     )
 }
