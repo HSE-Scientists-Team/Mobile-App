@@ -10,6 +10,7 @@ import org.matchlab.academic_net.gateway.internal.ApiRequests
 import org.matchlab.academic_net.gateway.internal.KtorAchievementsApi
 import org.matchlab.academic_net.gateway.internal.KtorPeopleSearchApi
 import org.matchlab.academic_net.gateway.internal.KtorProfilesApi
+import org.matchlab.academic_net.gateway.internal.KtorProjectsApi
 import org.matchlab.academic_net.gateway.internal.KtorRecommendationsApi
 import org.matchlab.academic_net.gateway.internal.KtorReviewsApi
 import org.matchlab.academic_net.gateway.internal.pathSegment
@@ -22,8 +23,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * A session is created when the user signs in (or the app finds the stored session) and closed when the user
  * signs out, so that nothing of the old user's requests is still running when the next one signs in. The
  * calls of the user's data are the properties: [profiles], [achievements], [reviews] and [users] (the
- * profile blocks); the people are found with [peopleSearch] and recommended by [recommendations]. The calls of
- * projects are added by the blocks that need them, each as a property with its own interface over [requests].
+ * profile blocks); the people are found with [peopleSearch] and recommended by [recommendations]; the projects are
+ * [projects] (the viewer's own) and [projectCatalog] (everybody's, for the search and the page of a project).
  *
  * Every call throws `RemoteFailure` when it fails and lets a `CancellationException` through, like
  * [AccountApi].
@@ -59,6 +60,15 @@ class GatewaySession internal constructor(
 
     /** What the server recommends: the people of the feed ("01c"). */
     val recommendations: RecommendationsApi = KtorRecommendationsApi(requests)
+
+    // One Ktor class serves both interfaces: the projects and the page of a project read the same GET /projects/{id}.
+    private val projectCalls = KtorProjectsApi(requests)
+
+    /** The viewer's own projects: reading one and adding a role to it. */
+    val projects: ProjectsApi = projectCalls
+
+    /** Everybody's projects: the search and the page of a project. */
+    val projectCatalog: ProjectCatalogApi = projectCalls
 
     /**
      * Cancels the requests of this session that are still running (they end with a `CancellationException`,
