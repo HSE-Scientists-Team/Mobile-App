@@ -95,6 +95,8 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            // The session graph is tested over a mock engine: the sign-in, the restoring and the sign-out talk HTTP.
+            implementation(libs.ktor.client.mock)
         }
     }
 }
