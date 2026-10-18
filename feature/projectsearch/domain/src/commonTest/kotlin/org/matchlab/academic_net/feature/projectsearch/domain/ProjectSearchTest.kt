@@ -5,10 +5,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.paging.PageRequest
 
 class ProjectFiltersTest {
     @Test
@@ -80,17 +82,44 @@ class SearchProjectsUseCaseTest {
             filters = ProjectFilters(types = setOf(ProjectType.Scientific), sphere = ComputerScience),
         )
 
-        val result = search(query).getOrThrow()
+        val result = search(query, PageRequest.First).getOrThrow()
 
         assertEquals(query, repository.lastQuery)
-        assertEquals(answer, result)
+        assertEquals(answer, result.items)
+        assertEquals(2, result.total)
+    }
+
+    @Test
+    fun theRequestedPageReachesTheRepositoryAndTheAnswerKeepsIt() = runTest {
+        repository.results = List(5) { foundProject("P$it") }
+
+        val page = search(ProjectQuery(), PageRequest(offset = 2, limit = 2)).getOrThrow()
+
+        assertEquals(PageRequest(2, 2), repository.lastPage)
+        assertEquals(listOf("P2", "P3"), page.items.map { it.project.title })
+        assertEquals(PageRequest(2, 2), page.request)
+        assertEquals(PageRequest(4, 2), page.next())
+    }
+
+    @Test
+    fun theLastPageHasNoNext() = runTest {
+        repository.results = List(5) { foundProject("P$it") }
+
+        val page = search(ProjectQuery(), PageRequest(offset = 4, limit = 2)).getOrThrow()
+
+        assertEquals(listOf("P4"), page.items.map { it.project.title })
+        assertNull(page.next())
     }
 
     @Test
     fun emptyAnswerIsASuccess() = runTest {
         repository.results = emptyList()
 
-        assertEquals(emptyList(), search(ProjectQuery()).getOrThrow())
+        val page = search(ProjectQuery(), PageRequest.First).getOrThrow()
+
+        assertEquals(emptyList(), page.items)
+        assertEquals(0, page.total)
+        assertFalse(page.hasMore)
     }
 
     @Test
@@ -98,14 +127,14 @@ class SearchProjectsUseCaseTest {
         val error = IllegalStateException("offline")
         repository.failure = error
 
-        assertSame(error, search(ProjectQuery()).exceptionOrNull())
+        assertSame(error, search(ProjectQuery(), PageRequest.First).exceptionOrNull())
     }
 
     @Test
     fun cancellationIsNotTurnedIntoFailure() = runTest {
         repository.failure = CancellationException("cancelled")
 
-        assertFailsWith<CancellationException> { search(ProjectQuery()) }
+        assertFailsWith<CancellationException> { search(ProjectQuery(), PageRequest.First) }
     }
 }
 

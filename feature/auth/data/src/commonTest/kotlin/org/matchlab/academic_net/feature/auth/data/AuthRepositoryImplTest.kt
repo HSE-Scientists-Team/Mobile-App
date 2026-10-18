@@ -24,7 +24,6 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.RemoteFailure
-import org.matchlab.academic_net.feature.auth.data.mock.MockAuthDataSource
 import org.matchlab.academic_net.feature.auth.domain.AccessToken
 import org.matchlab.academic_net.feature.auth.domain.AuthState
 import org.matchlab.academic_net.feature.auth.domain.ConfirmationOutcome
@@ -1261,12 +1260,12 @@ class AuthRepositoryImplTest : AuthRepositoryTestBase() {
         }
     }
 
-    // ---- the whole flow on the mock server ----
+    // ---- the whole flow on a played server ----
 
     @Test
-    fun registrationConfirmationAndSignInOnTheMockServer() = runTest {
-        val mock = MockAuthDataSource(latencyMillis = 0, timeSource = time)
-        val repository = signedOutRepository(server = mock)
+    fun registrationConfirmationAndSignInOnAPlayedServer() = runTest {
+        val played = PlayedAccountServer(time)
+        val repository = signedOutRepository(server = played)
 
         val sent = assertIs<RegistrationOutcome.LetterSent>(repository.register(Hunter))
         assertEquals(PendingRegistration(HunterAddress, 60.seconds, hasPassword = true), sent.pending)
@@ -1284,32 +1283,31 @@ class AuthRepositoryImplTest : AuthRepositoryTestBase() {
         assertEquals(UserId("user-me"), session.userId)
         assertEquals(HunterAddress, session.email)
 
-        // The next launch restores the session, and the mock accepts its token.
-        val relaunchedMock = MockAuthDataSource(latencyMillis = 0, timeSource = time)
-        val relaunched = signedOutRepository(server = relaunchedMock)
+        // The next launch restores the session, and the server accepts its token.
+        val relaunched = signedOutRepository(server = played)
         assertEquals(AuthState.SignedIn(session), relaunched.authState.value)
 
         relaunched.signOut()
         assertEquals(OutAfterHunter, relaunched.authState.value)
-        assertEquals(SessionCheck.Rejected, relaunchedMock.checkSession(session.accessToken))
+        assertEquals(SessionCheck.Rejected, played.checkSession(session.accessToken))
     }
 
     @Test
-    fun addressConfirmedElsewhereCanStillSignInOnTheMockServer() = runTest {
-        val mock = MockAuthDataSource(latencyMillis = 0, timeSource = time)
-        val repository = signedOutRepository(server = mock)
+    fun addressConfirmedElsewhereCanStillSignInOnAPlayedServer() = runTest {
+        val played = PlayedAccountServer(time)
+        val repository = signedOutRepository(server = played)
         repository.register(Hunter)
         // The user opened the link in a browser, not in the app.
-        assertEquals(ConfirmReply.Confirmed, mock.confirmEmail("123456"))
+        assertEquals(ConfirmReply.Confirmed, played.confirmEmail("123456"))
 
         assertEquals(RegistrationOutcome.AlreadyRegistered, repository.resendLetter(HunterAddress))
         assertEquals(SignInOutcome.SignedIn, repository.signInPending(HunterAddress))
     }
 
     @Test
-    fun expiredLinkOnTheMockServerAsksForANewLetter() = runTest {
-        val mock = MockAuthDataSource(latencyMillis = 0, timeSource = time)
-        val repository = signedOutRepository(server = mock)
+    fun expiredLinkOnAPlayedServerAsksForANewLetter() = runTest {
+        val played = PlayedAccountServer(time)
+        val repository = signedOutRepository(server = played)
         repository.register(Hunter)
         time += (31 * 60).seconds
 

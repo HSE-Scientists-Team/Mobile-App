@@ -19,7 +19,6 @@ import org.matchlab.academic_net.feature.auth.data.RegisterReply
 import org.matchlab.academic_net.feature.auth.data.SessionCheck
 import org.matchlab.academic_net.feature.auth.data.SessionStorage
 import org.matchlab.academic_net.feature.auth.data.SignInReply
-import org.matchlab.academic_net.feature.auth.data.mock.MockAuthDataSource
 import org.matchlab.academic_net.feature.auth.domain.AccessToken
 import org.matchlab.academic_net.feature.auth.domain.AuthRepository
 import org.matchlab.academic_net.feature.auth.domain.AuthState
@@ -34,10 +33,10 @@ import org.matchlab.academic_net.feature.auth.domain.usecase.SignInUseCase
 import org.matchlab.academic_net.securestore.InMemorySecureStore
 import org.matchlab.academic_net.securestore.SecureStore
 
-/** The address of the tests: of a university the mock server knows. */
+/** The address of the tests: of a university the played server trusts. */
 internal const val TrustedEmail = "anna@hse.ru"
 
-/** An address of a domain that is not in the registry of the mock server (it answers 403 to it). */
+/** An address of a domain that is not in the registry of the played server (it answers 403 to it). */
 internal const val UntrustedEmail = "anna@example.com"
 
 /** The password of the tests; no state, text or saved state may ever hold it. */
@@ -47,11 +46,11 @@ internal const val TestPassword = "correct-horse-1"
 internal const val OtherPassword = "battery-staple-2"
 
 /**
- * The server of the tests: the mock server (its rules are the contract of the real one) behind a layer that
- * counts the calls and can hold them, fail them or answer instead of the mock. [mock] is the mock itself, for what
+ * The server of the tests: a [PlayedAccountServer] (it answers the way the Gateway does) behind a layer that counts
+ * the calls and can hold them, fail them or answer instead of it. [server] is the played server itself, for what
  * happens outside the app (the user opens the link of the letter in a browser).
  */
-internal class ScriptedAuthSource(val mock: MockAuthDataSource) : AuthDataSource {
+internal class ScriptedAuthSource(val server: PlayedAccountServer) : AuthDataSource {
     var registers = 0
     var confirms = 0
     var signIns = 0
@@ -71,7 +70,7 @@ internal class ScriptedAuthSource(val mock: MockAuthDataSource) : AuthDataSource
     /** While set, every call waits for it before the server answers: a request that is on its way. */
     var gate: CompletableDeferred<Unit>? = null
 
-    /** What the server answers instead of the mock, while set. */
+    /** What the server answers instead of the played one, while set. */
     var registerReply: RegisterReply? = null
     var confirmReply: ConfirmReply? = null
     var signInReply: SignInReply? = null
@@ -102,14 +101,14 @@ internal class ScriptedAuthSource(val mock: MockAuthDataSource) : AuthDataSource
     override suspend fun register(credentials: Credentials): RegisterReply {
         registers++
         beforeCall()
-        return registerReply ?: mock.register(credentials)
+        return registerReply ?: server.register(credentials)
     }
 
     override suspend fun confirmEmail(linkOrToken: String): ConfirmReply {
         confirms++
         confirmedTexts += linkOrToken
         beforeCall()
-        return confirmReply ?: mock.confirmEmail(linkOrToken)
+        return confirmReply ?: server.confirmEmail(linkOrToken)
     }
 
     override suspend fun signIn(credentials: Credentials): SignInReply {
@@ -117,12 +116,12 @@ internal class ScriptedAuthSource(val mock: MockAuthDataSource) : AuthDataSource
         signInAttempts += credentials
         beforeCall()
         signInFailure?.let { throw it }
-        return signInReply ?: mock.signIn(credentials)
+        return signInReply ?: server.signIn(credentials)
     }
 
-    override suspend fun checkSession(token: AccessToken): SessionCheck = mock.checkSession(token)
+    override suspend fun checkSession(token: AccessToken): SessionCheck = server.checkSession(token)
 
-    override suspend fun revoke(token: AccessToken) = mock.revoke(token)
+    override suspend fun revoke(token: AccessToken) = server.revoke(token)
 }
 
 /** A store that remembers every write, to show what reached the device. */
@@ -137,7 +136,7 @@ internal class RecordingStore(private val inner: SecureStore = InMemorySecureSto
 }
 
 /**
- * The sign-in flow as the app runs it today: the real repository over the [ScriptedAuthSource] (the mock server
+ * The sign-in flow as the app runs it today: the real repository over the [ScriptedAuthSource] (a played server
  * with no delay) and a store of the device (in memory), with a clock the test moves by hand ([advance]).
  *
  * [restart] is the app started again: a new repository and new view models over the same device storage and the
@@ -148,9 +147,9 @@ internal class RecordingStore(private val inner: SecureStore = InMemorySecureSto
 internal class AuthTestHarness(
     val time: TestTimeSource = TestTimeSource(),
     val store: SecureStore = InMemorySecureStore(),
-    private val mock: MockAuthDataSource = MockAuthDataSource(latencyMillis = 0, timeSource = time),
+    private val server: PlayedAccountServer = PlayedAccountServer(time),
 ) {
-    val source = ScriptedAuthSource(mock)
+    val source = ScriptedAuthSource(server)
 
     val repository: AuthRepository = AuthRepositoryImpl(
         source = source,
@@ -179,11 +178,11 @@ internal class AuthTestHarness(
     val authState: AuthState get() = repository.authState.value
 
     /** The app started again, see the class. */
-    fun restart() = AuthTestHarness(time, store, mock)
+    fun restart() = AuthTestHarness(time, store, server)
 
     /** The server forgets [token]: the next question about it is answered with a refusal. */
     suspend fun revokeOnTheServer(token: AccessToken) {
-        mock.revoke(token)
+        server.revoke(token)
     }
 
     /**
@@ -191,8 +190,8 @@ internal class AuthTestHarness(
      * outside the app, so the app remembers nothing of it.
      */
     suspend fun createAccount(email: String = TrustedEmail, password: String = TestPassword) {
-        mock.register(Credentials(email, Password(password)))
-        mock.confirmEmail(MockAuthDataSource.MockLetterToken)
+        server.register(Credentials(email, Password(password)))
+        server.confirmEmail(PlayedAccountServer.LetterToken)
     }
 
     /**
@@ -208,12 +207,12 @@ internal class AuthTestHarness(
      * run of the app that was killed since.
      */
     suspend fun registerOutsideTheApp(email: String = TrustedEmail, password: String = TestPassword) {
-        mock.register(Credentials(email, Password(password)))
+        server.register(Credentials(email, Password(password)))
     }
 
     /** The user opens the link of the letter in the browser: the server confirms the address, the app is not told. */
     suspend fun openLinkInBrowser() {
-        mock.confirmEmail(MockAuthDataSource.MockLetterToken)
+        server.confirmEmail(PlayedAccountServer.LetterToken)
     }
 
     /** Moves the clock of the server and of the repository. */

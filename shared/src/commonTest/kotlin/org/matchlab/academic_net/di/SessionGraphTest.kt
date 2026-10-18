@@ -112,8 +112,8 @@ class SessionGraphTest {
     }
 
     @Test
-    fun noDemoChatsAreMadeUpForTheServer() = runTest {
-        // The people of the demo chats do not exist on the server, so opening one of them would fail there.
+    fun theLocalChatsStartEmpty() = runTest {
+        // API-GAP G50: there are no chats on the server and no demo ones made up (their people would not exist there).
         val chats = launchApp().sessionGraph(session).dependencies.chats
 
         assertEquals(emptyList(), chats.observeConversations().first())

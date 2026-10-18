@@ -9,6 +9,8 @@ import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
+import org.matchlab.academic_net.common.paging.Page
+import org.matchlab.academic_net.common.paging.PageRequest
 
 val ComputerScience = Sphere("computer-science", "Computer Science")
 val Biology = Sphere("biology", "Биология")
@@ -31,15 +33,26 @@ fun foundProject(title: String) = FoundProject(
     initiatorUniversity = "МГУ",
 )
 
-/** Records what it was asked and answers with [results] (or fails with [failure]). */
-class FakeProjectSearchRepository(var results: List<FoundProject> = emptyList()) : ProjectSearchRepository {
+/**
+ * Records what it was asked and answers with the part of [results] that the requested page covers (or fails with
+ * [failure]); the total is the size of [results], as a server that has no other records reports it.
+ */
+class FakeProjectSearchRepository(
+    var results: List<FoundProject> = emptyList(),
+    override val capabilities: ProjectSearchCapabilities = ProjectSearchCapabilities(
+        typeFilter = false,
+        durationFilter = false,
+    ),
+) : ProjectSearchRepository {
     var failure: Throwable? = null
     var lastQuery: ProjectQuery? = null
+    var lastPage: PageRequest? = null
 
-    override suspend fun search(query: ProjectQuery): List<FoundProject> {
+    override suspend fun search(query: ProjectQuery, page: PageRequest): Page<FoundProject> {
         lastQuery = query
+        lastPage = page
         failure?.let { throw it }
-        return results
+        return Page(results.drop(page.offset).take(page.limit), results.size, page)
     }
 }
 

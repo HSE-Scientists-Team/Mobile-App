@@ -33,8 +33,22 @@ internal typealias Responder = suspend MockRequestHandleScope.(FakeServer.Arriva
 @OptIn(ExperimentalAtomicApi::class)
 internal class FakeServer(var userId: String = ServerUserId) {
     /** A request as the server saw it. */
-    class Arrival(val method: String, val path: String, val authorization: List<String>, val body: String) {
+    class Arrival(
+        val method: String,
+        val path: String,
+        val authorization: List<String>,
+        val body: String,
+        /** The query as sent (`limit=20&offset=0`), without the `?`; empty when there is none. */
+        val query: String = "",
+    ) {
         val call: String get() = "$method $path"
+
+        /** The names of the query parameters, each once. */
+        val queryNames: Set<String> get() = if (query.isEmpty()) emptySet() else query.split('&').map { it.substringBefore('=') }.toSet()
+
+        /** The values of the query parameter [name], in the order sent, as they were written (not decoded). */
+        fun queryValues(name: String): List<String> =
+            if (query.isEmpty()) emptyList() else query.split('&').filter { it.substringBefore('=') == name }.map { it.substringAfter('=', "") }
     }
 
     private val log = AtomicReference<List<Arrival>>(emptyList())
@@ -62,6 +76,7 @@ internal class FakeServer(var userId: String = ServerUserId) {
             path = request.url.encodedPath,
             authorization = request.headers.getAll(HttpHeaders.Authorization).orEmpty(),
             body = request.body.toByteArray().decodeToString(),
+            query = request.url.encodedQuery,
         )
         record(arrival)
         val responder: Responder = when (arrival.call) {

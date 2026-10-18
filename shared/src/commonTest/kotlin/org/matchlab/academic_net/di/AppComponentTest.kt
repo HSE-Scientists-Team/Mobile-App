@@ -11,13 +11,12 @@ import kotlin.test.assertNotSame
 
 class AppComponentTest {
     /**
-     * The graph of a signed-in user, as the root builds it after a sign-in. It is the Gateway's: the profile and the
-     * settings have no mock any more, so the mock backend cannot build a session graph. Building it makes no call (the
-     * session client of the Gateway only keeps the token), and the features that are not connected to the server yet
-     * run on their mocks.
+     * The graph of a signed-in user, as the root builds it after a sign-in, over a Gateway that is a mock engine.
+     * Building it makes no call (the session client of the Gateway only keeps the token); only the chats, which the
+     * API does not have, run on their local mock.
      */
     private fun sessionGraph(): SessionComponent = createSessionComponent(
-        createAppComponent(InMemorySecureStore(), Backend.Gateway()),
+        createAppComponent(InMemorySecureStore(), Backend.Gateway(), FakeServer().factory),
         Session(UserId("user-me"), "student@hse.ru", AccessToken("test-token")),
     )
 
@@ -37,7 +36,7 @@ class AppComponentTest {
 
     @Test
     fun theSignInGetsItsDependenciesFromTheProcessGraph() {
-        assertNotNull(createAppComponent(InMemorySecureStore(), Backend.Mock).auth)
+        assertNotNull(createAppComponent(InMemorySecureStore(), Backend.Gateway(), FakeServer().factory).auth)
     }
 
     @Test

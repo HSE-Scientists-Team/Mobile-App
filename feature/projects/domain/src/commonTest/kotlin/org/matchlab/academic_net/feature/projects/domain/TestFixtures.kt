@@ -30,7 +30,7 @@ fun validDraft() = ProjectDraft(
 
 fun testProject(
     id: String = "p1",
-    status: ProjectStatus = ProjectStatus.Recruiting,
+    status: ProjectStatus? = ProjectStatus.Recruiting,
     roles: List<Role> = emptyList(),
 ) = Project(
     id = ProjectId(id),
@@ -48,11 +48,21 @@ fun testProject(
 )
 
 /** Repository that keeps projects in memory and can be told to fail. */
-class FakeProjectsRepository(initial: List<Project> = emptyList()) : ProjectsRepository {
+class FakeProjectsRepository(
+    initial: List<Project> = emptyList(),
+    override val capabilities: ProjectsCapabilities = ProjectsCapabilities(
+        canCreate = true,
+        canListMine = true,
+        canUnpublish = true,
+    ),
+) : ProjectsRepository {
     val projects = MutableStateFlow(initial)
     var failure: Throwable? = null
     var published: NewProject? = null
         private set
+
+    /** The ids [loadProject] was asked for, in order. */
+    val loaded = mutableListOf<ProjectId>()
 
     private fun failIfNeeded() {
         failure?.let { throw it }
@@ -62,6 +72,12 @@ class FakeProjectsRepository(initial: List<Project> = emptyList()) : ProjectsRep
 
     override fun observeProject(id: ProjectId): Flow<Project?> =
         projects.map { all -> all.firstOrNull { it.id == id } }
+
+    override suspend fun loadProject(id: ProjectId): Project? {
+        loaded += id
+        failIfNeeded()
+        return projects.value.firstOrNull { it.id == id }
+    }
 
     override suspend fun getProject(id: ProjectId): Project? {
         failIfNeeded()
