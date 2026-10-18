@@ -73,17 +73,21 @@ class GatewaySession internal constructor(
     /**
      * Cancels the requests of this session that are still running (they end with a `CancellationException`,
      * also those the [users] directory runs for the callers waiting on them) and makes it refuse new ones the same
-     * way. The engine and the other sessions are not touched, and [Gateway.account] keeps working: the client of
-     * the session is its own, only the engine is shared.
+     * way: a call made after this returns sends nothing and ends with a `CancellationException` at once (the session
+     * itself holds the flag, it does not wait for Ktor to finish the client). The engine and the other sessions are
+     * not touched, and [Gateway.account] keeps working: the client of the session is its own, only the engine is
+     * shared.
      *
-     * Ktor cancels the running requests when the client has finished winding down, a moment after this call
-     * returns, so an answer that arrives in that moment may still be delivered to its caller. The owner of the
-     * session cancels the coroutines of its callers as well; this is the guarantee that nothing is left in the
-     * engine.
+     * For the requests that were already running when this was called, Ktor cancels them when the client has
+     * finished winding down, a moment after this call returns, so an answer that arrives in that moment may still be
+     * delivered to its caller. The owner of the session cancels the coroutines of its callers as well; this is the
+     * guarantee that nothing is left in the engine.
      *
      * Calling it again does nothing.
      */
     override fun close() {
+        // First, so that no call that begins after this method has started can slip into the client that is closing.
+        requests.refuseFurtherCalls()
         // Cancel before closing: closing a client only lets its running requests finish.
         directoryScope.cancel(CancellationException("The session was closed"))
         http.cancel(CancellationException("The session was closed"))

@@ -23,6 +23,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.utils.suspendRunCatching
+import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 
 private val JsonBody = ContentType.Application.Json.withCharset(Charsets.UTF_8)
@@ -42,6 +43,8 @@ private val JsonBody = ContentType.Application.Json.withCharset(Charsets.UTF_8)
  * - **A status outside 2xx** is [RemoteFailure.Http], with the `{"error": ...}` text if the body has it. If the
  *   status is 401 and [onUnauthorized] is set, it is told first (the client of a session sets it).
  * - **Cancellation** of the caller is never turned into a failure.
+ * - **A closed session** calls [refuseFurtherCalls] on the instance of its client; from then on every call ends with
+ *   a `CancellationException` before anything is sent.
  *
  * @param apiBase address with the API prefix, no trailing slash: `https://api.matchlab.space/api/v1`.
  * @param onUnauthorized called, inside [NonCancellable], once for each call whose answer is a 401.
@@ -51,9 +54,25 @@ internal class ApiRequests(
     private val apiBase: String,
     private val onUnauthorized: (suspend () -> Unit)? = null,
 ) {
+    // Written once by refuseFurtherCalls() on the thread that closes the session, read by every call on its own thread.
+    @Volatile
+    private var refusing = false
+
+    /**
+     * Makes every call from now on end with a `CancellationException("The session was closed")`, without a request.
+     * The client of a session cannot be trusted to refuse by itself at once: Ktor finishes a closed client a moment
+     * after `close()` returns, and until then it still takes a request, which would reach the server with the token of
+     * the session that was closed. Calls that are already running are not touched here (the owner cancels the client
+     * for those). Idempotent.
+     */
+    fun refuseFurtherCalls() {
+        refusing = true
+    }
+
     /**
      * Sends one request and hands the text of a 2xx answer to [parse]. Everything that goes wrong, here or in
-     * [parse], is thrown as a [RemoteFailure]; see [asRemoteFailure] for which exception is which.
+     * [parse], is thrown as a [RemoteFailure]; see [asRemoteFailure] for which exception is which. After
+     * [refuseFurtherCalls] nothing is sent and a `CancellationException` is thrown.
      *
      * @param body the JSON text to send, or `null` for a request without a body.
      * @param query parameters of the URL; those with a `null` value are left out.
@@ -71,6 +90,8 @@ internal class ApiRequests(
         bearerToken: String? = null,
         parse: (String) -> T,
     ): T {
+        // Before anything else: a closed session sends nothing, whatever it was asked for.
+        if (refusing) throw CancellationException("The session was closed")
         require(bearerToken == null || bearerToken.isNotBlank()) { "The access token cannot be blank" }
         return translating {
             val response = http.request("$apiBase/${path.trimStart('/')}") {

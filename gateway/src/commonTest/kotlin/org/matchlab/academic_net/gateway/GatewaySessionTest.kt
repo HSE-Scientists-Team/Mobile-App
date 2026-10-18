@@ -14,7 +14,6 @@ import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.gateway.dto.CredentialsDto
 import org.matchlab.academic_net.gateway.dto.UserIdDto
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -346,12 +345,11 @@ class GatewaySessionTest {
     }
 
     /**
-     * KNOWN BUG, switched off until it is fixed (see the report of the tester): `close()` returns before Ktor has finished the
-     * client (the coroutine that watches the timeout of the last call is still winding down), and a client that has not
-     * finished takes a new request: in about one close in a hundred a request made right after it reaches the server.
-     * Fix: a flag of the session checked before every request (or waiting for the client in `close()`), then enable this.
+     * `close()` returns before Ktor has finished the client (the coroutine that watches the timeout of the last call is
+     * still winding down), and a client that has not finished takes a new request. The session refuses by a flag of its
+     * own, set before anything else in `close()`, so the very next call is refused every time, not once in a hundred
+     * closes: hence the many rounds.
      */
-    @Ignore
     @Test
     fun aClosedSessionRefusesTheVeryNextRequest() = runTest {
         repeat(500) { round ->
@@ -364,6 +362,42 @@ class GatewaySessionTest {
             assertFailsWith<CancellationException> { session.probe() }
             assertEquals(1, fixture.requests.size, "round $round: nothing is sent after the close")
         }
+    }
+
+    @Test
+    fun everyKindOfCallOfAClosedSessionIsRefusedWithoutARequest() = runTest {
+        val fixture = GatewayFixture { json(Spec.UserIdAnswer) }
+        val session = fixture.gateway.openSession("tok-1", ignoreRejection)
+
+        session.close()
+
+        assertFailsWith<CancellationException> { session.probe() }
+        assertFailsWith<CancellationException> { session.requests.post<CredentialsDto, UserIdDto>("probe", Spec.credentials) }
+        assertFailsWith<CancellationException> { session.requests.delete("probe") }
+        assertEquals(emptyList(), fixture.requests, "nothing reached the engine")
+    }
+
+    @Test
+    fun theRefusalOfAClosedSessionIsACancellationAndNotAFailureOfTheNetwork() = runTest {
+        val fixture = GatewayFixture { json(Spec.UserIdAnswer) }
+        val session = fixture.gateway.openSession("tok-1", ignoreRejection)
+        session.close()
+
+        val thrown = runCatching { session.probe() }.exceptionOrNull()
+
+        assertFalse(thrown is RemoteFailure, "a closed session is not a lost connection")
+        assertIs<CancellationException>(thrown)
+    }
+
+    @Test
+    fun theDirectoryOfAClosedSessionDoesNotAskTheServer() = runTest {
+        val fixture = GatewayFixture { json(Spec.UserIdAnswer) }
+        val session = fixture.gateway.openSession("tok-1", ignoreRejection)
+        session.close()
+
+        assertFailsWith<CancellationException> { session.users.profile("someone") }
+
+        assertEquals(emptyList(), fixture.requests)
     }
 
     @Test
@@ -397,6 +431,25 @@ class GatewaySessionTest {
         session.close()
 
         assertTrue(fixture.engineIsOpen)
+        // The second close leaves the session as the first made it: refusing, and the account of the Gateway untouched.
+        assertFailsWith<CancellationException> { session.probe() }
+        assertEquals(Spec.UserId, fixture.account.currentSession("tok-2").userId)
+        assertEquals(listOf("Bearer tok-2"), fixture.requests.single().authorizations)
+    }
+
+    @Test
+    fun closingAfterWorkAndTwiceDoesNotCloseTheSharedEngineForTheOtherSessions() = runTest {
+        val fixture = GatewayFixture { json(Spec.UserIdAnswer) }
+        val closed = fixture.gateway.openSession("tok-1", ignoreRejection)
+        val open = fixture.gateway.openSession("tok-2", ignoreRejection)
+        closed.probe()
+
+        closed.close()
+        closed.close()
+
+        assertTrue(fixture.engineIsOpen, "the engine is shared by every session of the Gateway")
+        assertEquals(Spec.UserId, open.probe().userId)
+        assertEquals(listOf("Bearer tok-1", "Bearer tok-2"), fixture.requests.map { it.authorizations.single() })
     }
 
     @Test
