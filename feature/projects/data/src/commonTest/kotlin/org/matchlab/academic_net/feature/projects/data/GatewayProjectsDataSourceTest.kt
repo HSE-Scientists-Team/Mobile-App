@@ -26,6 +26,7 @@ import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.FeatureUnavailableException
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projects.domain.NewProject
@@ -34,6 +35,8 @@ import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundExceptio
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
+import org.matchlab.academic_net.gateway.dto.UserProfileDto
+import org.matchlab.academic_net.gateway.dto.UserProfileInputDto
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GatewayProjectsDataSourceTest {
@@ -386,6 +389,161 @@ class GatewayProjectsDataSourceTest {
         api.onAddRole = { _, _ -> throw CancellationException("cancelled") }
 
         assertFailsWith<CancellationException> { source.addRole(id, RoleDraft("Дизайнер")) }
+    }
+
+    // ---- the owner's profile after the write went through (API-GAP G47) ----
+
+    private fun ownerProfile(id: String = "owner-1", name: String = "Владелец") =
+        UserProfileDto(userId = id, details = UserProfileInputDto(displayName = name))
+
+    @Test
+    fun aFailureOfTheOwnersProfileAfterTheRoleWasPostedIsStillASuccessWithTheCachedOwner() = runTest {
+        for (failure in listOf<Throwable>(RemoteFailure.NoConnection(), RemoteFailure.Timeout(), RemoteFailure.Http(500), IllegalStateException("boom"))) {
+            val api = ScriptedProjectsApi()
+            val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
+            val source = GatewayProjectsDataSource(api, assembler)
+            api.onGet = { projectDto(it, revision = 4, roles = listOf(roleDto("r1"))) }
+            source.loadProject(id)
+            api.onAddRole = { pid, _ -> projectDto(pid, revision = 5, roles = listOf(roleDto("r1"), roleDto("r2", "Дизайнер"))) }
+            assembler.failure = failure // the request for the owner's profile fails; the role is on the server already
+
+            val role = source.addRole(id, RoleDraft("Дизайнер"))
+
+            assertEquals(RoleId("r2"), role.id, "$failure")
+            assertEquals("Дизайнер", role.title)
+            val cached = source.observeProject(id).first()
+            assertEquals(listOf(RoleId("r1"), RoleId("r2")), cached?.roles?.map { it.id }, "the project of the cache is the answer")
+            assertEquals("Владелец", cached?.initiator?.name, "the owner of the cached project stays")
+            assertEquals(1, api.posts.size, "nothing is posted again")
+        }
+    }
+
+    @Test
+    fun theNextRoleAfterThatBuildsOnTheRevisionOfTheAnswerThatWasKept() = runTest {
+        val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
+        val source = GatewayProjectsDataSource(api, assembler)
+        api.onGet = { projectDto(it, revision = 4) }
+        source.loadProject(id)
+        api.onAddRole = { pid, _ -> projectDto(pid, revision = 5, roles = listOf(roleDto("r1", "Первая"))) }
+        assembler.failure = RemoteFailure.Timeout()
+        source.addRole(id, RoleDraft("Первая"))
+        assembler.failure = null
+        api.onAddRole = { pid, _ -> projectDto(pid, revision = 6, roles = listOf(roleDto("r1", "Первая"), roleDto("r2", "Вторая"))) }
+
+        source.addRole(id, RoleDraft("Вторая"))
+
+        assertEquals(listOf(4, 5), api.posts.map { it.second.expectedRevision })
+        assertEquals("Владелец", source.observeProject(id).first()?.initiator?.name, "the owner is the real one again")
+    }
+
+    @Test
+    fun theViewersOwnProjectStaysTheViewersOwnWhenTheOwnersProfileFailedAfterTheWrite() = runTest {
+        for (viewerIsOwner in listOf(true, false)) {
+            val api = ScriptedProjectsApi()
+            val viewer = UserId(if (viewerIsOwner) "owner-1" else "somebody-else")
+            val assembler = MappingAssembler(viewer = viewer, owners = mutableMapOf("owner-1" to ownerProfile()))
+            val source = GatewayProjectsDataSource(api, assembler)
+            api.onGet = { projectDto(it, revision = 1) }
+            source.loadProject(id)
+            api.onAddRole = { pid, _ -> projectDto(pid, revision = 2, roles = listOf(roleDto("r1", "Дизайнер"))) }
+            assembler.failure = RemoteFailure.NoConnection()
+
+            source.addRole(id, RoleDraft("Дизайнер"))
+
+            assertEquals(viewerIsOwner, source.observeProject(id).first()?.viewerIsInitiator, "the viewer is the owner: $viewerIsOwner")
+        }
+    }
+
+    @Test
+    fun aCachedProjectWithoutAnOwnersProfileKeepsItsEmptyNameAfterAFailureToo() = runTest {
+        api.onGet = { projectDto(it, revision = 1) } // the assembler knows nobody: the initiator has no name
+        source.loadProject(id)
+        api.onAddRole = { pid, _ -> projectDto(pid, revision = 2, roles = listOf(roleDto("r1", "Дизайнер"))) }
+        assembler.failure = RemoteFailure.Http(503)
+
+        source.addRole(id, RoleDraft("Дизайнер"))
+
+        val initiator = source.observeProject(id).first()?.initiator
+        assertEquals("owner-1", initiator?.id?.value)
+        assertEquals("", initiator?.name)
+    }
+
+    @Test
+    fun aProjectReadInTheSameCallKeepsItsOwnerWhenTheOwnersProfileFailsAfterThePost() = runTest {
+        // The cache is empty: the project is read first (with its owner), then the role is posted.
+        val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
+        val source = GatewayProjectsDataSource(api, assembler)
+        api.onGet = { projectDto(it, revision = 8) }
+        api.onAddRole = { pid, _ ->
+            assembler.failure = RemoteFailure.Timeout() // from now on the owner cannot be asked for
+            projectDto(pid, revision = 9, roles = listOf(roleDto("r1", "Дизайнер")))
+        }
+
+        val role = source.addRole(id, RoleDraft("Дизайнер"))
+
+        assertEquals(RoleId("r1"), role.id)
+        assertEquals("Владелец", source.observeProject(id).first()?.initiator?.name)
+    }
+
+    @Test
+    fun anAnswerTheAppCannotReadIsMalformedWhateverTheOwnersProfileDoes() = runTest {
+        api.onGet = { projectDto(it) }
+        source.loadProject(id)
+        val unreadableAnswers = listOf(
+            projectDto(owner = ""),
+            projectDto(owner = "   "),
+            projectDto(id = "", owner = "owner-1"),
+            projectDto(id = "  "),
+        )
+        for (unreadable in unreadableAnswers) {
+            for (assemblerFails in listOf(false, true)) {
+                assembler.failure = if (assemblerFails) RemoteFailure.Timeout() else null
+                api.onAddRole = { _, _ -> unreadable }
+
+                assertFailsWith<RemoteFailure.Malformed> { source.addRole(id, RoleDraft("Дизайнер")) }
+            }
+        }
+    }
+
+    @Test
+    fun aCancellationWhileTheOwnersProfileIsAskedForPassesThroughAfterThePost() = runTest {
+        api.onGet = { projectDto(it, revision = 4) }
+        source.loadProject(id)
+        api.onAddRole = { pid, _ -> projectDto(pid, revision = 5, roles = listOf(roleDto("r1", "Дизайнер"))) }
+        assembler.failure = CancellationException("cancelled")
+
+        assertFailsWith<CancellationException> { source.addRole(id, RoleDraft("Дизайнер")) }
+
+        assertEquals(1, api.posts.size)
+        assertEquals(emptyList(), source.observeProject(id).first()?.roles, "a cancelled call changes nothing in the cache")
+    }
+
+    @Test
+    fun afterAToleratedFailureTheWritesStillGoOneByOne() = runTest {
+        val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
+        val source = GatewayProjectsDataSource(api, assembler)
+        api.onGet = { projectDto(it, revision = 4) }
+        source.loadProject(id)
+        val gate = CompletableDeferred<Unit>()
+        api.onAddRole = { pid, input ->
+            if (input.title == "Первая") {
+                gate.await()
+                projectDto(pid, revision = 5, roles = listOf(roleDto("r1", "Первая")))
+            } else {
+                projectDto(pid, revision = 6, roles = listOf(roleDto("r1", "Первая"), roleDto("r2", "Вторая")))
+            }
+        }
+        assembler.failure = RemoteFailure.Timeout()
+
+        val first = async { source.addRole(id, RoleDraft("Первая")) }
+        val second = async { source.addRole(id, RoleDraft("Вторая")) }
+        runCurrent()
+        assertEquals(1, api.posts.size, "the second waits for the first")
+        gate.complete(Unit)
+
+        assertEquals(RoleId("r1"), first.await().id)
+        assertEquals(RoleId("r2"), second.await().id)
+        assertEquals(listOf(4, 5), api.posts.map { it.second.expectedRevision })
     }
 
     // ---- which role is the new one (API-GAP G54) ----

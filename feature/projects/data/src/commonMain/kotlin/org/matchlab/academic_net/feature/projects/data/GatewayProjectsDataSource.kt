@@ -14,6 +14,7 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.FeatureUnavailableException
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projects.domain.NewProject
@@ -22,8 +23,10 @@ import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundExceptio
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import org.matchlab.academic_net.gateway.ProjectsApi
+import org.matchlab.academic_net.gateway.dto.ProjectDto
 import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
 import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
+import org.matchlab.academic_net.gateway.mapping.toProject
 import org.matchlab.academic_net.utils.suspendRunCatching
 
 /**
@@ -36,7 +39,7 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * | `observeProject` | the cache, one project of it; `null` while it is not there |
  * | `loadProject` | `GET /projects/{id}` into the cache; a 400, 403 or 404, and an answer the app cannot read (no `id` or `owner_user_id`), drop the project from the cache and give `null`; any other failure is thrown and the cache is left as it was |
  * | `getProject` | the cache without a request, else `loadProject` |
- * | `addRole` | `POST /projects/{id}/roles` with the cached revision (the project is read first if the cache does not have it); a 404 is [ProjectNotFoundException], a 409 is [ProjectConflictException] after the project was read again; the rest is thrown |
+ * | `addRole` | `POST /projects/{id}/roles` with the cached revision (the project is read first if the cache does not have it); a 404 is [ProjectNotFoundException], a 409 is [ProjectConflictException] after the project was read again; the rest is thrown. Once the write went through, a failure of the request for the owner's profile is not the write's: the cached owner stays (G47) |
  * | `getSpheres` | [SphereCatalog], no request |
  * | `observeMyProjects`, `createProject`, `unpublishProject` | throw [FeatureUnavailableException]: G44, G40 (with G43) and G42 |
  *
@@ -107,9 +110,9 @@ class GatewayProjectsDataSource(
                 else -> throw failure
             }
         }
-        val assembled = assembler.assemble(listOf(answer)).firstOrNull() ?: throw RemoteFailure.Malformed()
-        remember(projectId, Entry(assembled.project, answer.revision))
-        newRoleOf(assembled.project, knownRoleIds = known.project.roles.map { it.id }.toSet(), asked = role)
+        val project = projectAfterWrite(answer, known.project)
+        remember(projectId, Entry(project, answer.revision))
+        newRoleOf(project, knownRoleIds = known.project.roles.map { it.id }.toSet(), asked = role)
     }
 
     override suspend fun getSpheres(): List<Sphere> = SphereCatalog.spheres
@@ -145,6 +148,21 @@ class GatewayProjectsDataSource(
 
     private fun forget(id: ProjectId) {
         cache.update { entries -> entries - id }
+    }
+
+    /**
+     * The project of the answer to a write that went through. Its owner is asked for like everywhere else (API-GAP
+     * G47), but a failure of that request does not turn the write into a failure: the role is on the server already,
+     * and an error would only invite the user to add it again. The owner of the cached project [known] stays then (the
+     * owner does not change with a role), as does the viewer's part in the project. An answer the app cannot read at
+     * all (no `id` or no `owner_user_id`) is [RemoteFailure.Malformed], as for a read.
+     */
+    private suspend fun projectAfterWrite(answer: ProjectDto, known: Project): Project {
+        val assembled = suspendRunCatching { assembler.assemble(listOf(answer)) }.getOrNull()
+        if (assembled != null) return assembled.firstOrNull()?.project ?: throw RemoteFailure.Malformed()
+        return answer.toProject(viewerId = UserId(answer.ownerUserId), owner = null)
+            ?.copy(initiator = known.initiator, viewerIsInitiator = known.viewerIsInitiator)
+            ?: throw RemoteFailure.Malformed()
     }
 
     /**
