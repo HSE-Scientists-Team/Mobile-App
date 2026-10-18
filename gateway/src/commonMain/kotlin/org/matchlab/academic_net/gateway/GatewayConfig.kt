@@ -31,7 +31,11 @@ data class GatewayConfig(
     }
 
     companion object {
-        /** The server the released app talks to. */
+        /**
+         * The server the released app talks to. API-GAP G04: `docs/openapi.yaml` does not name the address of the
+         * working environment (its `servers` are `/` and a local Docker Compose); this one comes from the user's
+         * task and has not been reached from the development machine.
+         */
         const val PRODUCTION_BASE_URL = "https://api.matchlab.space"
     }
 }

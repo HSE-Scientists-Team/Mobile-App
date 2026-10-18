@@ -3,9 +3,10 @@ package org.matchlab.academic_net.gateway.contract
 /**
  * Finds the token of `POST /auth/email/confirm` in what the user pasted from the confirmation letter.
  *
- * The spec says only "pass the token from the link in the letter", so what the link looks like is a guess
- * ([UnverifiedContract]). The guess is generous: the screen asks for a "link from the letter", yet a person may
- * paste the whole address, its tail, or just the token.
+ * API-GAP G01: the spec says only "pass the token from the link in the letter", so what the link looks like is a
+ * guess ([UnverifiedContract]). The guess is generous: the screen asks for a "link from the letter", yet a person may
+ * paste the whole address, its tail, or just the token. It is a convenience of the client, not a value of the API:
+ * the request carries the token the guess found, and the server is the judge of it (404 for a token it does not know).
  */
 @UnverifiedContract
 object ConfirmationLinks {

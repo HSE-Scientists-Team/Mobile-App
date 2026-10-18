@@ -33,6 +33,9 @@ data class UserAchievementInputDto(
 /**
  * `UserAchievement`: a work, a diploma or a certificate of a person with the server's state of it.
  *
+ * @property id API-GAP G55: the schema does not require it (protobuf JSON leaves an empty string out), so it is `""`
+ * when the server left it out; a record without an id can be neither opened nor changed, and the data layer leaves it
+ * out.
  * @property status where the achievement is in the moderation, as a string the API does not define (API-GAP G12).
  * @property revision the version of the record; a change names it, and a stale one is refused with 409.
  * @property moderationComment the moderator's reason; the owner is the one who gets it.

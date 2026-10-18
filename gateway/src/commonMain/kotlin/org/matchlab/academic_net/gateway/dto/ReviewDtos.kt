@@ -9,6 +9,10 @@ import kotlinx.serialization.Serializable
 /**
  * `UserReview`: what one person wrote about another after a finished project.
  *
+ * @property id API-GAP G55: the schema does not require it (protobuf JSON leaves an empty string out), so it is `""`
+ * when the server left it out; a review without an id cannot be opened by id, and the data layer leaves it out.
+ * @property authorUserId API-GAP G55: `""` when the server left it out; the review is kept, but its author has no
+ * profile to open.
  * @property authorRole the role of the author in the project, as a string the API does not define (API-GAP G13).
  * @property rating 1 to 5 stars; `0` when the server left it out.
  * @property createdAtUnix seconds since the epoch, `0` when the server left it out.
