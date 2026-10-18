@@ -8,6 +8,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectPeriod
@@ -19,12 +21,14 @@ import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsData
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
+import org.matchlab.academic_net.feature.projects.ui.CountingDataSource
 import org.matchlab.academic_net.feature.projects.ui.FailingDataSource
 import org.matchlab.academic_net.feature.projects.ui.TestGraph
 import org.matchlab.academic_net.feature.projects.ui.installMainDispatcher
 import org.matchlab.academic_net.feature.projects.ui.keepCollecting
 import org.matchlab.academic_net.feature.projects.ui.uninstallMainDispatcher
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ProjectManagementViewModelTest {
     @BeforeTest
     fun setUp() = installMainDispatcher()
@@ -197,5 +201,115 @@ class ProjectManagementViewModelTest {
         assertTrue(state.actionFailed)
         val editor = assertNotNull(state.roleEditor)
         assertEquals("DevOps", editor.draft.title)
+    }
+
+    @Test
+    fun secondConfirmWhileUnpublishingUnpublishesOnce() = runTest {
+        val source = CountingDataSource(delayMillis = 300)
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+
+        viewModel.onUnpublishClick()
+        viewModel.onUnpublishConfirm()
+        assertTrue(viewModel.uiState.value.isUnpublishing)
+        viewModel.onUnpublishConfirm()
+        advanceUntilIdle()
+
+        assertEquals(1, source.unpublished)
+        assertEquals(ProjectStatus.Unpublished, viewModel.uiState.value.project?.status)
+    }
+
+    @Test
+    fun dialogAskedForAgainWhileUnpublishingCannotStartASecondRequest() = runTest {
+        val source = CountingDataSource(delayMillis = 300)
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+        viewModel.onUnpublishClick()
+        viewModel.onUnpublishConfirm()
+        assertTrue(viewModel.uiState.value.isUnpublishing)
+
+        // The dialog is open again (visible) while the request of the first confirmation runs.
+        viewModel.onUnpublishClick()
+        assertTrue(viewModel.uiState.value.isUnpublishConfirmVisible)
+        viewModel.onUnpublishConfirm()
+        advanceUntilIdle()
+
+        assertEquals(1, source.unpublished)
+    }
+
+    @Test
+    fun confirmAfterTheDialogIsGoneUnpublishesNothingMore() = runTest {
+        // The button of a dialog that is fading out can still be tapped, after the request has ended.
+        val source = CountingDataSource()
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+        viewModel.onUnpublishClick()
+        viewModel.onUnpublishConfirm()
+        assertFalse(viewModel.uiState.value.isUnpublishing)
+
+        viewModel.onUnpublishConfirm()
+
+        assertEquals(1, source.unpublished)
+        assertFalse(viewModel.uiState.value.actionFailed)
+    }
+
+    @Test
+    fun confirmWithoutAskingFirstDoesNothing() = runTest {
+        val source = CountingDataSource()
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+
+        viewModel.onUnpublishConfirm()
+
+        assertEquals(0, source.unpublished)
+        assertEquals(ProjectStatus.Recruiting, viewModel.uiState.value.project?.status)
+    }
+
+    @Test
+    fun dismissedDialogCannotBeConfirmedLater() = runTest {
+        val source = CountingDataSource()
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+        viewModel.onUnpublishClick()
+        viewModel.onUnpublishDismiss()
+
+        viewModel.onUnpublishConfirm()
+
+        assertEquals(0, source.unpublished)
+    }
+
+    @Test
+    fun secondSaveWhileTheRoleIsBeingAddedAddsItOnce() = runTest {
+        val source = CountingDataSource(delayMillis = 300)
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+        viewModel.onAddRoleClick()
+        viewModel.onRoleTitleChange("DevOps")
+
+        viewModel.onRoleSave()
+        assertTrue(viewModel.uiState.value.isSavingRole)
+        viewModel.onRoleSave()
+        advanceUntilIdle()
+
+        assertEquals(1, source.rolesAdded)
+        assertEquals(5, viewModel.uiState.value.project?.rolesCount)
+        assertNull(viewModel.uiState.value.roleEditor)
+    }
+
+    @Test
+    fun saveAfterTheEditorIsClosedAddsNothingMore() = runTest {
+        val source = CountingDataSource()
+        val viewModel = viewModel(TestGraph(source))
+        keepCollecting(viewModel.uiState)
+        viewModel.onAddRoleClick()
+        viewModel.onRoleTitleChange("DevOps")
+        viewModel.onRoleSave()
+        assertNull(viewModel.uiState.value.roleEditor)
+
+        // The button of the sheet that is sliding down is tapped once more.
+        viewModel.onRoleSave()
+
+        assertEquals(1, source.rolesAdded)
+        assertEquals(5, viewModel.uiState.value.project?.rolesCount)
     }
 }

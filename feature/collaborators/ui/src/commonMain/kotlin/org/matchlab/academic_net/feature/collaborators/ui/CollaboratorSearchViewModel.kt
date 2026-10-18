@@ -60,6 +60,7 @@ class CollaboratorSearchViewModel(
 
     private var searchJob: Job? = null
     private var previewJob: Job? = null
+    private var loadJob: Job? = null
 
     init {
         load()
@@ -108,9 +109,11 @@ class CollaboratorSearchViewModel(
         searchJob = viewModelScope.launch { refresh() }
     }
 
+    /** The first load and "Повторить"; a load that is still on its way is not doubled. */
     private fun load() {
+        if (loadJob?.isActive == true) return
         state.update { it.copy(isLoading = true, hasError = false) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             if (role == null) {
                 refresh()
                 return@launch

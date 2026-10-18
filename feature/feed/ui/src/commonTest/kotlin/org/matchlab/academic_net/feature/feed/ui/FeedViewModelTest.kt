@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -41,6 +42,25 @@ class FeedViewModelTest {
 
         override suspend fun getRecommendedPeople(): List<Collaborator> =
             if (peopleFail) error("offline") else delegate.getRecommendedPeople()
+    }
+
+    /** A server that does not recommend anyone until the test lets it, and counts the requests. */
+    private class GatedDataSource(
+        private val delegate: FeedDataSource = MockFeedDataSource(latencyMillis = 0),
+    ) : FeedDataSource by delegate {
+        private val gate = CompletableDeferred<Unit>()
+        var peopleRequests = 0
+            private set
+
+        fun answer() {
+            gate.complete(Unit)
+        }
+
+        override suspend fun getRecommendedPeople(): List<Collaborator> {
+            peopleRequests++
+            gate.await()
+            return delegate.getRecommendedPeople()
+        }
     }
 
     private fun viewModel(dataSource: FeedDataSource = SwitchableDataSource()): FeedViewModel {
@@ -102,6 +122,22 @@ class FeedViewModelTest {
 
         val state = viewModel.uiState.value
         assertFalse(state.peopleFailed)
+        assertEquals(3, state.people.size)
+    }
+
+    @Test
+    fun retryWhilePeopleAreLoadingAsksOnce() = runTest {
+        val dataSource = GatedDataSource()
+        val viewModel = viewModel(dataSource)
+        assertTrue(viewModel.uiState.value.isPeopleLoading)
+
+        viewModel.onPeopleRetry()
+        viewModel.onPeopleRetry()
+        dataSource.answer()
+
+        assertEquals(1, dataSource.peopleRequests)
+        val state = viewModel.uiState.value
+        assertFalse(state.isPeopleLoading)
         assertEquals(3, state.people.size)
     }
 }

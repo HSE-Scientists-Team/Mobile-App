@@ -3,6 +3,7 @@ package org.matchlab.academic_net.feature.feed.ui
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,8 @@ class FeedViewModel(
     private val state = MutableStateFlow(FeedUiState())
     val uiState: StateFlow<FeedUiState> = state.asStateFlow()
 
+    private var peopleJob: Job? = null
+
     init {
         loadViewer()
         loadPeople()
@@ -62,9 +65,11 @@ class FeedViewModel(
         }
     }
 
+    /** The first load and "Повторить"; a load that is still on its way is not doubled. */
     private fun loadPeople() {
+        if (peopleJob?.isActive == true) return
         state.update { it.copy(isPeopleLoading = true, peopleFailed = false) }
-        viewModelScope.launch {
+        peopleJob = viewModelScope.launch {
             getRecommendedPeople().fold(
                 onSuccess = { people ->
                     state.update {

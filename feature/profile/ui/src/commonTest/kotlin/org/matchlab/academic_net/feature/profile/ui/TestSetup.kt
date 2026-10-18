@@ -121,8 +121,14 @@ class FlakySource(private val delegate: ProfileDataSource) : ProfileDataSource b
     override fun observeMyProfile(): Flow<MyProfile> =
         if (failReads) flow { throw NetworkDown() } else delegate.observeMyProfile()
 
-    override suspend fun updateAbout(draft: AboutDraft): MyProfile =
-        if (failWrites) throw NetworkDown() else delegate.updateAbout(draft)
+    /** How many times the text, the interests and the skills were sent to be saved. */
+    var aboutUpdates = 0
+        private set
+
+    override suspend fun updateAbout(draft: AboutDraft): MyProfile {
+        aboutUpdates++
+        return if (failWrites) throw NetworkDown() else delegate.updateAbout(draft)
+    }
 
     override suspend fun addWork(draft: WorkDraft): PortfolioWork =
         if (failWrites) throw NetworkDown() else delegate.addWork(draft)

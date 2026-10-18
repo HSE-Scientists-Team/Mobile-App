@@ -7,6 +7,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.result.LoadResult
@@ -21,6 +23,7 @@ import org.matchlab.academic_net.feature.profile.ui.installMainDispatcher
 import org.matchlab.academic_net.feature.profile.ui.mockSource
 import org.matchlab.academic_net.feature.profile.ui.uninstallMainDispatcher
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class EditProfileViewModelTest {
     @BeforeTest
     fun setUp() = installMainDispatcher()
@@ -189,5 +192,50 @@ class EditProfileViewModelTest {
 
         assertEquals(3, viewModel.uiState.value.documents.size)
         assertTrue(viewModel.uiState.value.documents.any { it.title == "Сертификат Kotlin" })
+    }
+
+    @Test
+    fun doubleTapSavesOnce() = runTest {
+        // With a latency the first request is still in flight when the second tap comes.
+        val source = FlakySource(mockSource(latencyMillis = 300))
+        val viewModel = viewModel(TestGraph(source))
+        advanceUntilIdle()
+        viewModel.onAboutChange("Новый текст")
+
+        viewModel.onSaveClick()
+        assertTrue(viewModel.uiState.value.isSaving)
+        viewModel.onSaveClick()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isSaved)
+        assertEquals(1, source.aboutUpdates)
+    }
+
+    @Test
+    fun tapOnTheSavedFormSavesNothingMore() = runTest {
+        // The form stays on the screen while it fades out; even new typing in that time is not sent.
+        val source = FlakySource(mockSource())
+        val viewModel = viewModel(TestGraph(source))
+        viewModel.onAboutChange("Новый текст")
+        viewModel.onSaveClick()
+        assertTrue(viewModel.uiState.value.isSaved)
+
+        viewModel.onAboutChange("Ещё правка")
+        viewModel.onSaveClick()
+
+        assertEquals(1, source.aboutUpdates)
+        assertFalse(viewModel.uiState.value.isSaving)
+    }
+
+    @Test
+    fun saveWhileTheProfileIsLoadingSendsNothing() = runTest {
+        val source = FlakySource(mockSource(latencyMillis = 300))
+        val viewModel = viewModel(TestGraph(source))
+        assertTrue(viewModel.uiState.value.isLoading)
+
+        viewModel.onSaveClick()
+
+        assertEquals(0, source.aboutUpdates)
+        assertFalse(viewModel.uiState.value.isSaving)
     }
 }

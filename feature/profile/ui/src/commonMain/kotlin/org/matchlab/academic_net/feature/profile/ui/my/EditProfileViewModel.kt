@@ -90,7 +90,9 @@ class EditProfileViewModel(
 
     fun onSaveClick() {
         val current = state.value
-        if (current.isSaving || current.isLoading || current.loadFailed) return
+        // Nothing to save while the profile is not there, while a save is running, and once the
+        // changes are saved: the form stays on the screen until it has faded out.
+        if (current.isSaving || current.isSaved || current.isLoading || current.loadFailed) return
         val errors = current.draft.normalized().validate()
         showErrors = true
         if (errors.isNotEmpty()) {

@@ -10,19 +10,27 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsData
+import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsDataSource
+import org.matchlab.academic_net.feature.projects.domain.NewProject
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
+import org.matchlab.academic_net.feature.projects.ui.CountingDataSource
 import org.matchlab.academic_net.feature.projects.ui.FailingDataSource
 import org.matchlab.academic_net.feature.projects.ui.TestGraph
 import org.matchlab.academic_net.feature.projects.ui.installMainDispatcher
 import org.matchlab.academic_net.feature.projects.ui.uninstallMainDispatcher
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CreateProjectViewModelTest {
     @BeforeTest
     fun setUp() = installMainDispatcher()
@@ -297,5 +305,117 @@ class CreateProjectViewModelTest {
         viewModel.onTitleChange("Другое название")
 
         assertFalse(viewModel.uiState.value.publishFailed)
+    }
+
+    @Test
+    fun secondTapWhilePublishingCreatesOneProject() = runTest {
+        // With a latency the first request is still in flight when the second tap comes.
+        val source = CountingDataSource(delayMillis = 300)
+        val graph = TestGraph(source)
+        val before = graph.observeMyProjects().first().size
+        val viewModel = viewModel(graph)
+        viewModel.fillRequiredFields()
+
+        viewModel.onPublishClick()
+        assertTrue(viewModel.uiState.value.isPublishing)
+        viewModel.onPublishClick()
+        advanceUntilIdle()
+
+        assertEquals(1, source.created)
+        assertNotNull(viewModel.uiState.value.publishedProjectId)
+        assertEquals(before + 1, graph.observeMyProjects().first().size)
+    }
+
+    @Test
+    fun tapOnThePublishedFormCreatesNoSecondProject() = runTest {
+        // The form stays on the screen while the transition to the new project runs.
+        val source = CountingDataSource()
+        val graph = TestGraph(source)
+        val before = graph.observeMyProjects().first().size
+        val viewModel = viewModel(graph)
+        viewModel.fillRequiredFields()
+        viewModel.onPublishClick()
+        val id = assertNotNull(viewModel.uiState.value.publishedProjectId)
+
+        viewModel.onPublishClick()
+        viewModel.onPublishClick()
+
+        assertEquals(1, source.created)
+        assertEquals(id, viewModel.uiState.value.publishedProjectId)
+        assertFalse(viewModel.uiState.value.isPublishing)
+        assertEquals(before + 1, graph.observeMyProjects().first().size)
+    }
+
+    @Test
+    fun failedPublishCanBeTriedAgain() = runTest {
+        // The guard of a published form must not lock a form whose publishing failed.
+        val source = FailsOnce()
+        val viewModel = viewModel(TestGraph(source))
+        viewModel.fillRequiredFields()
+        viewModel.onPublishClick()
+        assertTrue(viewModel.uiState.value.publishFailed)
+        assertNull(viewModel.uiState.value.publishedProjectId)
+
+        viewModel.onPublishClick()
+
+        assertFalse(viewModel.uiState.value.publishFailed)
+        assertNotNull(viewModel.uiState.value.publishedProjectId)
+        assertEquals(2, source.attempts)
+    }
+
+    @Test
+    fun tapsOnRetryAndOnTheFieldWhileSpheresLoadAskOnce() = runTest {
+        val source = CountingDataSource(delayMillis = 300)
+        val viewModel = viewModel(TestGraph(source))
+        assertEquals(1, source.spheresRequested)
+
+        viewModel.onSpheresRetry()
+        viewModel.onSpheresRetry()
+        viewModel.onSphereFieldClick()
+        advanceUntilIdle()
+
+        assertEquals(1, source.spheresRequested)
+        assertEquals(MockProjectsData.spheres, viewModel.uiState.value.spheres)
+    }
+
+    @Test
+    fun openingThePickerDoesNotAskAgainForSpheresThatAreLoaded() = runTest {
+        val source = CountingDataSource()
+        val viewModel = viewModel(TestGraph(source))
+        assertEquals(1, source.spheresRequested)
+
+        viewModel.onSphereFieldClick()
+        viewModel.onSpherePickerDismiss()
+        viewModel.onSphereFieldClick()
+
+        assertEquals(1, source.spheresRequested)
+        assertEquals(MockProjectsData.spheres, viewModel.uiState.value.spheres)
+    }
+
+    @Test
+    fun openingThePickerAsksAgainForSpheresThatFailedToLoad() = runTest {
+        val source = FailingDataSource(failSpheres = true)
+        val viewModel = viewModel(TestGraph(source))
+        assertTrue(viewModel.uiState.value.spheresLoadFailed)
+
+        source.failSpheres = false
+        viewModel.onSphereFieldClick()
+
+        assertFalse(viewModel.uiState.value.spheresLoadFailed)
+        assertEquals(MockProjectsData.spheres, viewModel.uiState.value.spheres)
+    }
+
+    /** Fails the first request to create a project, like a dropped connection, and then works. */
+    private class FailsOnce(
+        private val delegate: ProjectsDataSource = MockProjectsDataSource(latencyMillis = 0),
+    ) : ProjectsDataSource by delegate {
+        var attempts = 0
+            private set
+
+        override suspend fun createProject(project: NewProject): Project {
+            attempts++
+            if (attempts == 1) throw FailingDataSource.NetworkDown()
+            return delegate.createProject(project)
+        }
     }
 }

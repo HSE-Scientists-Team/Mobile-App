@@ -147,6 +147,26 @@ class SignInViewModelTest {
         viewModel.onGetCodeClick()
 
         assertEquals(TrustedEmail, viewModel.uiState.value.codeSentTo)
+        assertEquals(2, harness.codeRequests)
+    }
+
+    @Test
+    fun askingAgainBeforeTheScreenHasLeftSendsNothing() {
+        // The server replaces the code of an address each time, so a second request would void the
+        // first code, which the user is about to be asked for.
+        val viewModel = harness.signInViewModel()
+        viewModel.onEmailChange(TrustedEmail)
+        viewModel.onGetCodeClick()
+        assertEquals(TrustedEmail, viewModel.uiState.value.codeSentTo)
+
+        viewModel.onGetCodeClick()
+        viewModel.onGetCodeClick()
+
+        val state = viewModel.uiState.value
+        assertEquals(1, harness.codeRequests)
+        assertEquals(TrustedEmail, state.codeSentTo)
+        assertNull(state.error)
+        assertFalse(state.isSending)
     }
 
     @Test

@@ -2,6 +2,7 @@ package org.matchlab.academic_net.feature.projects.ui
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -11,6 +12,7 @@ import kotlinx.coroutines.test.setMain
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
+import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsRepositoryImpl
 import org.matchlab.academic_net.feature.projects.data.mock.MockProjectsData
@@ -53,6 +55,48 @@ class FailingDataSource(
         if (failSpheres) throw NetworkDown() else delegate.getSpheres()
 
     class NetworkDown : RuntimeException("network is down")
+}
+
+/**
+ * Counts the requests that reach the data source and answers each one after [delayMillis]: the time
+ * in which a test can tap again while the first request is still on its way.
+ */
+class CountingDataSource(
+    private val delegate: ProjectsDataSource = MockProjectsDataSource(latencyMillis = 0),
+    private val delayMillis: Long = 0,
+) : ProjectsDataSource by delegate {
+    var created = 0
+        private set
+    var unpublished = 0
+        private set
+    var rolesAdded = 0
+        private set
+    var spheresRequested = 0
+        private set
+
+    override suspend fun createProject(project: NewProject): Project {
+        created++
+        delay(delayMillis)
+        return delegate.createProject(project)
+    }
+
+    override suspend fun unpublishProject(id: ProjectId): Project {
+        unpublished++
+        delay(delayMillis)
+        return delegate.unpublishProject(id)
+    }
+
+    override suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role {
+        rolesAdded++
+        delay(delayMillis)
+        return delegate.addRole(projectId, role)
+    }
+
+    override suspend fun getSpheres(): List<Sphere> {
+        spheresRequested++
+        delay(delayMillis)
+        return delegate.getSpheres()
+    }
 }
 
 /** Keeps the flow hot, so `stateIn(WhileSubscribed)` states are live; stops when the test ends. */

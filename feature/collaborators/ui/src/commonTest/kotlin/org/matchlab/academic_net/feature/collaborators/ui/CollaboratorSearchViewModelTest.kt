@@ -8,6 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -46,6 +47,23 @@ class CollaboratorSearchViewModelTest {
     private val requirement = MutableRequirement(
         RoleRequirement("AI-навигация по кампусу", "ML Engineer", listOf("Computer Vision", "Python")),
     )
+
+    /** A server that does not answer about the role until the test lets it, and counts the questions. */
+    private class GatedRequirement(private val value: RoleRequirement?) : RoleRequirementProvider {
+        private val gate = CompletableDeferred<Unit>()
+        var requests = 0
+            private set
+
+        fun answer() {
+            gate.complete(Unit)
+        }
+
+        override suspend fun getRoleRequirement(projectId: ProjectId, roleId: RoleId): RoleRequirement? {
+            requests++
+            gate.await()
+            return value
+        }
+    }
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -280,5 +298,28 @@ class CollaboratorSearchViewModelTest {
         assertFalse(state.hasError)
         assertEquals("Designer", state.roleTitle)
         assertEquals(listOf("Анна Петрова"), state.names())
+    }
+
+    @Test
+    fun retryWhileTheLoadIsOnItsWayAsksOnce() = runTest {
+        val gated = GatedRequirement(RoleRequirement("P", "Designer", listOf("Figma")))
+        val backend = CollaboratorsRepositoryImpl(MockCollaboratorsDataSource(requirement, latencyMillis = 0))
+        val viewModel = CollaboratorSearchViewModel(
+            RoleReference(projectId, roleId),
+            CollaboratorsUiDependencies(
+                getRoleRequirement = GetRoleRequirementUseCase(gated),
+                searchCollaborators = SearchCollaboratorsUseCase(backend),
+            ),
+        )
+        assertTrue(viewModel.uiState.value.isLoading)
+
+        viewModel.onRetry()
+        viewModel.onRetry()
+        gated.answer()
+
+        assertEquals(1, gated.requests)
+        val state = viewModel.uiState.value
+        assertFalse(state.isLoading)
+        assertEquals("Designer", state.roleTitle)
     }
 }

@@ -104,7 +104,10 @@ class ProjectManagementViewModel(
     fun onUnpublishDismiss() = local.update { it.copy(isUnpublishConfirmVisible = false) }
 
     fun onUnpublishConfirm() {
-        if (local.value.isUnpublishing) return
+        // Only the open dialog confirms. Its button can be tapped again while the dialog fades out,
+        // which is after the request has started, and may be after it has ended.
+        val current = local.value
+        if (!current.isUnpublishConfirmVisible || current.isUnpublishing) return
         local.update { it.copy(isUnpublishConfirmVisible = false, isUnpublishing = true, actionFailed = false) }
         viewModelScope.launch {
             val result = unpublishProject(projectId)

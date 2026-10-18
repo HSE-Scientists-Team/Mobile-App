@@ -3,6 +3,7 @@ package org.matchlab.academic_net.feature.projects.ui.create
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +52,7 @@ class CreateProjectViewModel(
     val uiState: StateFlow<CreateProjectUiState> = state.asStateFlow()
 
     private var showErrors = false
+    private var spheresJob: Job? = null
 
     init {
         loadSpheres()
@@ -140,7 +142,10 @@ class CreateProjectViewModel(
 
     fun onPublishClick() {
         val current = state.value
-        if (current.isPublishing) return
+        // One form makes one project. While the request runs the button does nothing, and neither
+        // does it once the project exists: the form stays on the screen until the transition to the
+        // new project is over, and a tap in that time must not publish a second copy.
+        if (current.isPublishing || current.publishedProjectId != null) return
         val errors = current.draft.normalized().validate()
         showErrors = true
         if (errors.isNotEmpty()) {
@@ -178,8 +183,10 @@ class CreateProjectViewModel(
         state.update { current -> current.copy(roleEditor = current.roleEditor?.let(transform)) }
     }
 
+    /** Asks for the spheres unless an answer is still on its way: taps on "Повторить" are not doubled. */
     private fun loadSpheres() {
-        viewModelScope.launch {
+        if (spheresJob?.isActive == true) return
+        spheresJob = viewModelScope.launch {
             getSpheres().fold(
                 onSuccess = { spheres ->
                     state.update { it.copy(spheres = spheres, spheresLoadFailed = false) }

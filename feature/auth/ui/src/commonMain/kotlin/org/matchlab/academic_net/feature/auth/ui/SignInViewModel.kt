@@ -65,7 +65,9 @@ class SignInViewModel(
     /** "Получить код". */
     fun onGetCodeClick() {
         val current = state.value
-        if (current.isSending) return
+        // A code that has been sent but not yet handed to the screen must not be asked for again:
+        // the server replaces the code of an address each time.
+        if (current.isSending || current.codeSentTo != null) return
         state.update { it.copy(isSending = true, error = null, retryAfterSeconds = null) }
         viewModelScope.launch {
             when (val result = requestCode(current.email)) {
