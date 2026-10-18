@@ -178,13 +178,18 @@ class CollaboratorSearchViewModel(
         }
     }
 
-    /** A filter of the sheet changed: the number on "Показать" is unknown until the server counts it. */
+    /**
+     * A filter of the sheet changed: the number on "Показать" is unknown until the server counts it. It does nothing
+     * when the sheet is not open: a late call after "Применить" or a dismissal (a last tap, a callback of the closing
+     * sheet) must neither open the sheet again nor start a count for it.
+     */
     fun onFiltersDraftChange(draft: CollaboratorFilters) {
+        if (state.value.filtersSheet == null) return
         state.update { it.copy(filtersSheet = FiltersSheetState(draft)) }
         updatePreview(draft)
     }
 
-    /** "Сбросить" in the sheet: every filter of the draft off. */
+    /** "Сбросить" in the sheet: every filter of the draft off. Like [onFiltersDraftChange], it needs the sheet open. */
     fun onFiltersReset() = onFiltersDraftChange(CollaboratorFilters())
 
     /** The sheet is closed without applying: the draft and the count that is on its way are dropped. */

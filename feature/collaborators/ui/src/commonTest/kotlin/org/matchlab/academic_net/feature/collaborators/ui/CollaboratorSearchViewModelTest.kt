@@ -1,5 +1,8 @@
 package org.matchlab.academic_net.feature.collaborators.ui
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
@@ -1142,5 +1145,106 @@ class CollaboratorSearchViewModelTest {
         // It is the data source that does not send them (API-GAP G11); the screen hides the group, so the draft has none.
         assertEquals(setOf(ProjectType.Scientific), repository.counts.single().filters.workTypes)
         assertEquals(typed, repository.searches.last().query.filters)
+    }
+
+    // ---- late calls of a sheet that is closed ----
+
+    /**
+     * The sheet is shut and stays so: nothing was counted, no new search began since [searches] requests, and the filters of
+     * the search are still [filters]. Time runs on, so that a count that was started by mistake would have been asked.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun TestScope.assertTheSheetStaysShut(
+        viewModel: CollaboratorSearchViewModel,
+        filters: CollaboratorFilters,
+        searches: Int,
+    ) {
+        passTime(1_000)
+        advanceUntilIdle()
+        assertNull(viewModel.state.filtersSheet)
+        assertEquals(emptyList(), repository.counts)
+        assertEquals(filters, viewModel.state.filters)
+        assertEquals(searches, repository.searches.size)
+    }
+
+    @Test
+    fun aLateDraftChangeAfterTheSheetWasDismissedDoesNotOpenItAgain() = runTest {
+        val viewModel = viewModel()
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDismiss()
+
+        viewModel.onFiltersDraftChange(draft)
+
+        assertTheSheetStaysShut(viewModel, CollaboratorFilters(), searches = 1)
+    }
+
+    @Test
+    fun aLateResetAfterTheSheetWasDismissedDoesNotOpenItAgain() = runTest {
+        val viewModel = viewModel()
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDismiss()
+
+        viewModel.onFiltersReset()
+
+        assertTheSheetStaysShut(viewModel, CollaboratorFilters(), searches = 1)
+    }
+
+    @Test
+    fun aLateDraftChangeAfterApplyingDoesNotOpenTheSheetAgainNorTouchTheFilters() = runTest {
+        val viewModel = viewModel()
+        val applied = CollaboratorFilters(verifiedProfile = true, university = "МГУ")
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDraftChange(applied)
+        viewModel.onFiltersApply()
+        val searches = repository.searches.size
+
+        viewModel.onFiltersDraftChange(CollaboratorFilters(hasPublications = true))
+
+        assertTheSheetStaysShut(viewModel, applied, searches)
+    }
+
+    @Test
+    fun aLateResetAfterApplyingDoesNotOpenTheSheetAgainNorClearTheFilters() = runTest {
+        val viewModel = viewModel()
+        val applied = CollaboratorFilters(verifiedProfile = true, university = "МГУ")
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDraftChange(applied)
+        viewModel.onFiltersApply()
+        val searches = repository.searches.size
+
+        viewModel.onFiltersReset()
+
+        assertTheSheetStaysShut(viewModel, applied, searches)
+    }
+
+    @Test
+    fun aDraftChangeAndAResetWithoutAnyOpenSheetDoNothing() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.onFiltersDraftChange(draft)
+        viewModel.onFiltersReset()
+
+        assertTheSheetStaysShut(viewModel, CollaboratorFilters(), searches = 1)
+    }
+
+    @Test
+    fun theSheetOpensAndWorksAgainAfterLateCallsWereIgnored() = runTest {
+        val viewModel = viewModel()
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDismiss()
+        viewModel.onFiltersDraftChange(draft)
+        viewModel.onFiltersReset()
+        passTime(1_000)
+        assertNull(viewModel.state.filtersSheet)
+        assertEquals(emptyList(), repository.counts)
+
+        // The ignored calls leave nothing behind: the next opening is the usual one, and it counts as usual.
+        viewModel.onFiltersClick()
+        assertEquals(FiltersSheetState(CollaboratorFilters(), previewCount = 7), viewModel.state.filtersSheet)
+        viewModel.onFiltersDraftChange(draft)
+        passTime(300)
+
+        assertEquals(listOf(CollaboratorQuery("", draft)), repository.counts)
+        assertEquals(FiltersSheetState(draft, previewCount = 7), viewModel.state.filtersSheet)
     }
 }
