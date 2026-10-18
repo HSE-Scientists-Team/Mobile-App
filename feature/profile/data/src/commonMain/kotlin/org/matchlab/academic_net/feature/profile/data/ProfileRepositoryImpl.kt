@@ -1,5 +1,7 @@
 package org.matchlab.academic_net.feature.profile.data
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -8,6 +10,9 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.feature.profile.domain.DocumentDraft
 import org.matchlab.academic_net.feature.profile.domain.DocumentId
@@ -39,12 +44,20 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * which only knows the resources of the server. What the repository adds is the client's work:
  *
  * - **A profile page is three requests** (the profile, the portfolio and the newest reviews), asked at once; a person
- *   the server does not know cancels the other two. A missing portfolio or reviews is an empty list.
+ *   the server does not know cancels the other two. A missing portfolio or reviews is an empty list. The person on the
+ *   page is the one that was asked for, whatever `user_id` the answer has (API-GAP G55: the schema does not require it).
  * - **Reviews are paged** by [reviewsPageSize] (the API gives no total, so a full page means there may be more) and
  *   every review that was seen is kept, so that the screen of one review finds it (API-GAP G14).
  * - **The viewer's profile** is held as state: loaded when the first collector comes, loaded again by
  *   [refreshMyProfile] and after every change made through here. A change that went through but whose reload
  *   failed is still a success; the next refresh brings the state up to date.
+ * - **A load never overwrites a change that is newer than it.** Every change that went through (a save, an added,
+ *   edited, sent or deleted record) counts as a version of the state; a load that began at an earlier version asked the
+ *   server before the change and its answer is dropped (a slow refresh from the screen must not bring the old name
+ *   back after a save). The exception is a state that is still empty: the first answer is better than none.
+ * - **Loads are shared.** A refresh that is asked for while another one is on its way, at the same version, waits for
+ *   that one and has its result (or its failure) instead of asking the server three more requests; after a change the
+ *   next refresh is a new load, as the one on its way is already older than the change.
  * - **Adding is two calls** of the API, create and send; the second is skipped when there is nothing to verify, and
  *   its failure leaves the record added but not sent.
  * - **Verification results** are empty (API-GAP G12): the server gives no statuses and no notifications.
@@ -66,6 +79,25 @@ class ProfileRepositoryImpl(
 
     // The viewer's profile as the screens observe it; null until the first load.
     private val mine = MutableStateFlow<MyProfile?>(null)
+
+    // Guards the three below together with `mine`: a load applies its answer only if no change came in between.
+    private val guard = Mutex()
+
+    // How many changes went through here; a load that began at another number is older than the server now.
+    private var version = 0
+
+    // The load of the viewer's profile that is on its way, if there is one.
+    private var loading: Load? = null
+
+    /**
+     * A load of the viewer's profile that began when [version] changes had been made.
+     *
+     * [finished] is the end of it: its result, or `null` when the caller that ran it was cancelled and so left no
+     * answer, in which case the callers that waited for it run one of their own.
+     */
+    private class Load(val version: Int) {
+        val finished = CompletableDeferred<Result<Unit>?>()
+    }
 
     override val capabilities: ProfileCapabilities get() = source.capabilities
 
@@ -123,39 +155,77 @@ class ProfileRepositoryImpl(
     }
 
     override suspend fun refreshMyProfile() {
-        mine.value = loadMine()
+        while (true) {
+            val (load, leads) = guard.withLock {
+                val running = loading?.takeIf { it.version == version }
+                if (running != null) running to false else Load(version).also { loading = it } to true
+            }
+            if (leads) return lead(load)
+            // The load that was on its way answers this call too; if its caller gave up, a new load begins.
+            val outcome = load.finished.await() ?: continue
+            return outcome.getOrThrow()
+        }
+    }
+
+    /**
+     * Runs [load] in the caller's coroutine and applies its answer, unless a change went through since it began
+     * (then the answer is older than the screens' state and is dropped) or unless there is no state yet. The failure
+     * of the load is the caller's, and the other callers that wait for it get it too.
+     */
+    private suspend fun lead(load: Load) {
+        var outcome: Result<Unit>? = null
+        try {
+            outcome = suspendRunCatching {
+                val loaded = loadMine()
+                guard.withLock {
+                    if (version == load.version || mine.value == null) mine.value = loaded
+                }
+            }
+            outcome.getOrThrow()
+        } finally {
+            // Whatever happened, the callers that wait get an answer, and the next refresh begins a new load.
+            withContext(NonCancellable) {
+                guard.withLock { if (loading === load) loading = null }
+                load.finished.complete(outcome)
+            }
+        }
     }
 
     override suspend fun updateProfile(draft: ProfileDraft): MyProfile {
         val record = source.updateMyProfile(draft).ofViewer()
-        val current = mine.value
-        if (current == null) {
-            refreshMyProfile()
-            return checkNotNull(mine.value)
-        }
         // The answer of the save is the whole profile, and the portfolio and the reviews did not change with it.
-        val updated = current.copy(
-            profile = current.profile.copy(
-                person = record.person,
-                about = record.about,
-                interests = record.interests,
-                skills = record.skills,
-                reviews = record.reviews,
-            ),
-        )
-        mine.value = updated
-        return updated
+        val updated = withContext(NonCancellable) {
+            guard.withLock {
+                version++
+                mine.value?.let { current ->
+                    current.copy(
+                        profile = current.profile.copy(
+                            person = record.person,
+                            about = record.about,
+                            interests = record.interests,
+                            skills = record.skills,
+                            reviews = record.reviews,
+                        ),
+                    ).also { mine.value = it }
+                }
+            }
+        }
+        if (updated != null) return updated
+
+        // Nothing was loaded yet, so there is nothing to lay the answer over: the whole profile is loaded.
+        refreshMyProfile()
+        return checkNotNull(mine.value)
     }
 
     override suspend fun createWork(draft: WorkDraft): PortfolioChange<PortfolioWork> {
-        val created = source.createWork(draft)
+        val created = written { source.createWork(draft) }
         val sent = draft.sendsForVerification && submitQuietly(VerificationSubject.Work(created.id))
         reloadQuietly()
         return PortfolioChange.Saved(created, sent)
     }
 
     override suspend fun createDocument(draft: DocumentDraft): PortfolioChange<ProfileDocument> {
-        val created = source.createDocument(draft)
+        val created = written { source.createDocument(draft) }
         val sent = draft.sendsForVerification && submitQuietly(VerificationSubject.Document(created.id, created.kind))
         reloadQuietly()
         return PortfolioChange.Saved(created, sent)
@@ -166,20 +236,20 @@ class ProfileRepositoryImpl(
     override suspend fun getMyDocument(id: DocumentId): ProfileDocument? = source.getMyDocument(id)
 
     override suspend fun updateWork(id: WorkId, draft: WorkDraft, expectedRevision: Int): EditOutcome<PortfolioWork> =
-        source.updateWork(id, draft, expectedRevision).also { reloadQuietly() }
+        written { source.updateWork(id, draft, expectedRevision) }.also { reloadQuietly() }
 
     override suspend fun updateDocument(
         id: DocumentId,
         draft: DocumentDraft,
         expectedRevision: Int,
     ): EditOutcome<ProfileDocument> =
-        source.updateDocument(id, draft, expectedRevision).also { reloadQuietly() }
+        written { source.updateDocument(id, draft, expectedRevision) }.also { reloadQuietly() }
 
     override suspend fun submitForVerification(subject: VerificationSubject): EditOutcome<Unit> =
-        source.submit(subject).also { reloadQuietly() }
+        written { source.submit(subject) }.also { reloadQuietly() }
 
     override suspend fun delete(subject: VerificationSubject): EditOutcome<Unit> =
-        source.delete(subject).also { reloadQuietly() }
+        written { source.delete(subject) }.also { reloadQuietly() }
 
     // API-GAP G12: the Gateway has no statuses of records and no notifications of a decision, so there is nothing to
     // tell; the screens ask the capability and do not show the results at all.
@@ -202,7 +272,7 @@ class ProfileRepositoryImpl(
         }
         val latest = marked(reviews.await().orEmpty())
         reviewsCache.addAll(id, latest)
-        assembleProfile(found, portfolio.await() ?: Portfolio.Empty, latest, isViewer = false)
+        assembleProfile(found.ofPerson(id), portfolio.await() ?: Portfolio.Empty, latest, isViewer = false)
     }
 
     /** The viewer's profile as the owner sees it, from the three requests at once. */
@@ -219,6 +289,17 @@ class ProfileRepositoryImpl(
     private suspend fun recordOf(id: UserId): ProfileRecord? =
         if (id == viewerId) source.getMyProfile() ?: ProfileRecord.empty(viewerId) else source.getProfile(id)
 
+    /**
+     * Runs a call that changes the viewer's data on the server. When it returns, the state has a new version: the
+     * loads that began before are older than the server now and their answers are not applied (see [lead]). Counted
+     * even if the caller is cancelled right now, as the server has the change in any case.
+     */
+    private suspend fun <T> written(write: suspend () -> T): T {
+        val result = write()
+        withContext(NonCancellable) { guard.withLock { version++ } }
+        return result
+    }
+
     /** A change went through; the viewer's profile state follows it, and a failure to follow is not the change's. */
     private suspend fun reloadQuietly() {
         suspendRunCatching { refreshMyProfile() }
@@ -226,11 +307,18 @@ class ProfileRepositoryImpl(
 
     /** Sends for verification after adding; `true` when the server took it. A failure leaves the record added. */
     private suspend fun submitQuietly(subject: VerificationSubject): Boolean =
-        suspendRunCatching { source.submit(subject) }.getOrNull() is EditOutcome.Done
+        suspendRunCatching { written { source.submit(subject) } }.getOrNull() is EditOutcome.Done
 
     /** The record of the viewer's own profile, which is theirs by the id of the session, whatever the answer says. */
-    private fun ProfileRecord.ofViewer(): ProfileRecord =
-        copy(person = person.copy(user = person.user.copy(id = viewerId)))
+    private fun ProfileRecord.ofViewer(): ProfileRecord = ofPerson(viewerId)
+
+    /**
+     * The record as the profile of [id]: the person is the one that was asked for, whatever `user_id` the answer
+     * carries (API-GAP G55: the schema does not require it, and an empty id would send the screens to a profile
+     * that does not exist).
+     */
+    private fun ProfileRecord.ofPerson(id: UserId): ProfileRecord =
+        copy(person = person.copy(user = person.user.copy(id = id)))
 
     private fun marked(reviews: List<Review>): List<Review> =
         reviews.map { it.copy(isByViewer = it.author.id == viewerId) }

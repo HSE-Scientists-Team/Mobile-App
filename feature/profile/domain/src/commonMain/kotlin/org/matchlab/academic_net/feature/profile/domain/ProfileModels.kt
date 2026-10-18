@@ -138,7 +138,11 @@ enum class ReviewerRole {
 /** A review one person left about another after a finished project. */
 data class Review(
     val id: ReviewId,
-    /** API-GAP G15: the API does not say whether the author is verified, so `isVerified` is `false`. */
+    /**
+     * API-GAP G15: the API does not say whether the author is verified, so `isVerified` is `false`. API-GAP G55: the
+     * server may leave out the id of the author, and then `author.id.value` is empty: the name is there, but there is
+     * no profile to open and nobody to write to, so the screens do not make the author tappable.
+     */
     val author: UserSummary,
     /** `null` when the server's value is unknown to the app (API-GAP G13: the Gateway gives no list of roles). */
     val authorRole: ReviewerRole?,

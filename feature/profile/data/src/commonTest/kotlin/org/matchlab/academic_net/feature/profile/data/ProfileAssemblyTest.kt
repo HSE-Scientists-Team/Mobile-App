@@ -33,7 +33,7 @@ private fun documentOf(
         graduationYear = year,
     ).toDocument()!!.copy(status = status)
 
-private fun reviewOf(id: String): Review = reviewDto(id = id).toReview(kotlinx.datetime.TimeZone.UTC)
+private fun reviewOf(id: String): Review = reviewDto(id = id).toReview(kotlinx.datetime.TimeZone.UTC)!!
 
 /** What the repository makes of the parts of a profile: the previews, the order of the documents, the queue of the moderator. */
 class ProfileAssemblyTest {

@@ -78,7 +78,11 @@ interface ProfileDataSource {
     /** What anyone sees of the works and documents of [id], or `null` when there is no such person. */
     suspend fun getPortfolio(id: UserId): Portfolio?
 
-    /** The reviews about [id]: [limit] of them from [offset], newest first; `null` when there is no such person. */
+    /**
+     * The reviews about [id]: [limit] of them from [offset], newest first; `null` when there is no such person. A
+     * review the source cannot show is not among them (API-GAP G55: one without an `id`), so a page may be shorter
+     * than [limit] though the server had more.
+     */
     suspend fun getReviews(id: UserId, offset: Int, limit: Int): List<Review>?
 
     /** The viewer's own profile, or `null` when the account has no profile yet (API-GAP G19). */

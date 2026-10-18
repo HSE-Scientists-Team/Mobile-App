@@ -20,6 +20,7 @@ import org.matchlab.academic_net.gateway.dto.UserProfileInputDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -286,7 +287,7 @@ class GatewayProfileMappingTest {
 
     @Test
     fun aReviewTakesItsFieldsAndNoRoleAndNoVerificationOfTheAuthor() {
-        val review = reviewDto(id = "r9", authorId = "a1", authorName = "  Елена ", rating = 4).toReview(TimeZone.UTC)
+        val review = reviewDto(id = "r9", authorId = "a1", authorName = "  Елена ", rating = 4).toReview(TimeZone.UTC)!!
 
         assertEquals(ReviewId("r9"), review.id)
         assertEquals(UserId("a1"), review.author.id)
@@ -303,9 +304,9 @@ class GatewayProfileMappingTest {
 
     @Test
     fun theRatingIsHeldToZeroToFive() {
-        assertEquals(5, reviewDto(rating = 9).toReview(TimeZone.UTC).rating)
-        assertEquals(0, reviewDto(rating = -3).toReview(TimeZone.UTC).rating)
-        assertEquals(0, reviewDto(rating = 0).toReview(TimeZone.UTC).rating)
+        assertEquals(5, reviewDto(rating = 9).toReview(TimeZone.UTC)!!.rating)
+        assertEquals(0, reviewDto(rating = -3).toReview(TimeZone.UTC)!!.rating)
+        assertEquals(0, reviewDto(rating = 0).toReview(TimeZone.UTC)!!.rating)
     }
 
     @Test
@@ -313,14 +314,122 @@ class GatewayProfileMappingTest {
         // 2025-06-30 20:00 UTC: June in London, already July in Auckland.
         val review = reviewDto(completedAt = 1_751_313_600)
 
-        assertEquals(YearMonth(2025, Month.JUNE), review.toReview(TimeZone.UTC).projectFinished)
-        assertEquals(YearMonth(2025, Month.JULY), review.toReview(TimeZone.of("Pacific/Auckland")).projectFinished)
+        assertEquals(YearMonth(2025, Month.JUNE), review.toReview(TimeZone.UTC)!!.projectFinished)
+        assertEquals(YearMonth(2025, Month.JULY), review.toReview(TimeZone.of("Pacific/Auckland"))!!.projectFinished)
     }
 
     @Test
     fun aProjectWithoutAnEndTimeHasNoMonth() {
-        assertNull(reviewDto(completedAt = 0).toReview(TimeZone.UTC).projectFinished)
-        assertNull(reviewDto(completedAt = -1).toReview(TimeZone.UTC).projectFinished)
+        assertNull(reviewDto(completedAt = 0).toReview(TimeZone.UTC)!!.projectFinished)
+        assertNull(reviewDto(completedAt = -1).toReview(TimeZone.UTC)!!.projectFinished)
+    }
+
+    // ---- dates the calendar cannot hold (API-GAP G57) ----
+
+    @Test
+    fun anEndTimeOfTheServerPastTheYear9999IsNoMonthAndTheReviewIsKept() {
+        for (seconds in listOf(Long.MAX_VALUE, Long.MAX_VALUE - 1, 253_402_300_800)) {
+            val review = reviewDto(id = "r-$seconds", completedAt = seconds).toReview(TimeZone.UTC)
+
+            assertNotNull(review, "$seconds: the review is still a review")
+            assertNull(review.projectFinished, "$seconds")
+            assertEquals("Отлично", review.title)
+        }
+    }
+
+    @Test
+    fun theLastSecondOfTheYear9999IsAMonthInEveryTimeZoneWithoutFailing() {
+        val lastSecond = 253_402_300_799
+        val review = reviewDto(completedAt = lastSecond)
+
+        assertEquals(YearMonth(9999, Month.DECEMBER), review.toReview(TimeZone.UTC)!!.projectFinished)
+        // East of Greenwich that second is already in the year 10000 on the wall clock; the calendar still holds it.
+        assertEquals(YearMonth(10000, Month.JANUARY), review.toReview(TimeZone.of("Pacific/Kiritimati"))!!.projectFinished)
+        assertEquals(YearMonth(9999, Month.DECEMBER), review.toReview(TimeZone.of("Pacific/Pago_Pago"))!!.projectFinished)
+    }
+
+    @Test
+    fun aListOfReviewsWithOneImpossibleDateIsReadWhole() {
+        val reviews = listOf(
+            reviewDto(id = "r1", completedAt = 1_751_313_600),
+            reviewDto(id = "r2", completedAt = Long.MAX_VALUE),
+            reviewDto(id = "r3", completedAt = 0),
+        ).map { it.toReview(TimeZone.UTC)!! }
+
+        assertEquals(listOf("r1", "r2", "r3"), reviews.map { it.id.value })
+        assertEquals(listOf<YearMonth?>(YearMonth(2025, Month.JUNE), null, null), reviews.map { it.projectFinished })
+    }
+
+    // ---- records without an id (API-GAP G55) ----
+
+    @Test
+    fun aWorkWithoutAnIdIsNoWork() {
+        for (id in listOf("", " ", "   ", "\t\n")) {
+            assertNull(achievementDto(id = id, kind = "scientific").toWork(), "'$id'")
+            assertNull(achievementDto(id = id, kind = "project").toWork(), "'$id'")
+        }
+    }
+
+    @Test
+    fun aDocumentWithoutAnIdIsNoDocument() {
+        for (id in listOf("", " ", "   ", "\t\n")) {
+            assertNull(achievementDto(id = id, kind = "education").toDocument(), "'$id'")
+            assertNull(achievementDto(id = id, kind = "certificate").toDocument(), "'$id'")
+        }
+    }
+
+    @Test
+    fun anIdIsKeptAsItIsWhenItIsThere() {
+        // Only an empty or blank id is dropped; no other id is touched (not trimmed, not checked for its form).
+        assertEquals(WorkId("w-1"), achievementDto(id = "w-1").toWork()?.id)
+        assertEquals(DocumentId("d 1"), achievementDto(id = "d 1", kind = "education").toDocument()?.id)
+        assertEquals(ReviewId("r/1"), reviewDto(id = "r/1").toReview(TimeZone.UTC)?.id)
+    }
+
+    @Test
+    fun aReviewWithoutAnIdIsNoReview() {
+        for (id in listOf("", " ", "   ", "\t\n")) {
+            assertNull(reviewDto(id = id).toReview(TimeZone.UTC), "'$id'")
+        }
+    }
+
+    @Test
+    fun aReviewWithoutAnAuthorIdIsKeptWithAnAuthorWhoHasNoId() {
+        for (authorId in listOf("", " ", "   ", "\t")) {
+            val review = reviewDto(id = "r1", authorId = authorId, authorName = " Елена ").toReview(TimeZone.UTC)
+
+            assertNotNull(review, "'$authorId'")
+            assertEquals("", review.author.id.value, "'$authorId': the id is the empty one, whatever the blanks were")
+            assertEquals("Елена", review.author.name, "the name is shown all the same")
+            assertEquals(ReviewId("r1"), review.id)
+            assertFalse(review.isByViewer)
+        }
+    }
+
+    @Test
+    fun theListsLeaveOutTheRecordsWithoutAnId() {
+        val portfolio = UserAchievementListDto(
+            listOf(
+                achievementDto(id = "w1", kind = "scientific", createdAt = 30),
+                achievementDto(id = "", kind = "scientific", createdAt = 40),
+                achievementDto(id = "d1", kind = "education"),
+                achievementDto(id = "  ", kind = "certificate"),
+                achievementDto(id = "w2", kind = "project", createdAt = 20),
+                achievementDto(id = "", kind = "project", createdAt = 50),
+            ),
+        ).toPortfolio()
+
+        assertEquals(listOf("w1", "w2"), portfolio.works.map { it.id.value })
+        assertEquals(listOf("d1"), portfolio.documents.map { it.id.value })
+    }
+
+    @Test
+    fun aListWithNothingButRecordsWithoutAnIdIsAnEmptyPortfolio() {
+        val portfolio = UserAchievementListDto(
+            listOf(achievementDto(id = ""), achievementDto(id = "", kind = "education"), achievementDto(id = " ", kind = "certificate")),
+        ).toPortfolio()
+
+        assertEquals(Portfolio.Empty, portfolio)
     }
 
     // ---- what is sent ----

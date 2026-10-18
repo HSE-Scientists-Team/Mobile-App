@@ -53,7 +53,12 @@ interface MyProfileRepository {
      */
     fun observeMyProfile(): Flow<MyProfile>
 
-    /** Asks the server for the profile again: when the screen is shown, and when the app comes back. */
+    /**
+     * Asks the server for the profile again: when the screen is shown, and when the app comes back. A call that comes
+     * while another one is on its way shares it (one set of requests, one result or failure). The answer is not put
+     * over a change made through this repository after the request began (a save, an added, edited, sent or deleted
+     * record): it is older than that change and is dropped, and the call still returns normally.
+     */
     suspend fun refreshMyProfile()
 
     /**

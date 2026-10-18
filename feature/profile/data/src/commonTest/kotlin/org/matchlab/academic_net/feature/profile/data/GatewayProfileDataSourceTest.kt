@@ -548,4 +548,122 @@ class GatewayProfileDataSourceTest {
         rig.achievements.onDelete = { throw RemoteFailure.NoConnection() }
         assertTrue(runCatching { rig.source.delete(subject) }.exceptionOrNull() is RemoteFailure.NoConnection)
     }
+
+    // ---- records without an id (API-GAP G55) ----
+
+    private fun portfolioWithRecordsWithoutAnId() = UserAchievementListDto(
+        listOf(
+            achievementDto(id = "w1", kind = "scientific"),
+            achievementDto(id = "", kind = "scientific"),
+            achievementDto(id = "d1", kind = "education"),
+            achievementDto(id = "   ", kind = "certificate"),
+            achievementDto(id = "", kind = "project"),
+        ),
+    )
+
+    @Test
+    fun thePortfolioOfAPersonLeavesOutTheRecordsWithoutAnId() = runTest {
+        val rig = rig()
+        rig.achievements.onUserAchievements = { _, _, _ -> portfolioWithRecordsWithoutAnId() }
+
+        val portfolio = rig.source.getPortfolio(other)!!
+
+        assertEquals(listOf("w1"), portfolio.works.map { it.id.value })
+        assertEquals(listOf("d1"), portfolio.documents.map { it.id.value })
+    }
+
+    @Test
+    fun theViewersPortfolioLeavesOutTheRecordsWithoutAnId() = runTest {
+        val rig = rig()
+        rig.achievements.onMyAchievements = { _, _ -> portfolioWithRecordsWithoutAnId() }
+
+        val portfolio = rig.source.getMyPortfolio()
+
+        assertEquals(listOf("w1"), portfolio.works.map { it.id.value })
+        assertEquals(listOf("d1"), portfolio.documents.map { it.id.value })
+    }
+
+    @Test
+    fun aPageOfReviewsWithRecordsWithoutAnIdIsReadWithoutThem() = runTest {
+        val rig = rig()
+        rig.reviews.onUserReviews = { _, _, _ ->
+            UserReviewListDto(listOf(reviewDto(id = "r1"), reviewDto(id = ""), reviewDto(id = "  "), reviewDto(id = "r4")))
+        }
+
+        val reviews = rig.source.getReviews(other, offset = 0, limit = 4)!!
+
+        // The page is shorter than the server's page: a known limit, see the KDoc of the source.
+        assertEquals(listOf("r1", "r4"), reviews.map { it.id.value })
+    }
+
+    @Test
+    fun aPageOfReviewsWithNoIdAtAllIsEmptyAndNotAnError() = runTest {
+        val rig = rig()
+        rig.reviews.onUserReviews = { _, _, _ -> UserReviewListDto(listOf(reviewDto(id = ""), reviewDto(id = ""))) }
+
+        assertEquals(emptyList(), rig.source.getReviews(other, offset = 0, limit = 2))
+    }
+
+    @Test
+    fun aReviewWithoutAnAuthorIdStaysInThePageWithAnAuthorWhoHasNoId() = runTest {
+        val rig = rig()
+        rig.reviews.onUserReviews = { _, _, _ ->
+            UserReviewListDto(listOf(reviewDto(id = "r1", authorId = "", authorName = "Анонимный автор"), reviewDto(id = "r2", authorId = "a2")))
+        }
+
+        val reviews = rig.source.getReviews(other, offset = 0, limit = 2)!!
+
+        assertEquals(listOf("r1", "r2"), reviews.map { it.id.value })
+        assertEquals("", reviews[0].author.id.value)
+        assertEquals("Анонимный автор", reviews[0].author.name)
+        assertEquals("a2", reviews[1].author.id.value)
+    }
+
+    @Test
+    fun aNewRecordThatTheServerAnswersWithoutAnIdIsABrokenAnswer() = runTest {
+        val rig = rig()
+        rig.achievements.onCreate = { input -> achievementDto(id = "", kind = input.kind, title = input.title) }
+
+        assertFailsWith<RemoteFailure.Malformed> { rig.source.createWork(WorkDraft(title = "Статья", description = "О графах")) }
+        assertFailsWith<RemoteFailure.Malformed> {
+            rig.source.createDocument(DocumentDraft(title = "Диплом", issuer = "ВШЭ", proof = ProofAttachment("https://x.org/d.pdf")))
+        }
+    }
+
+    @Test
+    fun aChangedRecordThatTheServerAnswersWithoutAnIdIsABrokenAnswer() = runTest {
+        val rig = rig()
+        rig.achievements.updateAnswer = achievementDto(id = "", kind = "scientific")
+        assertFailsWith<RemoteFailure.Malformed> { rig.source.updateWork(WorkId("w1"), WorkDraft(title = "T", description = "D"), 1) }
+
+        rig.achievements.updateAnswer = achievementDto(id = "", kind = "education")
+        assertFailsWith<RemoteFailure.Malformed> {
+            rig.source.updateDocument(DocumentId("d1"), DocumentDraft(title = "T", issuer = "I", hasEvidenceFile = true), 1)
+        }
+    }
+
+    @Test
+    fun aRecordOfTheViewerThatCameWithoutAnIdIsNotTheOneThatWasAskedFor() = runTest {
+        val rig = rig()
+        rig.achievements.onMyAchievement = { achievementDto(id = "", kind = "scientific") }
+        assertNull(rig.source.getMyWork(WorkId("w1")))
+
+        rig.achievements.onMyAchievement = { achievementDto(id = "", kind = "education") }
+        assertNull(rig.source.getMyDocument(DocumentId("d1")))
+    }
+
+    // ---- dates the calendar cannot hold (API-GAP G57) ----
+
+    @Test
+    fun aPageOfReviewsWithAnEndTimeOfLongMaxValueIsLoadedWithoutAMonth() = runTest {
+        val rig = rig()
+        rig.reviews.onUserReviews = { _, _, _ ->
+            UserReviewListDto(listOf(reviewDto(id = "r1", completedAt = Long.MAX_VALUE), reviewDto(id = "r2", completedAt = 1_751_313_600)))
+        }
+
+        val reviews = rig.source.getReviews(other, offset = 0, limit = 2)!!
+
+        assertEquals(listOf("r1", "r2"), reviews.map { it.id.value })
+        assertEquals(listOf<YearMonth?>(null, YearMonth(2025, Month.JUNE)), reviews.map { it.projectFinished })
+    }
 }

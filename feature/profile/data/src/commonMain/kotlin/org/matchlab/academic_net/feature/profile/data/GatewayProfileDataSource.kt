@@ -28,7 +28,7 @@ import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
  * | Call | Answer -> result |
  * |---|---|
  * | `getProfile` | the public profile from [users]; a 400, 403 or 404 there is `null` |
- * | `getPortfolio`, `getReviews` | 200 is the list; 400, 403 and 404 are `null` |
+ * | `getPortfolio`, `getReviews` | 200 is the list, without the records that have no `id` (G55); 400, 403 and 404 are `null` |
  * | `getMyProfile` | 200 with a name is the record; a 404, or no name, is `null` (G19) |
  * | `getMyPortfolio` | 200 is the list; a 404 is an empty one (an account without a profile, G19) |
  * | `getMyWork`, `getMyDocument` | 200 with the right `kind` is the record; another kind, 400 and 404 are `null` |
@@ -42,7 +42,9 @@ import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
  * every status is `null`, and [capabilities] says so. API-GAP G13: the role of the author of a review is not read.
  * API-GAP G10: `study_level` is a free text, read and written as it is. API-GAP G11: the `project_types` of a profile are
  * not read and not written: a save sends back what the server had ([ProfilesApi.updateMyProfile]), and the capability is
- * off. API-GAP G18, G17: no avatars, and the proof of a document is the public `url`.
+ * off. API-GAP G18, G17: no avatars, and the proof of a document is the public `url`. API-GAP G55: the schema does not
+ * require the `id` of a record, so a work, a document or a review that came without one is left out (a page of reviews
+ * that lost a record is shorter than the server's page, and the repository reads a short page as the last one).
  *
  * @param users the public profiles of other people, shared with the other features of the session.
  * @param timeZone the zone the month of the end of a project is taken in, asked for each review.
@@ -66,7 +68,8 @@ class GatewayProfileDataSource(
     override suspend fun getReviews(id: UserId, offset: Int, limit: Int): List<Review>? =
         orNoSuchPerson {
             val zone = timeZone()
-            reviews.userReviews(id.value, limit = limit, offset = offset).items.map { it.toReview(zone) }
+            // API-GAP G55: a review without an id is left out, so a page may come back shorter than the server's.
+            reviews.userReviews(id.value, limit = limit, offset = offset).items.mapNotNull { it.toReview(zone) }
         }
 
     override suspend fun getMyProfile(): ProfileRecord? {

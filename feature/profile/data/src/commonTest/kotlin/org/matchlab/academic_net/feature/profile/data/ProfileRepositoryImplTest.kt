@@ -3,6 +3,7 @@ package org.matchlab.academic_net.feature.profile.data
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -29,12 +30,12 @@ import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -141,7 +142,7 @@ class ProfileRepositoryImplTest {
     private fun repository(pageSize: Int = 20) = ProfileRepositoryImpl(source, viewer, pageSize)
 
     private fun reviews(count: Int, from: Int = 1, author: String = OtherRaw): List<Review> =
-        List(count) { reviewDto(id = "r${from + it}", authorId = author).toReview(TimeZone.UTC) }
+        List(count) { reviewDto(id = "r${from + it}", authorId = author).toReview(TimeZone.UTC)!! }
 
     // ---- the profile page of somebody else ----
 
@@ -241,6 +242,36 @@ class ProfileRepositoryImplTest {
         source.onGetPortfolio = { throw RemoteFailure.Http(500) }
 
         assertEquals(500, assertFailsWith<RemoteFailure.Http> { repository().getProfile(other) }.status)
+    }
+
+    // ---- the person that was asked for (API-GAP G55) ----
+
+    @Test
+    fun theProfilePageOfAPersonIsThatOfTheOneAskedForWhateverIdTheAnswerHasOrLacks() = runTest {
+        for (answered in listOf("", "   ", "someone-else-entirely")) {
+            source.onGetProfile = { record(answered, name = "Елена") }
+
+            val page = repository().getProfile(other)!!
+
+            assertEquals(other, page.person.user.id, "the answer said '$answered'")
+            assertEquals("Елена", page.person.user.name, "only the id is the repository's, the rest is the answer's")
+        }
+    }
+
+    @Test
+    fun aReviewWhoseAuthorHasNoIdIsNotTakenForTheViewersAndKeepsItsName() = runTest {
+        source.onGetReviews = { _, _, _ ->
+            listOf(
+                reviewDto(id = "r1", authorId = "", authorName = "Аноним").toReview(TimeZone.UTC)!!,
+                reviewDto(id = "r2", authorId = ViewerRaw).toReview(TimeZone.UTC)!!,
+            )
+        }
+
+        val page = repository().getProfile(other)!!
+
+        assertEquals(listOf(false, true), page.latestReviews.map { it.isByViewer })
+        assertEquals("", page.latestReviews.first().author.id.value)
+        assertEquals("Аноним", page.latestReviews.first().author.name)
     }
 
     // ---- the viewer's own page ----
@@ -546,11 +577,9 @@ class ProfileRepositoryImplTest {
     }
 
     /**
-     * KNOWN BUG, switched off until it is fixed (see the report of the tester): a refresh that began before a save
-     * writes its older answer over the saved profile, so the screen shows the old name again until the next refresh.
-     * Fix: drop the answer of a refresh that a later write has outdated (a version counter in `mine`), then enable this.
+     * A refresh that began before a save asked the server before it, so its older answer must not be laid over the saved
+     * profile (the screen would show the old name again until the next refresh).
      */
-    @Ignore
     @Test
     fun aRefreshThatBeganBeforeASaveDoesNotOverwriteIt() = runTest {
         source.onGetMyProfile = { record(ViewerRaw, name = "Старое") }
@@ -582,6 +611,331 @@ class ProfileRepositoryImplTest {
         assertFailsWith<RemoteFailure.Timeout> { repository.refreshMyProfile() }
 
         assertEquals(before, repository.observeMyProfile().first())
+    }
+
+    // ---- the refreshes of the viewer's profile are shared ----
+
+    /** How many times the viewer's own record was asked for: once for each set of requests of a load. */
+    private fun FakeSource.loads(): Int = calls.count { it == "getMyProfile" }
+
+    @Test
+    fun twoRefreshesAtOnceAreOneSetOfThreeRequestsAndNotTwo() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        source.onGetMyProfile = { gate.await(); record(ViewerRaw, name = "Загружено") }
+        val repository = repository()
+
+        val first = async { repository.refreshMyProfile() }
+        val second = async { repository.refreshMyProfile() }
+        runCurrent()
+        gate.complete(Unit)
+        first.await()
+        second.await()
+
+        assertEquals(listOf("getMyPortfolio", "getMyProfile", "getReviews"), source.calls.sorted(), "three requests, not six")
+        assertEquals("Загружено", repository.observeMyProfile().first().profile.person.user.name)
+    }
+
+    @Test
+    fun manyRefreshesAtOnceAreStillOneLoad() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        source.onGetMyProfile = { gate.await(); record(ViewerRaw) }
+        val repository = repository()
+
+        val callers = List(5) { async { repository.refreshMyProfile() } }
+        runCurrent()
+        gate.complete(Unit)
+        callers.awaitAll()
+
+        assertEquals(1, source.loads())
+        assertEquals(1, source.calls.count { it == "getMyPortfolio" })
+        assertEquals(1, source.calls.count { it == "getReviews" })
+    }
+
+    @Test
+    fun refreshesOneAfterAnotherEachAskTheServerAgain() = runTest {
+        val repository = repository()
+
+        repository.refreshMyProfile()
+        repository.refreshMyProfile()
+
+        assertEquals(2, source.loads(), "only the refreshes that overlap are shared")
+    }
+
+    @Test
+    fun twoCollectorsThatComeTogetherShareTheFirstLoad() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        source.onGetMyProfile = { gate.await(); record(ViewerRaw) }
+        val repository = repository()
+
+        val first = async { repository.observeMyProfile().first() }
+        val second = async { repository.observeMyProfile().first() }
+        runCurrent()
+        gate.complete(Unit)
+
+        assertEquals(first.await(), second.await())
+        assertEquals(1, source.loads())
+    }
+
+    @Test
+    fun theFailureOfASharedLoadIsTheFailureOfEveryCallerThatWaitedForItAndTheNextRefreshTriesAgain() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        source.onGetMyProfile = { gate.await(); throw RemoteFailure.Timeout() }
+        val repository = repository()
+        val callers = List(3) { async { runCatching { repository.refreshMyProfile() }.exceptionOrNull() } }
+        runCurrent()
+
+        gate.complete(Unit)
+        val failures = callers.awaitAll()
+
+        assertTrue(failures.all { it is RemoteFailure.Timeout }, "every caller got the failure, was $failures")
+        assertEquals(1, source.loads(), "one set of requests for the three callers")
+
+        // The failed load does not stay in the way.
+        source.onGetMyProfile = { record(ViewerRaw, name = "Снова") }
+        repository.refreshMyProfile()
+        assertEquals(2, source.loads())
+        assertEquals("Снова", repository.observeMyProfile().first().profile.person.user.name)
+    }
+
+    @Test
+    fun whenTheCallerThatRunsASharedLoadIsCancelledTheOneThatWaitsRunsALoadOfItsOwn() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var asked = 0
+        source.onGetMyProfile = {
+            if (++asked == 1) {
+                gate.await()
+                record(ViewerRaw, name = "Первая")
+            } else {
+                record(ViewerRaw, name = "Вторая")
+            }
+        }
+        val repository = repository()
+        val leader = async { repository.refreshMyProfile() }
+        runCurrent()
+        val waiter = async { repository.refreshMyProfile() }
+        runCurrent()
+
+        leader.cancel()
+        waiter.await() // it neither inherits the cancellation nor waits for ever
+
+        assertTrue(leader.isCancelled)
+        assertEquals(2, source.loads())
+        assertEquals("Вторая", repository.observeMyProfile().first().profile.person.user.name)
+    }
+
+    @Test
+    fun aWaiterThatGivesUpCancelsNeitherTheLoadNorTheOtherCallers() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        source.onGetMyProfile = { gate.await(); record(ViewerRaw) }
+        val repository = repository()
+        val leader = async { repository.refreshMyProfile() }
+        runCurrent()
+        val impatient = async { repository.refreshMyProfile() }
+        val patient = async { repository.refreshMyProfile() }
+        runCurrent()
+
+        impatient.cancel()
+        gate.complete(Unit)
+        leader.await()
+        patient.await()
+
+        assertTrue(impatient.isCancelled)
+        assertEquals(1, source.loads())
+        assertNotNull(repository.observeMyProfile().first())
+    }
+
+    // ---- a load never overwrites a change that is newer than it ----
+
+    /**
+     * Starts a refresh that the server answers late, with the old name; runs [write] while it waits; lets it finish.
+     * Whatever asks the server after the write gets the new name. Returns the name the state shows in the end.
+     */
+    private suspend fun kotlinx.coroutines.test.TestScope.nameAfterAStaleRefreshMeets(
+        write: suspend (ProfileRepositoryImpl, FakeSource) -> Unit,
+    ): String {
+        val source = FakeSource()
+        val repository = ProfileRepositoryImpl(source, viewer)
+        source.onGetMyProfile = { record(ViewerRaw, name = "Старое") }
+        repository.observeMyProfile().first()
+        val gate = CompletableDeferred<Unit>()
+        var asked = 0
+        source.onGetMyProfile = {
+            if (++asked == 1) {
+                val old = record(ViewerRaw, name = "Старое")
+                gate.await()
+                old
+            } else {
+                record(ViewerRaw, name = "Новое")
+            }
+        }
+        val stale = async { repository.refreshMyProfile() }
+        runCurrent()
+
+        write(repository, source)
+        gate.complete(Unit)
+        stale.await()
+
+        return repository.observeMyProfile().first().profile.person.user.name
+    }
+
+    @Test
+    fun aRefreshThatBeganBeforeAnAddedWorkOrDocumentDoesNotBringBackTheOldProfile() = runTest {
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.createWork(WorkDraft(title = "Статья", description = "О графах"))
+        })
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.createDocument(DocumentDraft(title = "Диплом", issuer = "ВШЭ", proof = ProofAttachment("https://x.org/d.pdf")))
+        })
+    }
+
+    @Test
+    fun aRefreshThatBeganBeforeAnAddedAndSentWorkDoesNotBringBackTheOldProfile() = runTest {
+        // Two changes in one call: the add and the send. Both count.
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, source ->
+            repository.createWork(WorkDraft(title = "Статья", description = "О графах", link = "https://doi.org/10.1/x"))
+            assertEquals(1, source.submitted.size)
+        })
+    }
+
+    @Test
+    fun aRefreshThatBeganBeforeAnEditedWorkOrDocumentDoesNotBringBackTheOldProfile() = runTest {
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.updateWork(WorkId("w1"), WorkDraft(title = "Новое", description = "О"), expectedRevision = 1)
+        })
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.updateDocument(DocumentId("d1"), DocumentDraft(title = "Новое", issuer = "ВШЭ", hasEvidenceFile = true), expectedRevision = 1)
+        })
+    }
+
+    @Test
+    fun aRefreshThatBeganBeforeASendOrADeleteDoesNotBringBackTheOldProfile() = runTest {
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.submitForVerification(VerificationSubject.Work(WorkId("w1")))
+        })
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.delete(VerificationSubject.Document(DocumentId("d1"), DocumentKind.Education))
+        })
+    }
+
+    @Test
+    fun aRefreshThatBeganBeforeASaveOfTheProfileDoesNotBringBackTheOldName() = runTest {
+        assertEquals("Новое", nameAfterAStaleRefreshMeets { repository, _ ->
+            repository.updateProfile(ProfileDraft(name = "Новое"))
+        })
+    }
+
+    @Test
+    fun aChangeThatFailedDoesNotOutdateARefreshThatIsOnItsWay() = runTest {
+        val repository = repository()
+        source.onGetMyProfile = { record(ViewerRaw, name = "Старое") }
+        repository.observeMyProfile().first()
+        val gate = CompletableDeferred<Unit>()
+        source.onGetMyProfile = { gate.await(); record(ViewerRaw, name = "Свежее") }
+        val refresh = async { repository.refreshMyProfile() }
+        runCurrent()
+        source.onDelete = { throw RemoteFailure.Http(500) }
+
+        assertFailsWith<RemoteFailure.Http> { repository.delete(VerificationSubject.Work(WorkId("w1"))) }
+        gate.complete(Unit)
+        refresh.await()
+
+        assertEquals("Свежее", repository.observeMyProfile().first().profile.person.user.name)
+    }
+
+    @Test
+    fun aRefreshAfterAChangeIsANewLoadAndDoesNotJoinTheOldOneThatIsStillOnItsWay() = runTest {
+        val repository = repository()
+        source.onGetMyProfile = { record(ViewerRaw, name = "Старое") }
+        repository.observeMyProfile().first()
+        source.calls.clear()
+        val gate = CompletableDeferred<Unit>()
+        var asked = 0
+        source.onGetMyProfile = {
+            if (++asked == 1) {
+                val old = record(ViewerRaw, name = "Старое")
+                gate.await()
+                old
+            } else {
+                record(ViewerRaw, name = "Свежее")
+            }
+        }
+        val stale = async { repository.refreshMyProfile() }
+        runCurrent()
+        assertEquals(1, source.loads())
+
+        repository.updateProfile(ProfileDraft(name = "Сохранённое"))
+        repository.refreshMyProfile() // it does not wait for the old one: that load is older than the save
+
+        assertEquals(2, source.loads())
+        assertEquals("Свежее", repository.observeMyProfile().first().profile.person.user.name)
+        gate.complete(Unit)
+        stale.await()
+        assertEquals("Свежее", repository.observeMyProfile().first().profile.person.user.name, "the old answer is dropped")
+    }
+
+    @Test
+    fun theFirstLoadIsAppliedEvenIfAChangeWentThroughMeanwhileBecauseThereIsNoStateYet() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var asked = 0
+        source.onGetMyProfile = {
+            if (++asked == 1) {
+                val old = record(ViewerRaw, name = "Старое")
+                gate.await()
+                old
+            } else {
+                throw RemoteFailure.NoConnection() // the reload after the change fails: nothing is shown yet
+            }
+        }
+        val repository = repository()
+        val first = async { repository.refreshMyProfile() }
+        runCurrent()
+
+        repository.delete(VerificationSubject.Work(WorkId("w1")))
+        gate.complete(Unit)
+        first.await()
+
+        assertEquals("Старое", repository.observeMyProfile().first().profile.person.user.name, "better than nothing")
+        assertEquals(2, source.loads(), "showing it asks for nothing more")
+    }
+
+    @Test
+    fun aSaveBeforeAnythingWasLoadedLoadsTheProfileAfterTheSaveAndNotTheLoadThatWasOnItsWay() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var asked = 0
+        source.onGetMyProfile = {
+            if (++asked == 1) {
+                val old = record(ViewerRaw, name = "Старое")
+                gate.await()
+                old
+            } else {
+                record(ViewerRaw, name = "Новое")
+            }
+        }
+        val repository = repository()
+        val firstLoad = async { repository.refreshMyProfile() }
+        runCurrent()
+
+        val saved = repository.updateProfile(ProfileDraft(name = "Новое"))
+        gate.complete(Unit)
+        firstLoad.await()
+
+        assertEquals("Новое", saved.profile.person.user.name)
+        assertEquals("Новое", repository.observeMyProfile().first().profile.person.user.name)
+    }
+
+    @Test
+    fun aSaveOfTheProfileKeepsTheWorksThatTheStateGotAfterAnAdd() = runTest {
+        val repository = repository()
+        repository.observeMyProfile().first()
+        source.onGetMyPortfolio = { Portfolio(listOf(achievementDto(id = "w-new").toWork()!!), emptyList()) }
+        repository.createWork(WorkDraft(title = "Статья", description = "О графах"))
+        source.onUpdateMyProfile = { record(ViewerRaw, name = "Новое имя") }
+
+        repository.updateProfile(ProfileDraft(name = "Новое имя"))
+
+        val mine = repository.observeMyProfile().first()
+        assertEquals("Новое имя", mine.profile.person.user.name)
+        assertEquals(listOf("w-new"), mine.allWorks.map { it.id.value }, "the save lays only the form over the state")
     }
 
     // ---- saving the profile ----
