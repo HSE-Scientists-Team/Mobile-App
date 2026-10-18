@@ -122,6 +122,15 @@ fun AppSearchBarButton(
 /**
  * "Text field/Outlined": label above a 12dp-rounded outlined box. The caret survives configuration
  * changes (see [AppBasicTextField]).
+ *
+ * With [errorText] the outline is `error` and a line of `labelSmall` in `error` stands under the box (the
+ * design draws this state as an override of the field, see the registration screens).
+ *
+ * @param errorText the reason the text is not accepted, or `null`
+ * @param errorAction a button at the end of the error line, for the way out of that very problem: "Войти" next
+ * to "Аккаунт с этой почтой уже есть". It is drawn only together with [errorText], which takes the width that
+ * is left and wraps. Pass a text button; a 40dp one keeps the line as tall as the design's (a Material 3 button
+ * is laid out 48dp tall unless the screen turns that off).
  */
 @Composable
 fun AppTextField(
@@ -135,8 +144,8 @@ fun AppTextField(
     enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
-    // Not in the design: error state is the Material 3 one (error outline and a line under the box).
     errorText: String? = null,
+    errorAction: (@Composable () -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
@@ -167,7 +176,20 @@ fun AppTextField(
                 }
             },
         )
-        if (errorText != null) FieldError(errorText)
+        if (errorText != null) {
+            if (errorAction == null) {
+                FieldError(errorText)
+            } else {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FieldError(errorText, Modifier.weight(1f))
+                    errorAction()
+                }
+            }
+        }
     }
 }
 
@@ -392,8 +414,8 @@ private fun Modifier.fieldBox(focused: Boolean, isError: Boolean = false): Modif
 }
 
 @Composable
-private fun FieldError(text: String) {
-    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+private fun FieldError(text: String, modifier: Modifier = Modifier) {
+    Text(text, modifier, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
 }
 
 @Composable

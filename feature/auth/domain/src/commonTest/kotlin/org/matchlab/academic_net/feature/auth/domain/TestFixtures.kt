@@ -7,48 +7,77 @@ import org.matchlab.academic_net.common.model.UserId
 
 val TestSession = Session(UserId("user-me"), "student@hse.ru", AccessToken("secret-token"))
 
+val TestPending = PendingRegistration("student@hse.ru", 60.seconds, hasPassword = true)
+
 /** In-memory [AuthRepository] that records what the use cases pass to it. */
 class FakeAuthRepository : AuthRepository {
     private val state = MutableStateFlow<AuthState>(AuthState.Restoring)
     override val authState: StateFlow<AuthState> = state
 
+    /** Thrown by every call that reaches the "server", to play a network failure. */
     var failure: Throwable? = null
-    var requestOutcome: CodeRequestOutcome =
-        CodeRequestOutcome.Sent(VerificationChallenge("student@hse.ru", 60.seconds))
-    var verifyOutcome: CodeVerificationOutcome = CodeVerificationOutcome.Verified(TestSession)
-    var challenge: VerificationChallenge? = null
+    var registrationOutcome: RegistrationOutcome = RegistrationOutcome.LetterSent(TestPending)
+    var confirmationOutcome: ConfirmationOutcome = ConfirmationOutcome.Confirmed(signedIn = true)
+    var signInOutcome: SignInOutcome = SignInOutcome.SignedIn
+    var signInPendingOutcome: SignInOutcome? = SignInOutcome.SignedIn
+    var resendOutcome: RegistrationOutcome? = RegistrationOutcome.LetterSent(TestPending)
+    var pending: PendingRegistration? = null
 
-    val requestedEmails = mutableListOf<String>()
-    val verified = mutableListOf<Pair<String, String>>()
-    val challengeLookups = mutableListOf<String>()
+    val registered = mutableListOf<Credentials>()
+    val confirmations = mutableListOf<Pair<String, String>>()
+    val signIns = mutableListOf<Credentials>()
+    val pendingSignIns = mutableListOf<String>()
+    val resends = mutableListOf<String>()
+    val pendingLookups = mutableListOf<String>()
     var restoreCalls = 0
     var signOutCalls = 0
 
     override suspend fun restoreSession() {
         restoreCalls++
-        state.value = AuthState.SignedOut
+        state.value = AuthState.SignedOut()
     }
 
-    override suspend fun requestCode(email: String): CodeRequestOutcome {
-        requestedEmails += email
+    override suspend fun register(credentials: Credentials): RegistrationOutcome {
+        registered += credentials
         failure?.let { throw it }
-        return requestOutcome
+        return registrationOutcome
     }
 
-    override fun lastChallenge(email: String): VerificationChallenge? {
-        challengeLookups += email
-        return challenge
+    override fun pendingRegistration(email: String): PendingRegistration? {
+        pendingLookups += email
+        return pending
     }
 
-    override suspend fun verifyCode(email: String, code: String): CodeVerificationOutcome {
-        verified += email to code
+    override suspend fun resendLetter(email: String): RegistrationOutcome? {
+        resends += email
         failure?.let { throw it }
-        return verifyOutcome
+        return resendOutcome
+    }
+
+    override suspend fun confirmEmail(email: String, linkOrToken: String): ConfirmationOutcome {
+        confirmations += email to linkOrToken
+        failure?.let { throw it }
+        return confirmationOutcome
+    }
+
+    override suspend fun signIn(credentials: Credentials): SignInOutcome {
+        signIns += credentials
+        failure?.let { throw it }
+        return signInOutcome
+    }
+
+    override suspend fun signInPending(email: String): SignInOutcome? {
+        pendingSignIns += email
+        failure?.let { throw it }
+        return signInPendingOutcome
+    }
+
+    override suspend fun expireSession(token: AccessToken) {
+        state.value = AuthState.SignedOut(sessionExpired = true)
     }
 
     override suspend fun signOut() {
         signOutCalls++
-        state.value = AuthState.SignedOut
+        state.value = AuthState.SignedOut()
     }
 }
-

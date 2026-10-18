@@ -9,10 +9,31 @@ enum class EmailError {
     Malformed,
 }
 
-/** What is wrong with the typed verification code. */
-enum class CodeError {
-    /** Fewer than [VerificationCodeRules.LENGTH] digits. */
-    Incomplete,
+/** What is wrong with the credentials typed in the sign-in or the registration form; each case belongs to one field. */
+enum class CredentialsError {
+    /** The e-mail field is empty. */
+    EmailEmpty,
+
+    /** The e-mail is not an address, see [EmailError.Malformed]. */
+    EmailMalformed,
+
+    /** The password field is empty. */
+    PasswordEmpty,
+
+    /** The password is shorter than [PasswordRules.MinBytes] bytes. */
+    PasswordTooShort,
+
+    /** The password is longer than [PasswordRules.MaxBytes] bytes. */
+    PasswordTooLong,
+
+    /** The repeated password is not the same as the password (registration only). */
+    PasswordsDiffer,
+}
+
+/** What is wrong with the text typed in the field for the link from the letter. */
+enum class ConfirmationInputError {
+    /** Nothing was typed. */
+    Empty,
 }
 
 /**
@@ -54,14 +75,55 @@ object EmailRules {
             all { it.isLetterOrDigit() || it == '-' }
 }
 
-/** Form rules for the code from the e-mail. */
-object VerificationCodeRules {
-    /** The code is this many digits. */
-    const val LENGTH = 6
+/**
+ * Form rules for the password of a registration. The server takes from [MinBytes] to [MaxBytes]
+ * bytes of UTF-8 (schema `Credentials` of the API), so a Cyrillic letter counts as two bytes and
+ * most emoji as four. Whether a password is easy to guess is not checked.
+ */
+object PasswordRules {
+    /** The shortest password, in bytes of UTF-8. */
+    const val MinBytes = 8
 
-    /** What a code field keeps of [input]: its ASCII digits, at most [LENGTH] of them. */
-    fun sanitize(input: String): String = input.filter { it in '0'..'9' }.take(LENGTH)
+    /** The longest password, in bytes of UTF-8. */
+    const val MaxBytes = 72
 
-    /** [CodeError.Incomplete] unless the sanitized [code] is a full code. */
-    fun validate(code: String): CodeError? = if (sanitize(code).length == LENGTH) null else CodeError.Incomplete
+    /**
+     * The first problem of [password], or `null` when it is fine. It is taken as typed: spaces at
+     * the ends are part of the password and are never trimmed, so a password of eight spaces is a
+     * password. The length is in UTF-8 bytes, not in characters.
+     */
+    fun validate(password: String): CredentialsError? {
+        if (password.isEmpty()) return CredentialsError.PasswordEmpty
+        val bytes = utf8Length(password)
+        return when {
+            bytes < MinBytes -> CredentialsError.PasswordTooShort
+            bytes > MaxBytes -> CredentialsError.PasswordTooLong
+            else -> null
+        }
+    }
+
+    /**
+     * The length of [text] in UTF-8, counted without encoding it: the password is not copied into
+     * a byte array that would outlive it in memory. A lone surrogate counts as the three bytes of
+     * the replacement character, which is what the platforms and the server make of it.
+     */
+    private fun utf8Length(text: String): Int {
+        var bytes = 0
+        var index = 0
+        while (index < text.length) {
+            val char = text[index]
+            bytes += when {
+                char.code < 0x80 -> 1
+                char.code < 0x800 -> 2
+                char.isHighSurrogate() && index + 1 < text.length && text[index + 1].isLowSurrogate() -> {
+                    // A pair of surrogates is one code point of four bytes.
+                    index++
+                    4
+                }
+                else -> 3
+            }
+            index++
+        }
+        return bytes
+    }
 }

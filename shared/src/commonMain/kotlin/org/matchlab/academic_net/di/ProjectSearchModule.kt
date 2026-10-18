@@ -19,7 +19,7 @@ internal interface ProjectSearchModule {
     fun sphereProvider(adapter: ProjectsSphereProvider): SphereProvider = adapter
 
     @Provides
-    @AppScope
+    @SessionScope
     fun projectSearchRepository(source: ProjectSearchDataSource): ProjectSearchRepository =
         ProjectSearchRepositoryImpl(source)
 

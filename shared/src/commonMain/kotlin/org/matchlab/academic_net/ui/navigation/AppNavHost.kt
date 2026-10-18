@@ -1,23 +1,12 @@
 package org.matchlab.academic_net.ui.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,21 +17,22 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
-import org.matchlab.academic_net.AppDependencies
+import org.matchlab.academic_net.SessionDependencies
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
-import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.feature.chats.domain.ConversationId
+import org.matchlab.academic_net.di.SessionGraphs
 import org.matchlab.academic_net.feature.auth.domain.AuthState
-import org.matchlab.academic_net.feature.auth.ui.SignInRoute
-import org.matchlab.academic_net.feature.auth.ui.VerifyEmailRoute
+import org.matchlab.academic_net.feature.auth.ui.AuthSplash
+import org.matchlab.academic_net.feature.auth.ui.AuthUiDependencies
+import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.chat.ChatRoute
 import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorSearchRoute
 import org.matchlab.academic_net.feature.feed.ui.FeedRoute
+import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.my.AddDocumentRoute
 import org.matchlab.academic_net.feature.profile.ui.my.AddWorkRoute
 import org.matchlab.academic_net.feature.profile.ui.my.EditProfileRoute
@@ -96,102 +86,49 @@ private object Routes {
 
 private val StringArgument = NavType.StringType
 
-/** Routes of the sign-in flow, shown while there is no session. */
-private object AuthRoutes {
-    const val Email = "auth/email"
-    const val Verify = "auth/verify"
-}
-
-/** A [ViewModelStoreOwner] of its own: what lives in it can be dropped without touching the activity's. */
-private class GraphViewModelStoreOwner : ViewModelStoreOwner {
-    override val viewModelStore = ViewModelStore()
-}
-
 /**
- * The view model stores of the two graphs. It lives in the activity's store, so it survives a
- * rotation like any view model, and the graphs can still be cleared one by one: the navigation of
- * a graph keeps its entries' view models in the owner it is composed under.
- */
-private class GraphViewModelStores : ViewModel() {
-    val auth = GraphViewModelStoreOwner()
-    val main = GraphViewModelStoreOwner()
-
-    override fun onCleared() {
-        auth.viewModelStore.clear()
-        main.viewModelStore.clear()
-    }
-}
-
-/**
- * The root of the app. Which graph is on the screen follows the session: the sign-in flow while
- * there is none, the tabs and everything above them while there is one. The graphs replace each
- * other, and the view models of the one that goes away are cleared, so after signing out nothing
- * of the old one (chats, their drafts, their running work) stays alive.
+ * The root of the app. Which graph is on the screen follows the state of the session ([toRootScreen]): the splash while
+ * the saved session is read, the sign-in flow ([AuthNavHost]) while there is none, the tabs and everything above them
+ * ([MainNavHost]) while there is one. The graphs replace each other, and what belongs to the one that goes away is let
+ * go of ([GraphViewModelStores.release]): the view models of its screens are cleared and, when the session is over, the
+ * session graph of the account is closed, so after signing out nothing of it (chats, their drafts, the running work,
+ * the Gateway session) stays alive.
+ *
+ * **A signed-in user is not signed out by accident.** The saved session is read by the graph of the process as soon as it
+ * is built (`AppGraphs.start`), not by this composition, so a rotation cannot interrupt the reading or the check that
+ * follows it. [AuthState.SignedIn] opens the tabs at once, without waiting for the network, so the sign-in screen never
+ * flashes: until the answer is in, the splash stands in its place. The graph of a session is looked up by the session
+ * ([SessionGraphs.open] gives the same graph for the same session), so a rotation or a recreated activity builds nothing
+ * anew and signs nobody out. Only [AuthSplash] and the sign-in flow exist without a session, and the session ends only
+ * when the user signs out or the server refuses the token (API-GAP G03: the API says nothing about the token's lifetime
+ * or its renewal, so a token is good until the server says otherwise).
+ *
+ * @param auth the sign-in of the process: the state of the session and what the sign-in screens need
+ * @param sessions the graph of the signed-in user, which the root opens and closes with the state
  */
 @Composable
-fun AppNavHost(dependencies: AppDependencies) {
-    val authState by remember { dependencies.auth.observeAuthState() }.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { dependencies.auth.restoreSession() }
+internal fun AppNavHost(auth: AuthUiDependencies, sessions: SessionGraphs) {
+    val authState by remember { auth.observeAuthState() }.collectAsStateWithLifecycle()
     val stores = viewModel { GraphViewModelStores() }
 
-    // Clear a graph's view models when the session says that graph is over.
+    // Let go of a graph's state when the session says that graph is over.
     LaunchedEffect(authState is AuthState.SignedIn, authState is AuthState.SignedOut) {
-        when (authState) {
-            is AuthState.SignedIn -> stores.auth.viewModelStore.clear()
-            AuthState.SignedOut -> stores.main.viewModelStore.clear()
-            AuthState.Restoring -> Unit
-        }
+        stores.release(authState, sessions)
     }
 
-    when (val state = authState) {
-        // The stored session is being read; nothing to show but the background.
-        AuthState.Restoring -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
-        AuthState.SignedOut -> CompositionLocalProvider(LocalViewModelStoreOwner provides stores.auth) {
-            AuthNavHost(dependencies)
+    when (val screen = authState.toRootScreen()) {
+        // The stored session is being read; nothing to show but the name of the app.
+        RootScreen.Splash -> AuthSplash()
+        is RootScreen.SignIn -> CompositionLocalProvider(LocalViewModelStoreOwner provides stores.auth) {
+            AuthNavHost(auth, screen.start)
         }
-        is AuthState.SignedIn -> key(state.session.userId) {
+        is RootScreen.Main -> key(screen.session) {
             CompositionLocalProvider(LocalViewModelStoreOwner provides stores.main) {
-                MainNavHost(dependencies)
+                MainNavHost(
+                    dependencies = remember(screen.session) { sessions.open(screen.session) },
+                    signOut = { auth.signOut() },
+                )
             }
-        }
-    }
-}
-
-/**
- * The email, then the code from the letter; signing in is done by the root when the state changes.
- *
- * Every navigation names the entry of the screen that asks for it (`navigateSingleTop(entry, ...)`,
- * `popBackStackOnce(entry)`): see [isCurrentEntry].
- */
-@Composable
-private fun AuthNavHost(dependencies: AppDependencies) {
-    val navController = rememberNavController()
-    // Kept here, not in the route: an address has characters that routes do not carry well ("+").
-    var email by rememberSaveable { mutableStateOf("") }
-
-    NavHost(
-        navController = navController,
-        startDestination = AuthRoutes.Email,
-        enterTransition = NavTransitions.enter,
-        exitTransition = NavTransitions.exit,
-        popEnterTransition = NavTransitions.enter,
-        popExitTransition = NavTransitions.exit,
-    ) {
-        composable(AuthRoutes.Email) { entry ->
-            SignInRoute(
-                dependencies = dependencies.auth,
-                onCodeSent = { sent ->
-                    email = sent
-                    navController.navigateSingleTop(entry, AuthRoutes.Verify)
-                },
-            )
-        }
-        composable(AuthRoutes.Verify) { entry ->
-            VerifyEmailRoute(
-                dependencies = dependencies.auth,
-                email = email,
-                onNavigateBack = { navController.popBackStackOnce(entry) },
-            )
         }
     }
 }
@@ -205,9 +142,13 @@ private fun AuthNavHost(dependencies: AppDependencies) {
  * `entry` of `composable(...) { entry -> ... }`). The request is carried out only while that
  * screen is the current one ([isCurrentEntry]): repeated taps open one screen, and an event of a
  * screen the user has already left does nothing.
+ *
+ * @param dependencies what the screens of the signed-in user need, from the graph of that session
+ * @param signOut ends the session ("Выйти из аккаунта" of the settings); the root swaps the graphs when the state of
+ * the session changes, so the screen needs no navigation of its own
  */
 @Composable
-private fun MainNavHost(dependencies: AppDependencies) {
+private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -> Unit) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val chatOpener = remember { ExclusiveLauncher() }
@@ -440,7 +381,7 @@ private fun MainNavHost(dependencies: AppDependencies) {
                 dependencies = dependencies.settings,
                 onNavigateBack = { navController.popBackStackOnce(entry) },
                 // The root swaps the graphs when the session ends, so no navigation is needed here.
-                onSignOut = { signOutLauncher.launchIn(scope) { dependencies.auth.signOut() } },
+                onSignOut = { signOutLauncher.launchIn(scope) { signOut() } },
             )
         }
         composable(Routes.EditProfile) { entry ->

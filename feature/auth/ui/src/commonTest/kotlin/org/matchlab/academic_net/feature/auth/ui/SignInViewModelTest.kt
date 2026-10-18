@@ -1,195 +1,472 @@
 package org.matchlab.academic_net.feature.auth.ui
 
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
+import androidx.lifecycle.SavedStateHandle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.result.RemoteFailure
+import org.matchlab.academic_net.feature.auth.data.SignInReply
+import org.matchlab.academic_net.feature.auth.domain.AuthState
+import org.matchlab.academic_net.feature.auth.domain.CredentialsError
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class SignInViewModelTest {
-    @BeforeTest
-    fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
+class SignInViewModelTest : AuthViewModelTest() {
+    private fun SignInViewModel.fill(email: String = TrustedEmail, password: String = TestPassword) {
+        onEmailChange(email)
+        onPasswordChange(password)
+    }
 
-    @AfterTest
-    fun tearDown() = Dispatchers.resetMain()
+    private val SignInViewModel.state get() = uiState.value
 
-    private val harness = AuthTestHarness()
+    // The form
 
     @Test
-    fun startsWithAnEmptyForm() {
-        val state = harness.signInViewModel().uiState.value
+    fun startsWithTheAddressItWasGivenAndNoPassword() {
+        val viewModel = harness.signInViewModel(initialEmail = TrustedEmail)
 
-        assertEquals(SignInUiState(), state)
+        assertEquals(SignInUiState(email = TrustedEmail), viewModel.state)
+        assertEquals("", viewModel.state.password)
     }
 
     @Test
-    fun trustedEmailGetsACodeAndTheScreenLeavesForItWithTheNormalizedAddress() {
-        val viewModel = harness.signInViewModel()
-
-        viewModel.onEmailChange("  Anna@HSE.ru ")
-        viewModel.onGetCodeClick()
-
-        val state = viewModel.uiState.value
-        assertEquals("anna@hse.ru", state.codeSentTo)
-        assertNull(state.error)
-        assertFalse(state.isSending)
+    fun startsEmptyWhenThereIsNoAddressToStartWith() {
+        assertEquals(SignInUiState(), harness.signInViewModel().state)
     }
 
     @Test
-    fun subdomainOfARegisteredDomainIsAccepted() {
+    fun typingChangesTheTextAsTypedWithoutTrimmingAnything() {
         val viewModel = harness.signInViewModel()
 
-        viewModel.onEmailChange("anna@student.hse.ru")
-        viewModel.onGetCodeClick()
+        viewModel.fill(email = "  Anna@HSE.ru ", password = "  spaced out  ")
 
-        assertEquals("anna@student.hse.ru", viewModel.uiState.value.codeSentTo)
+        assertEquals("  Anna@HSE.ru ", viewModel.state.email)
+        assertEquals("  spaced out  ", viewModel.state.password)
+    }
+
+    // Checks of the form: nothing of an invalid form reaches the server
+
+    @Test
+    fun emptyFormIsTwoErrorsThatNeverReachTheServer() {
+        val viewModel = harness.signInViewModel()
+
+        viewModel.onSignInClick()
+
+        assertEquals(setOf(CredentialsError.EmailEmpty, CredentialsError.PasswordEmpty), viewModel.state.errors)
+        assertFalse(viewModel.state.isSubmitting)
+        assertNull(viewModel.state.problem)
+        assertEquals(0, harness.source.signIns)
     }
 
     @Test
-    fun emailOfAnotherDomainIsRefusedByTheServer() {
+    fun blankAddressCountsAsEmpty() {
         val viewModel = harness.signInViewModel()
+        viewModel.fill(email = "   ")
 
-        viewModel.onEmailChange("anna@example.com")
-        viewModel.onGetCodeClick()
+        viewModel.onSignInClick()
 
-        val state = viewModel.uiState.value
-        assertEquals(SignInError.UntrustedDomain, state.error)
-        assertNull(state.codeSentTo)
-        assertFalse(state.isSending)
+        assertEquals(setOf(CredentialsError.EmailEmpty), viewModel.state.errors)
+        assertEquals(0, harness.source.signIns)
     }
 
     @Test
-    fun emptyEmailIsAnErrorThatNeverReachesTheServer() {
+    fun addressWithATypoNeverReachesTheServer() {
         val viewModel = harness.signInViewModel()
+        viewModel.fill(email = "anna.hse.ru")
 
-        viewModel.onEmailChange("   ")
-        viewModel.onGetCodeClick()
+        viewModel.onSignInClick()
 
-        assertEquals(SignInError.EmptyEmail, viewModel.uiState.value.error)
-        assertEquals(0, harness.codeRequests)
+        assertEquals(setOf(CredentialsError.EmailMalformed), viewModel.state.errors)
+        assertEquals(0, harness.source.signIns)
     }
 
     @Test
-    fun malformedEmailIsAnErrorThatNeverReachesTheServer() {
+    fun emptyPasswordNeverReachesTheServer() {
         val viewModel = harness.signInViewModel()
+        viewModel.fill(password = "")
 
-        viewModel.onEmailChange("anna.hse.ru")
-        viewModel.onGetCodeClick()
+        viewModel.onSignInClick()
 
-        assertEquals(SignInError.MalformedEmail, viewModel.uiState.value.error)
-        assertEquals(0, harness.codeRequests)
+        assertEquals(setOf(CredentialsError.PasswordEmpty), viewModel.state.errors)
+        assertEquals(0, harness.source.signIns)
     }
 
     @Test
-    fun typingRemovesTheError() {
+    fun passwordOfAnyLengthGoesToTheServerWhichDecides() = runTest {
+        // The length rules are those of a registration: the account may have been made under others.
+        harness.createAccount(password = "abc")
         val viewModel = harness.signInViewModel()
-        viewModel.onEmailChange("anna@example.com")
-        viewModel.onGetCodeClick()
+        viewModel.fill(password = "abc")
 
-        viewModel.onEmailChange("anna@hse.ru")
+        viewModel.onSignInClick()
 
-        val state = viewModel.uiState.value
-        assertNull(state.error)
-        assertEquals("anna@hse.ru", state.email)
+        assertEquals(1, harness.source.signIns)
+        assertIs<AuthState.SignedIn>(harness.authState)
     }
 
     @Test
-    fun lostConnectionIsANetworkErrorAndTheFormStaysFilled() {
-        harness.offline = true
+    fun errorsAreNotKeptForTheNextAttempt() {
         val viewModel = harness.signInViewModel()
+        viewModel.onSignInClick()
+        assertTrue(viewModel.state.errors.isNotEmpty())
+        viewModel.fill()
+        harness.source.hold()
+
+        viewModel.onSignInClick()
+
+        assertTrue(viewModel.state.errors.isEmpty())
+        assertTrue(viewModel.state.isSubmitting)
+        harness.source.release()
+    }
+
+    @Test
+    fun typingInAFieldTakesAwayItsOwnErrorsAndKeepsTheOthers() {
+        val viewModel = harness.signInViewModel()
+        viewModel.fill(email = "nonsense", password = "")
+        viewModel.onSignInClick()
+        assertEquals(setOf(CredentialsError.EmailMalformed, CredentialsError.PasswordEmpty), viewModel.state.errors)
+
         viewModel.onEmailChange(TrustedEmail)
+        assertEquals(setOf(CredentialsError.PasswordEmpty), viewModel.state.errors)
 
-        viewModel.onGetCodeClick()
+        viewModel.onPasswordChange(TestPassword)
+        assertTrue(viewModel.state.errors.isEmpty())
+    }
 
-        val state = viewModel.uiState.value
-        assertEquals(SignInError.Network, state.error)
-        assertEquals(TrustedEmail, state.email)
-        assertFalse(state.isSending)
+    // What the server answers
+
+    @Test
+    fun signsInAndKeepsTheFormBusyUntilTheScreenIsGone() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+
+        viewModel.onSignInClick()
+
+        val signedIn = assertIs<AuthState.SignedIn>(harness.authState)
+        assertEquals(TrustedEmail, signedIn.session.email)
+        // The root swaps the screens by the auth state; until it does the form takes no more requests.
+        assertTrue(viewModel.state.isSubmitting)
+        assertNull(viewModel.state.problem)
+        assertTrue(viewModel.state.errors.isEmpty())
     }
 
     @Test
-    fun secondRequestSoonAfterTheFirstIsToldHowLongToWait() {
+    fun addressIsNormalizedBeforeItGoesToTheServer() = runTest {
+        harness.createAccount(email = TrustedEmail)
         val viewModel = harness.signInViewModel()
+        viewModel.fill(email = "  Anna@HSE.ru ")
+
+        viewModel.onSignInClick()
+
+        assertEquals(TrustedEmail, harness.source.signInAttempts.single().email)
+        assertIs<AuthState.SignedIn>(harness.authState)
+    }
+
+    @Test
+    fun passwordGoesToTheServerExactlyAsTyped() = runTest {
+        val spaced = "  pa ss  "
+        harness.createAccount(password = spaced)
+        val viewModel = harness.signInViewModel()
+        viewModel.fill(password = spaced)
+
+        viewModel.onSignInClick()
+
+        assertEquals(spaced, harness.source.signInAttempts.single().password.value)
+        assertIs<AuthState.SignedIn>(harness.authState)
+    }
+
+    @Test
+    fun wrongPasswordIsToldAndTheFormStaysFilledForAnotherTry() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        viewModel.fill(password = OtherPassword)
+
+        viewModel.onSignInClick()
+
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+        assertFalse(viewModel.state.isSubmitting)
+        assertEquals(TrustedEmail, viewModel.state.email)
+        assertEquals(OtherPassword, viewModel.state.password)
+        assertFalse(harness.authState is AuthState.SignedIn)
+
+        viewModel.onPasswordChange(TestPassword)
+        viewModel.onSignInClick()
+        assertIs<AuthState.SignedIn>(harness.authState)
+    }
+
+    @Test
+    fun addressWithoutAnAccountIsToldAsWrongCredentialsToo() {
+        // The server does not say which of the two is wrong, and neither does the screen.
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+
+        viewModel.onSignInClick()
+
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+    }
+
+    @Test
+    fun refusedAccountIsToldApartFromWrongCredentials() {
+        harness.source.signInReply = SignInReply.Forbidden
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+
+        viewModel.onSignInClick()
+
+        assertEquals(AuthProblem.AccountUnavailable, viewModel.state.problem)
+        assertFalse(viewModel.state.isSubmitting)
+    }
+
+    @Test
+    fun lostConnectionIsToldAndTheNextTryWorksWhenItIsBack() = runTest {
+        harness.createAccount()
+        harness.source.offline = true
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+
+        viewModel.onSignInClick()
+
+        val problem = assertIs<AuthProblem.CallFailed>(viewModel.state.problem)
+        assertIs<RemoteFailure.NoConnection>(problem.cause)
+        assertFalse(viewModel.state.isSubmitting)
+        assertEquals(TestPassword, viewModel.state.password)
+
+        harness.source.offline = false
+        viewModel.onSignInClick()
+        assertIs<AuthState.SignedIn>(harness.authState)
+    }
+
+    @Test
+    fun everyKindOfFailedCallKeepsItsCauseForTheText() {
+        val causes = listOf(
+            RemoteFailure.Timeout(),
+            RemoteFailure.Http(503, "database is down"),
+            RemoteFailure.Http(500, null),
+            RemoteFailure.Malformed(),
+        )
+        causes.forEach { cause ->
+            harness.source.failure = cause
+            val viewModel = harness.signInViewModel()
+            viewModel.fill()
+
+            viewModel.onSignInClick()
+
+            val problem = assertIs<AuthProblem.CallFailed>(viewModel.state.problem)
+            assertSame(cause, problem.cause)
+            assertFalse(viewModel.state.isSubmitting)
+        }
+    }
+
+    @Test
+    fun typingTakesTheProblemAway() {
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+        viewModel.onSignInClick()
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+
+        viewModel.onPasswordChange(OtherPassword)
+        assertNull(viewModel.state.problem)
+
+        viewModel.onSignInClick()
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+
+        viewModel.onEmailChange("someone.else@hse.ru")
+        assertNull(viewModel.state.problem)
+    }
+
+    // One request at a time
+
+    @Test
+    fun aSecondTapWhileTheRequestIsOnItsWayAsksTheServerOnce() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+        harness.source.hold()
+
+        viewModel.onSignInClick()
+        assertTrue(viewModel.state.isSubmitting)
+        viewModel.onSignInClick()
+        viewModel.onSignInClick()
+        assertEquals(1, harness.source.signIns)
+
+        harness.source.release()
+        assertIs<AuthState.SignedIn>(harness.authState)
+        assertEquals(1, harness.source.signIns)
+    }
+
+    @Test
+    fun aTapAfterTheSignInDoesNotAskForASecondSession() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+        viewModel.onSignInClick()
+        assertIs<AuthState.SignedIn>(harness.authState)
+
+        // The root has not taken the screen away yet: the button and the "Done" key of the keyboard still work.
+        viewModel.onSignInClick()
+        viewModel.onSignInClick()
+
+        assertEquals(1, harness.source.signIns)
+    }
+
+    @Test
+    fun theFormIsFreeAgainAfterAFailureSoTheNextTapAsksAgain() {
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+
+        viewModel.onSignInClick()
+        viewModel.onSignInClick()
+
+        assertEquals(2, harness.source.signIns)
+    }
+
+    @Test
+    fun editingWhileTheRequestIsOnItsWayDoesNotChangeTheRequest() = runTest {
+        harness.createAccount()
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+        harness.source.hold()
+        viewModel.onSignInClick()
+
+        viewModel.onPasswordChange(OtherPassword)
+        harness.source.release()
+
+        assertEquals(TestPassword, harness.source.signInAttempts.single().password.value)
+        assertIs<AuthState.SignedIn>(harness.authState)
+    }
+
+    // The address that comes from outside
+
+    @Test
+    fun anAddressSavedByAnEarlierIncarnationWinsOverTheGivenOne() {
+        val saved = SavedStateHandle(mapOf("email" to "typed@hse.ru"))
+
+        val viewModel = harness.signInViewModel(initialEmail = TrustedEmail, savedState = saved)
+
+        assertEquals("typed@hse.ru", viewModel.state.email)
+    }
+
+    @Test
+    fun aNewAddressFromOutsideReplacesTheTextAndIsSaved() {
+        val saved = SavedStateHandle()
+        val viewModel = harness.signInViewModel(initialEmail = "first@hse.ru", savedState = saved)
+
+        viewModel.onEmailSuggested("second@hse.ru")
+
+        assertEquals("second@hse.ru", viewModel.state.email)
+        assertEquals("second@hse.ru", saved.get<String>("email"))
+    }
+
+    @Test
+    fun theSameAddressGivenAgainLeavesWhatTheUserTypedAlone() {
+        // The route gives the address again each time the screen is composed again.
+        val viewModel = harness.signInViewModel(initialEmail = "first@hse.ru")
+        viewModel.onEmailChange("typed@hse.ru")
+
+        viewModel.onEmailSuggested("first@hse.ru")
+        viewModel.onEmailSuggested("first@hse.ru")
+
+        assertEquals("typed@hse.ru", viewModel.state.email)
+    }
+
+    @Test
+    fun anAddressThatWasGivenAndTypedOverIsNotBroughtBackByTheSameAddress() {
+        val viewModel = harness.signInViewModel(initialEmail = "first@hse.ru")
+        viewModel.onEmailSuggested("second@hse.ru")
+        viewModel.onEmailChange("typed@hse.ru")
+
+        viewModel.onEmailSuggested("second@hse.ru")
+
+        assertEquals("typed@hse.ru", viewModel.state.email)
+    }
+
+    @Test
+    fun anEmptyAddressFromOutsideIsNothingToSuggest() {
+        val viewModel = harness.signInViewModel(initialEmail = "first@hse.ru")
+        viewModel.onEmailChange("typed@hse.ru")
+
+        viewModel.onEmailSuggested("")
+        viewModel.onEmailSuggested("   ")
+
+        assertEquals("typed@hse.ru", viewModel.state.email)
+    }
+
+    @Test
+    fun aNewAddressFromOutsideTakesAwayTheProblemOfTheOldOne() {
+        val viewModel = harness.signInViewModel(initialEmail = "first@hse.ru")
+        viewModel.fill(email = "first@hse.ru")
+        viewModel.onSignInClick()
+        assertEquals(AuthProblem.WrongCredentials, viewModel.state.problem)
+
+        viewModel.onEmailSuggested("second@hse.ru")
+
+        assertNull(viewModel.state.problem)
+    }
+
+    // What is saved
+
+    @Test
+    fun onlyTheAddressIsEverSaved() {
+        val saved = SavedStateHandle()
+        val viewModel = harness.signInViewModel(savedState = saved)
+
         viewModel.onEmailChange(TrustedEmail)
-        viewModel.onGetCodeClick()
-        viewModel.onCodeSentHandled()
-        harness.advance(20.seconds)
+        viewModel.onPasswordChange(TestPassword)
+        viewModel.onSignInClick()
+        viewModel.onPasswordChange(OtherPassword)
 
-        viewModel.onGetCodeClick()
-
-        val state = viewModel.uiState.value
-        assertEquals(SignInError.TooManyRequests, state.error)
-        assertEquals(40, state.retryAfterSeconds)
-        assertNull(state.codeSentTo)
+        assertEquals(setOf("email"), saved.keys())
+        assertEquals(TrustedEmail, saved.get<String>("email"))
+        saved.keys().forEach { key ->
+            val value = saved.get<Any?>(key).toString()
+            assertFalse(TestPassword in value, "the password is in the saved state under $key")
+            assertFalse(OtherPassword in value, "the password is in the saved state under $key")
+        }
     }
 
     @Test
-    fun theEventOfALeavingScreenIsConsumedSoThatTheNextCodeIsNoticedToo() {
-        val viewModel = harness.signInViewModel()
-        viewModel.onEmailChange(TrustedEmail)
-        viewModel.onGetCodeClick()
-        assertEquals(TrustedEmail, viewModel.uiState.value.codeSentTo)
+    fun afterTheScreenIsMadeAgainTheAddressIsBackAndThePasswordIsNot() {
+        val saved = SavedStateHandle()
+        harness.signInViewModel(initialEmail = "given@hse.ru", savedState = saved).fill(password = TestPassword)
 
-        viewModel.onCodeSentHandled()
-        assertNull(viewModel.uiState.value.codeSentTo)
+        // The process was killed and the screen comes back with the same saved state.
+        val restored = harness.signInViewModel(initialEmail = "given@hse.ru", savedState = saved)
 
-        // The user came back and asks again, for the same address, after the wait.
-        harness.advance(61.seconds)
-        viewModel.onGetCodeClick()
-
-        assertEquals(TrustedEmail, viewModel.uiState.value.codeSentTo)
-        assertEquals(2, harness.codeRequests)
+        assertEquals(TrustedEmail, restored.state.email)
+        assertEquals("", restored.state.password)
     }
 
-    @Test
-    fun askingAgainBeforeTheScreenHasLeftSendsNothing() {
-        // The server replaces the code of an address each time, so a second request would void the
-        // first code, which the user is about to be asked for.
-        val viewModel = harness.signInViewModel()
-        viewModel.onEmailChange(TrustedEmail)
-        viewModel.onGetCodeClick()
-        assertEquals(TrustedEmail, viewModel.uiState.value.codeSentTo)
-
-        viewModel.onGetCodeClick()
-        viewModel.onGetCodeClick()
-
-        val state = viewModel.uiState.value
-        assertEquals(1, harness.codeRequests)
-        assertEquals(TrustedEmail, state.codeSentTo)
-        assertNull(state.error)
-        assertFalse(state.isSending)
-    }
+    // What the state tells
 
     @Test
-    fun stateTextHidesTheAddress() {
+    fun stateTextHidesTheAddressAndThePassword() {
         val viewModel = harness.signInViewModel()
-        viewModel.onEmailChange("  Anna@HSE.ru ")
-        assertFalse("nna@" in viewModel.uiState.value.toString())
+        viewModel.fill()
+        viewModel.onSignInClick()
 
-        viewModel.onGetCodeClick()
+        val text = viewModel.state.toString()
 
-        val state = viewModel.uiState.value
-        assertEquals("anna@hse.ru", state.codeSentTo)
-        val text = state.toString()
+        assertFalse(TrustedEmail in text, text)
         assertFalse("anna" in text.lowercase(), text)
-        assertFalse("hse.ru" in text.lowercase(), text)
-        assertTrue("codeSent=true" in text, text)
+        assertFalse(TestPassword in text, text)
+        assertTrue("hasEmail=true" in text, text)
+        assertTrue("hasPassword=true" in text, text)
     }
 
     @Test
-    fun waitIsRoundedUpToWholeSeconds() {
-        assertEquals(0, 0.seconds.wholeSecondsRoundedUp())
-        assertEquals(1, 1.seconds.wholeSecondsRoundedUp())
-        assertEquals(2, (1.seconds + 1.seconds / 10).wholeSecondsRoundedUp())
-        assertEquals(60, 60.seconds.wholeSecondsRoundedUp())
+    fun stateTextOfAFailedCallNamesTheKindOnlyNotTheServersWords() {
+        harness.source.failure = RemoteFailure.Http(503, "secret words of the server")
+        val viewModel = harness.signInViewModel()
+        viewModel.fill()
+
+        viewModel.onSignInClick()
+
+        val text = viewModel.state.toString()
+        assertFalse("secret words" in text, text)
+        assertTrue("CallFailed(Http)" in text, text)
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -330,6 +332,21 @@ private fun AuthComponents() {
         AppPasswordField(filled, { filled = it }, label = "Пароль", hint = "От 8 символов")
         var repeated by remember { mutableStateOf("Student#2025") }
         AppPasswordField(repeated, { repeated = it }, label = "Повторите пароль", errorText = "Пароли не совпадают")
+        // The error line of a text field with a way out on it (registration, 409): the text wraps in the width that
+        // is left, the text button stands at the end. The sign-in screens lay their buttons out 40dp tall instead of
+        // the 48dp of Material 3 (the numbers of the design), so that the line is as tall as in the design; so does
+        // this sample.
+        AppTextField(
+            value = "student@hse.ru",
+            onValueChange = {},
+            label = "Почта вуза",
+            errorText = "Аккаунт с этой почтой уже есть",
+            errorAction = {
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                    AppButton("Войти", {}, variant = AppButtonVariant.Text)
+                }
+            },
+        )
         // The busy button: the arc takes the place of the label, the size and the colors stay, the taps are
         // ignored. The first one is busy for two seconds after a tap (the count of taps must not grow while it
         // is busy, however often it is tapped); the rest are busy all the time.

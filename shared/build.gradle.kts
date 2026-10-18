@@ -70,6 +70,8 @@ kotlin {
             implementation(project(":feature:auth:domain"))
             implementation(project(":feature:auth:data"))
             implementation(project(":feature:auth:ui"))
+            // The composition root builds the Gateway client and opens the session of the signed-in user.
+            implementation(project(":gateway"))
             implementation(project(":feature:settings:domain"))
             implementation(project(":feature:settings:data"))
             implementation(project(":feature:settings:ui"))
@@ -79,6 +81,7 @@ kotlin {
             implementation(project(":feature:feed:domain"))
             implementation(project(":feature:feed:data"))
             implementation(libs.kotlin.inject.runtime)
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

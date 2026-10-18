@@ -1,41 +1,54 @@
 <resources>
+    <!-- The name of the app, on the splash screen shown while the saved session is read -->
+    <string name="auth_app_name">MatchLab</string>
+
     <!-- Sign in -->
     <string name="auth_sign_in_title">Вход в MatchLab</string>
-    <string name="auth_sign_in_subtitle">Войдите через почту вашего вуза</string>
     <string name="auth_email_label">Почта вуза</string>
     <string name="auth_email_hint">name@university.ru</string>
-    <string name="auth_get_code">Получить код</string>
-    <string name="auth_getting_code">Отправляем…</string>
+    <string name="auth_password_label">Пароль</string>
+    <string name="auth_sign_in">Войти</string>
+    <string name="auth_create_account">Создать аккаунт</string>
     <string name="auth_secure_note">Данные входа хранятся на устройстве в зашифрованном виде</string>
-    <string name="auth_error_email_empty">Введите почту</string>
-    <string name="auth_error_email_malformed">Проверьте адрес: он должен выглядеть как name@university.ru</string>
-    <string name="auth_error_untrusted_domain">Почта вуза не найдена в реестре. Проверьте адрес или обратитесь в поддержку вуза</string>
-    <!-- 1: seconds to wait -->
-    <string name="auth_error_too_many_requests_seconds">Слишком много запросов. Повторите через %1$d с</string>
-    <!-- 1: minutes to wait -->
-    <string name="auth_error_too_many_requests_minutes">Слишком много запросов. Повторите через %1$d мин</string>
-    <string name="auth_error_network">Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз</string>
+    <string name="auth_session_expired">Сеанс завершён. Войдите снова</string>
+    <string name="auth_email_confirmed">Почта подтверждена. Войдите</string>
+
+    <!-- Registration -->
+    <string name="auth_register_title">Регистрация</string>
+    <string name="auth_password_hint">От 8 символов</string>
+    <string name="auth_repeat_password_label">Повторите пароль</string>
+    <string name="auth_register">Зарегистрироваться</string>
+    <string name="auth_have_account">Уже есть аккаунт? Войти</string>
 
     <!-- Email confirmation -->
-    <string name="auth_verify_title">Подтверждение почты</string>
-    <!-- 1: the email the code was sent to -->
-    <string name="auth_verify_subtitle">Отправили 6-значный код на %1$s</string>
-    <string name="auth_code_label">Код из письма</string>
-    <string name="auth_code_hint">6 цифр</string>
-    <string name="auth_confirm">Подтвердить</string>
-    <string name="auth_confirming">Проверяем…</string>
-    <string name="auth_resend">Отправить код повторно</string>
-    <string name="auth_resending">Отправляем…</string>
+    <string name="auth_confirm_title">Подтвердите почту</string>
+    <!-- 1: the email the letter was sent to -->
+    <string name="auth_confirm_message">Отправили письмо на %1$s. Откройте ссылку из письма — она действует 30 минут</string>
+    <string name="auth_confirmed">Я подтвердил(а) почту</string>
+    <string name="auth_link_label">Ссылка из письма</string>
+    <string name="auth_link_confirm">Подтвердить</string>
+    <string name="auth_resend">Отправить письмо ещё раз</string>
     <!-- 1: the time left as m:ss -->
-    <string name="auth_resend_in">Повторно через %1$s</string>
-    <string name="auth_error_wrong_code">Неверный код</string>
-    <plurals name="auth_error_wrong_code_attempts">
-        <item quantity="one">Неверный код. Осталась %1$d попытка</item>
-        <item quantity="few">Неверный код. Осталось %1$d попытки</item>
-        <item quantity="many">Неверный код. Осталось %1$d попыток</item>
-        <item quantity="other">Неверный код. Осталось %1$d попытки</item>
-    </plurals>
-    <string name="auth_error_expired">Код истёк, запросите новый</string>
-    <string name="auth_error_too_many_attempts">Слишком много неверных попыток. Запросите новый код</string>
-    <string name="auth_error_resend_too_many">Запрошено слишком много кодов. Подождите немного перед следующим</string>
+    <string name="auth_resend_in">Отправить через %1$s</string>
+    <!-- Also what a screen reader says about the back arrow of the confirmation screen -->
+    <string name="auth_change_email">Изменить почту</string>
+
+    <!-- Problems with the form, under the field they belong to -->
+    <string name="auth_error_email_empty">Введите почту</string>
+    <string name="auth_error_email_malformed">Проверьте адрес: он должен выглядеть как name@university.ru</string>
+    <string name="auth_error_password_empty">Введите пароль</string>
+    <string name="auth_error_password_short">От 8 символов</string>
+    <string name="auth_error_password_long">Не длиннее 72 байт (русская буква — 2 байта)</string>
+    <string name="auth_error_passwords_differ">Пароли не совпадают</string>
+
+    <!-- What the server answered -->
+    <string name="auth_error_wrong_credentials">Неверная почта или пароль</string>
+    <string name="auth_error_account_unavailable">Почта не подтверждена или аккаунт отключён</string>
+    <string name="auth_error_not_confirmed_yet">Почта ещё не подтверждена. Откройте ссылку из письма или вставьте её ниже</string>
+    <string name="auth_error_domain_not_allowed">Регистрация с почтой этой организации недоступна. Используйте почту вуза</string>
+    <string name="auth_error_account_exists">Аккаунт с этой почтой уже есть</string>
+    <string name="auth_error_letter_not_sent">Не удалось отправить письмо. Попробуйте позже</string>
+    <string name="auth_error_link_invalid">Ссылка не подходит или уже использована. Вставьте ссылку из последнего письма</string>
+    <string name="auth_error_link_expired">Ссылка устарела. Отправьте письмо ещё раз</string>
+    <string name="auth_error_link_empty">Вставьте ссылку из письма</string>
 </resources>

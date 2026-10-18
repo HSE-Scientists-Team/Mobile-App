@@ -24,7 +24,7 @@ import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
  */
 internal interface ProfileModule {
     @Provides
-    @AppScope
+    @SessionScope
     fun profileRepositoryImpl(source: ProfileDataSource): ProfileRepositoryImpl = ProfileRepositoryImpl(source)
 
     @Provides

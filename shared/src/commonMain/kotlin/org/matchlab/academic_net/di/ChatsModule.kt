@@ -15,7 +15,7 @@ import org.matchlab.academic_net.feature.chats.ui.ChatsUiDependencies
 /** The chats feature: its repository, use cases and what its screens receive. */
 internal interface ChatsModule {
     @Provides
-    @AppScope
+    @SessionScope
     fun chatsRepository(source: ChatsDataSource): ChatsRepository = ChatsRepositoryImpl(source)
 
     @Provides

@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Auth feature, domain layer: the session and sign-in contract, e-mail and code rules, use cases.
+// Auth feature, domain layer: the session, registration and sign-in contract, e-mail and password rules, use cases.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.auth.domain"

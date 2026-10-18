@@ -11,7 +11,7 @@ import org.matchlab.academic_net.feature.feed.ui.FeedUiDependencies
 /** The feed feature: its repository, use cases and what its screen receives. */
 internal interface FeedModule {
     @Provides
-    @AppScope
+    @SessionScope
     fun feedRepository(source: FeedDataSource): FeedRepository = FeedRepositoryImpl(source)
 
     @Provides

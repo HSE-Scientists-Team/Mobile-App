@@ -11,7 +11,7 @@ import org.matchlab.academic_net.feature.settings.ui.SettingsUiDependencies
 /** The settings feature: its repository, use cases and what its screen receives. */
 internal interface SettingsModule {
     @Provides
-    @AppScope
+    @SessionScope
     fun settingsRepository(source: SettingsDataSource): SettingsRepository = SettingsRepositoryImpl(source)
 
     @Provides

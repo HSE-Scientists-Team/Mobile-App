@@ -19,7 +19,7 @@ internal interface CollaboratorsModule {
     fun roleRequirementProvider(adapter: ProjectsRoleRequirementProvider): RoleRequirementProvider = adapter
 
     @Provides
-    @AppScope
+    @SessionScope
     fun collaboratorsRepository(source: CollaboratorsDataSource): CollaboratorsRepository =
         CollaboratorsRepositoryImpl(source)
 

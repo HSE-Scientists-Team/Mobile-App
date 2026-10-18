@@ -1,75 +1,84 @@
 package org.matchlab.academic_net.feature.auth.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.components.AppButton
+import org.matchlab.academic_net.components.AppButtonVariant
+import org.matchlab.academic_net.components.AppIcons
+import org.matchlab.academic_net.components.AppPasswordField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.SecurityNote
 import org.matchlab.academic_net.feature.auth.ui.generated.resources.Res
+import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_create_account
+import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_email_confirmed
 import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_email_hint
 import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_email_label
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_error_email_empty
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_error_email_malformed
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_error_network
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_error_too_many_requests_minutes
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_error_too_many_requests_seconds
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_error_untrusted_domain
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_get_code
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_getting_code
+import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_password_label
 import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_secure_note
-import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_sign_in_subtitle
+import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_session_expired
+import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_sign_in
 import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_sign_in_title
 
 /**
- * Sign in and registration by the email of a university. The design has no such screen: it is
- * built of the components of the design system.
+ * "19 Вход": the address and the password of an account. It is the first screen of the app for a user who has no
+ * session, and only for them: the app's root shows [AuthSplash] while the saved session is read and the tabs
+ * when there is one, so a user who is still signed in never sees this screen, not even for a frame. A successful
+ * sign-in has no callback: the session appears in the auth state and the root swaps the screens.
  *
- * @param onCodeSent the code is on its way to the email (as the server normalized it); the app
- *  opens the code screen for it
+ * Only the address of the form survives the death of the process; the password is never saved (see
+ * [SignInViewModel]).
+ *
+ * [signInStart] makes the first two arguments from the state of a user who is signed out.
+ *
+ * @param email the address to start with: the one the user last signed in with (`AuthState.SignedOut.lastEmail`),
+ * so that after "Сеанс завершён" or a sign-out only the password is left to type; empty if there is none. The
+ * password is never given. The address typed by the user is the user's: a new value given here replaces it only when
+ * it differs from the one given before (the registration screen sends the address back this way), see
+ * [SignInViewModel.onEmailSuggested]
+ * @param sessionExpired the server stopped accepting the session the user had: a banner says so
+ * ("Сеанс завершён. Войдите снова")
+ * @param onRegisterClick "Создать аккаунт": the user wants to register; the address typed so far is passed on
+ * @param emailConfirmed the address was confirmed and the app could not sign in by itself: a banner says so
+ * ("Почта подтверждена. Войдите"); [sessionExpired] is told first if both are set
  */
 @Composable
 fun SignInRoute(
     dependencies: AuthUiDependencies,
-    onCodeSent: (email: String) -> Unit,
+    email: String,
+    sessionExpired: Boolean,
+    onRegisterClick: (email: String) -> Unit,
     modifier: Modifier = Modifier,
+    emailConfirmed: Boolean = false,
 ) {
-    val viewModel = viewModel { SignInViewModel(dependencies.requestCode) }
+    val viewModel = viewModel {
+        SignInViewModel(
+            initialEmail = email,
+            signIn = dependencies.signIn,
+            savedState = createSavedStateHandle(),
+        )
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(state.codeSentTo) {
-        state.codeSentTo?.let { email ->
-            onCodeSent(email)
-            viewModel.onCodeSentHandled()
-        }
-    }
+    LaunchedEffect(email) { viewModel.onEmailSuggested(email) }
 
     SignInScreen(
         state = state,
+        sessionExpired = sessionExpired,
+        emailConfirmed = emailConfirmed,
         onEmailChange = viewModel::onEmailChange,
-        onGetCodeClick = viewModel::onGetCodeClick,
+        onPasswordChange = viewModel::onPasswordChange,
+        onSignInClick = viewModel::onSignInClick,
+        onRegisterClick = { onRegisterClick(viewModel.uiState.value.email) },
         modifier = modifier,
     )
 }
@@ -77,67 +86,58 @@ fun SignInRoute(
 @Composable
 internal fun SignInScreen(
     state: SignInUiState,
+    sessionExpired: Boolean,
+    emailConfirmed: Boolean,
     onEmailChange: (String) -> Unit,
-    onGetCodeClick: () -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onSignInClick: () -> Unit,
+    onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .imePadding(),
+    // The first screen of the app: there is nowhere to go back to, so the bar has no arrow.
+    AuthFormScreen(
+        topBar = { AppTopBar(title = stringResource(Res.string.auth_sign_in_title)) },
+        modifier = modifier,
     ) {
-        // The first screen of the app: there is nowhere to go back to.
-        AppTopBar(title = stringResource(Res.string.auth_sign_in_title))
-        Column(
-            Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.auth_sign_in_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        FormGroup(FormMetrics.PartGap) {
+            when (signInBanner(sessionExpired, emailConfirmed)) {
+                SignInBanner.SessionEnded ->
+                    InfoBanner(stringResource(Res.string.auth_session_expired), icon = AppIcons.Clock)
+                SignInBanner.EmailConfirmed -> InfoBanner(stringResource(Res.string.auth_email_confirmed))
+                null -> Unit
+            }
             AppTextField(
                 value = state.email,
                 onValueChange = onEmailChange,
                 label = stringResource(Res.string.auth_email_label),
                 placeholder = stringResource(Res.string.auth_email_hint),
-                enabled = !state.isSending,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onGetCodeClick() }),
-                errorText = state.errorText(),
+                keyboardOptions = EmailKeyboardOptions,
+                errorText = state.emailMessage?.text(),
             )
-            AppButton(
-                text = stringResource(
-                    if (state.isSending) Res.string.auth_getting_code else Res.string.auth_get_code,
-                ),
-                onClick = onGetCodeClick,
+            AppPasswordField(
+                value = state.password,
+                onValueChange = onPasswordChange,
+                label = stringResource(Res.string.auth_password_label),
+                errorText = state.passwordMessage?.text(),
+                imeAction = ImeAction.Done,
+                keyboardActions = KeyboardActions(onDone = { onSignInClick() }),
+            )
+        }
+        FormGroup(FormMetrics.ButtonGap) {
+            FormButton(
+                text = stringResource(Res.string.auth_sign_in),
+                onClick = onSignInClick,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isSending,
+                loading = state.isSubmitting,
             )
-            SecurityNote(stringResource(Res.string.auth_secure_note))
+            state.buttonMessage?.let { FormErrorText(it.text()) }
+            FormButton(
+                text = stringResource(Res.string.auth_create_account),
+                onClick = onRegisterClick,
+                modifier = Modifier.fillMaxWidth(),
+                variant = AppButtonVariant.Text,
+            )
         }
-    }
-}
-
-@Composable
-private fun SignInUiState.errorText(): String? = when (error) {
-    null -> null
-    SignInError.EmptyEmail -> stringResource(Res.string.auth_error_email_empty)
-    SignInError.MalformedEmail -> stringResource(Res.string.auth_error_email_malformed)
-    SignInError.UntrustedDomain -> stringResource(Res.string.auth_error_untrusted_domain)
-    SignInError.Network -> stringResource(Res.string.auth_error_network)
-    SignInError.TooManyRequests -> {
-        val seconds = retryAfterSeconds ?: 0
-        if (seconds < 60) {
-            stringResource(Res.string.auth_error_too_many_requests_seconds, seconds.coerceAtLeast(1))
-        } else {
-            stringResource(Res.string.auth_error_too_many_requests_minutes, (seconds + 59) / 60)
-        }
+        SecurityNote(stringResource(Res.string.auth_secure_note))
     }
 }

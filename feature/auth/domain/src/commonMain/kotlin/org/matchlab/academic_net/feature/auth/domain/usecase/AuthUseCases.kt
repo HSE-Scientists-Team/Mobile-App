@@ -4,13 +4,17 @@ import kotlinx.coroutines.flow.StateFlow
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.auth.domain.AuthRepository
 import org.matchlab.academic_net.feature.auth.domain.AuthState
-import org.matchlab.academic_net.feature.auth.domain.CodeError
-import org.matchlab.academic_net.feature.auth.domain.CodeRequestOutcome
-import org.matchlab.academic_net.feature.auth.domain.CodeVerificationOutcome
+import org.matchlab.academic_net.feature.auth.domain.ConfirmationInputError
+import org.matchlab.academic_net.feature.auth.domain.ConfirmationOutcome
+import org.matchlab.academic_net.feature.auth.domain.Credentials
+import org.matchlab.academic_net.feature.auth.domain.CredentialsError
 import org.matchlab.academic_net.feature.auth.domain.EmailError
 import org.matchlab.academic_net.feature.auth.domain.EmailRules
-import org.matchlab.academic_net.feature.auth.domain.VerificationChallenge
-import org.matchlab.academic_net.feature.auth.domain.VerificationCodeRules
+import org.matchlab.academic_net.feature.auth.domain.Password
+import org.matchlab.academic_net.feature.auth.domain.PasswordRules
+import org.matchlab.academic_net.feature.auth.domain.PendingRegistration
+import org.matchlab.academic_net.feature.auth.domain.RegistrationOutcome
+import org.matchlab.academic_net.feature.auth.domain.SignInOutcome
 import org.matchlab.academic_net.utils.suspendRunCatching
 
 /** Whether the user is signed in: the app's root decides which graph to show by it. */
@@ -24,48 +28,114 @@ class RestoreSessionUseCase(private val repository: AuthRepository) {
 }
 
 /**
- * "Получить код": sends a code to the university e-mail.
+ * "Войти": signs in with the e-mail and the password.
  *
- * An address that fails [EmailRules] does not reach the server ([SubmitResult.Invalid]); the
- * registry check is the server's, its verdict is the [CodeRequestOutcome]. A network failure is
- * [SubmitResult.Failure].
+ * The form is checked here, and only for what cannot be right: an address that fails [EmailRules]
+ * and an empty password. The length of the password is not checked: it is the rule of a
+ * registration, and the account may have been made under another one, so the server decides. A form
+ * with a problem does not reach the server ([SubmitResult.Invalid]); the verdict of the server is
+ * the [SignInOutcome]; a failure of the call is [SubmitResult.Failure].
  */
-class RequestEmailCodeUseCase(private val repository: AuthRepository) {
-    suspend operator fun invoke(email: String): SubmitResult<CodeRequestOutcome, EmailError> {
+class SignInUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(email: String, password: String): SubmitResult<SignInOutcome, CredentialsError> {
         val normalized = EmailRules.normalize(email)
-        EmailRules.validate(normalized)?.let { return SubmitResult.Invalid(setOf(it)) }
+        val errors = buildSet<CredentialsError> {
+            EmailRules.validate(normalized)?.let { add(it.toCredentialsError()) }
+            if (password.isEmpty()) add(CredentialsError.PasswordEmpty)
+        }
+        if (errors.isNotEmpty()) return SubmitResult.Invalid(errors)
 
-        return suspendRunCatching { repository.requestCode(normalized) }.fold(
-            onSuccess = { SubmitResult.Success(it) },
-            onFailure = { SubmitResult.Failure(it) },
-        )
+        return suspendRunCatching { repository.signIn(Credentials(normalized, Password(password))) }.toSubmitResult()
     }
 }
 
 /**
- * "Подтвердить": checks the code from the e-mail. A code that is not all [VerificationCodeRules.LENGTH]
- * digits does not reach the server ([SubmitResult.Invalid]).
+ * "Зарегистрироваться": creates a registration, the server sends the letter with the link.
+ *
+ * Every problem of the form is reported at once: the address ([EmailRules]), the password
+ * ([PasswordRules]) and the repeated password, which must be the same as the password. Nothing
+ * reaches the server until the form is right ([SubmitResult.Invalid]). Which domains may register
+ * is decided by the server ([RegistrationOutcome.DomainNotAllowed]).
  */
-class VerifyEmailCodeUseCase(private val repository: AuthRepository) {
-    suspend operator fun invoke(email: String, code: String): SubmitResult<CodeVerificationOutcome, CodeError> {
-        VerificationCodeRules.validate(code)?.let { return SubmitResult.Invalid(setOf(it)) }
+class RegisterUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(
+        email: String,
+        password: String,
+        repeatedPassword: String,
+    ): SubmitResult<RegistrationOutcome, CredentialsError> {
+        val normalized = EmailRules.normalize(email)
+        val errors = buildSet<CredentialsError> {
+            EmailRules.validate(normalized)?.let { add(it.toCredentialsError()) }
+            PasswordRules.validate(password)?.let { add(it) }
+            if (password != repeatedPassword) add(CredentialsError.PasswordsDiffer)
+        }
+        if (errors.isNotEmpty()) return SubmitResult.Invalid(errors)
 
-        return suspendRunCatching {
-            repository.verifyCode(EmailRules.normalize(email), VerificationCodeRules.sanitize(code))
-        }.fold(
-            onSuccess = { SubmitResult.Success(it) },
-            onFailure = { SubmitResult.Failure(it) },
-        )
+        return suspendRunCatching { repository.register(Credentials(normalized, Password(password))) }.toSubmitResult()
     }
 }
 
-/** The code last sent to [email] with the time left until the next one may be requested; `null` if none. */
-class GetLastChallengeUseCase(private val repository: AuthRepository) {
-    operator fun invoke(email: String): VerificationChallenge? =
-        repository.lastChallenge(EmailRules.normalize(email))
+/**
+ * "Подтвердить": confirms the address with the link pasted from the letter (or just its token).
+ *
+ * Empty text does not reach the server ([SubmitResult.Invalid]). Whether the text holds a token and
+ * whether the server knows it is told by the [ConfirmationOutcome]. [email] is the address of the
+ * registration; the app signs in by itself with the password it remembers for it.
+ */
+class ConfirmEmailUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(
+        email: String,
+        linkOrToken: String,
+    ): SubmitResult<ConfirmationOutcome, ConfirmationInputError> {
+        if (linkOrToken.isBlank()) return SubmitResult.Invalid(setOf(ConfirmationInputError.Empty))
+
+        return suspendRunCatching { repository.confirmEmail(EmailRules.normalize(email), linkOrToken) }.toSubmitResult()
+    }
+}
+
+/**
+ * "Я подтвердил(а)": signs in with the password remembered for the registration of [email]. The
+ * outcome is `null` when the password is not in memory (the app was restarted): the user types it
+ * on the sign-in screen. [SignInOutcome.NotConfirmedYet] means that the link was not opened yet.
+ */
+class SignInPendingUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(email: String): Result<SignInOutcome?> =
+        suspendRunCatching { repository.signInPending(EmailRules.normalize(email)) }
+}
+
+/**
+ * "Отправить письмо ещё раз": registers [email] again with the remembered password; the link of the
+ * previous letter stops working. The outcome is `null` when the password is not in memory: the
+ * user registers again. [RegistrationOutcome.AlreadyRegistered] means that the address was
+ * confirmed meanwhile: [SignInPendingUseCase] follows.
+ */
+class ResendLetterUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(email: String): Result<RegistrationOutcome?> =
+        suspendRunCatching { repository.resendLetter(EmailRules.normalize(email)) }
+}
+
+/**
+ * The registration of [email] that waits for its link, with the time left until the letter may be sent
+ * again; `null` if none.
+ */
+class GetPendingRegistrationUseCase(private val repository: AuthRepository) {
+    operator fun invoke(email: String): PendingRegistration? =
+        repository.pendingRegistration(EmailRules.normalize(email))
 }
 
 /** "Выйти из аккаунта". */
 class SignOutUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke() = repository.signOut()
 }
+
+/** The problem of the address as the problem of the field of the form it was typed in. */
+private fun EmailError.toCredentialsError(): CredentialsError = when (this) {
+    EmailError.Empty -> CredentialsError.EmailEmpty
+    EmailError.Malformed -> CredentialsError.EmailMalformed
+}
+
+/** A finished call as the result of a form: its value, or the failure the screen explains. */
+private fun <T> Result<T>.toSubmitResult(): SubmitResult<T, Nothing> = fold(
+    onSuccess = { SubmitResult.Success(it) },
+    onFailure = { SubmitResult.Failure(it) },
+)

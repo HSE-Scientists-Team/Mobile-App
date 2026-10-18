@@ -68,27 +68,95 @@ class AuthRulesTest {
         assertEquals(EmailError.Malformed, EmailRules.validate("a".repeat(250) + "@hse.ru"))
     }
 
+    // ---- the password ----
+
     @Test
-    fun sanitizeKeepsDigitsOnly() {
-        assertEquals("123456", VerificationCodeRules.sanitize("12 34-56"))
-        assertEquals("", VerificationCodeRules.sanitize("abc"))
+    fun passwordLimitsAreEightAndSeventyTwoBytes() {
+        assertEquals(8, PasswordRules.MinBytes)
+        assertEquals(72, PasswordRules.MaxBytes)
     }
 
     @Test
-    fun sanitizeCutsToCodeLength() {
-        assertEquals("123456", VerificationCodeRules.sanitize("1234567890"))
+    fun emptyPasswordIsEmpty() {
+        assertEquals(CredentialsError.PasswordEmpty, PasswordRules.validate(""))
     }
 
     @Test
-    fun sanitizeDropsNonAsciiDigits() {
-        assertEquals("12", VerificationCodeRules.sanitize("1٢2"))
+    fun asciiPasswordIsCountedByCharacters() {
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate("a"))
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate("a".repeat(7)))
+        assertNull(PasswordRules.validate("a".repeat(8)))
+        assertNull(PasswordRules.validate("a".repeat(72)))
+        assertEquals(CredentialsError.PasswordTooLong, PasswordRules.validate("a".repeat(73)))
+        assertEquals(CredentialsError.PasswordTooLong, PasswordRules.validate("a".repeat(10_000)))
     }
 
     @Test
-    fun onlyAFullCodeIsComplete() {
-        assertNull(VerificationCodeRules.validate("123456"))
-        assertNull(VerificationCodeRules.validate("12 34 56"))
-        assertEquals(CodeError.Incomplete, VerificationCodeRules.validate("12345"))
-        assertEquals(CodeError.Incomplete, VerificationCodeRules.validate(""))
+    fun passwordIsNeverTrimmed() {
+        // Eight spaces are a password; the spaces at the ends count like any other character.
+        assertNull(PasswordRules.validate(" ".repeat(8)))
+        assertNull(PasswordRules.validate(" ".repeat(7) + "a"))
+        assertNull(PasswordRules.validate("abcd    "))
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate("  abc  "))
+        assertEquals(CredentialsError.PasswordTooLong, PasswordRules.validate(" " + "a".repeat(72)))
+    }
+
+    @Test
+    fun cyrillicLetterIsTwoBytes() {
+        // Three letters are six bytes, four letters are eight.
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate("пар"))
+        assertNull(PasswordRules.validate("парк"))
+        assertNull(PasswordRules.validate("пароль"))
+        assertNull(PasswordRules.validate("я".repeat(36)))
+        assertEquals(CredentialsError.PasswordTooLong, PasswordRules.validate("я".repeat(37)))
+    }
+
+    @Test
+    fun cjkCharacterIsThreeBytes() {
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate("日本"))
+        assertNull(PasswordRules.validate("日本語"))
+        assertNull(PasswordRules.validate("語".repeat(24)))
+        assertEquals(CredentialsError.PasswordTooLong, PasswordRules.validate("語".repeat(25)))
+    }
+
+    @Test
+    fun emojiIsFourBytesAlthoughItIsTwoChars() {
+        val lock = "\uD83D\uDD12"
+        assertEquals(2, lock.length)
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate(lock))
+        assertNull(PasswordRules.validate(lock.repeat(2)))
+        assertNull(PasswordRules.validate(lock.repeat(18)))
+        assertEquals(CredentialsError.PasswordTooLong, PasswordRules.validate(lock.repeat(19)))
+    }
+
+    @Test
+    fun mixedScriptsAddUp() {
+        // 3 ASCII + 2 Cyrillic (4) + 1 CJK (3) + 1 emoji (4) = 14 bytes.
+        assertNull(PasswordRules.validate("abcпр語\uD83D\uDD12"))
+        // 6 ASCII + 1 Cyrillic (2) = 8 bytes, 7 characters.
+        assertNull(PasswordRules.validate("abcdefг"))
+        // 5 ASCII + 1 Cyrillic (2) = 7 bytes.
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate("abcdeг"))
+    }
+
+    @Test
+    fun loneSurrogateIsThreeBytes() {
+        val high = "\uD83D"
+        val low = "\uDD12"
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate(high))
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate(low))
+        assertNull(PasswordRules.validate(high.repeat(3)))
+        // A low surrogate before a high one is two lone surrogates, not a pair: 3 + 3 bytes.
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate(low + high))
+        // A high surrogate followed by an ordinary character: 3 + 1 bytes.
+        assertEquals(CredentialsError.PasswordTooShort, PasswordRules.validate(high + "abcd"))
+        assertNull(PasswordRules.validate(high + "abcde"))
+    }
+
+    @Test
+    fun noOtherRuleIsChecked() {
+        assertNull(PasswordRules.validate("12345678"))
+        assertNull(PasswordRules.validate("aaaaaaaa"))
+        assertNull(PasswordRules.validate("password"))
     }
 }

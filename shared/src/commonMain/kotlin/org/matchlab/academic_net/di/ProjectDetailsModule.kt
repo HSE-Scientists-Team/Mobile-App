@@ -10,7 +10,7 @@ import org.matchlab.academic_net.feature.projectdetails.ui.ProjectDetailsUiDepen
 /** The project details feature: its repository, use case and what its screen receives. */
 internal interface ProjectDetailsModule {
     @Provides
-    @AppScope
+    @SessionScope
     fun projectDetailsRepository(source: ProjectDetailsDataSource): ProjectDetailsRepository =
         ProjectDetailsRepositoryImpl(source)
 

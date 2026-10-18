@@ -1,39 +1,54 @@
 <resources>
+    <!-- The name of the app, on the splash screen shown while the saved session is read -->
+    <string name="auth_app_name">MatchLab</string>
+
     <!-- Sign in -->
     <string name="auth_sign_in_title">Sign in to MatchLab</string>
-    <string name="auth_sign_in_subtitle">Sign in with your university email</string>
     <string name="auth_email_label">University email</string>
     <string name="auth_email_hint">name@university.edu</string>
-    <string name="auth_get_code">Get a code</string>
-    <string name="auth_getting_code">Sending…</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_create_account">Create account</string>
     <string name="auth_secure_note">Your sign-in data is stored on this device in encrypted form</string>
-    <string name="auth_error_email_empty">Enter your email</string>
-    <string name="auth_error_email_malformed">Check the address: it should look like name@university.edu</string>
-    <string name="auth_error_untrusted_domain">Your university email was not found in the registry. Check the address or contact your university support</string>
-    <!-- 1: seconds to wait -->
-    <string name="auth_error_too_many_requests_seconds">Too many requests. Try again in %1$d s</string>
-    <!-- 1: minutes to wait -->
-    <string name="auth_error_too_many_requests_minutes">Too many requests. Try again in %1$d min</string>
-    <string name="auth_error_network">Could not reach the server. Check your connection and try again</string>
+    <string name="auth_session_expired">Your session has ended. Sign in again</string>
+    <string name="auth_email_confirmed">Email confirmed. Sign in</string>
+
+    <!-- Registration -->
+    <string name="auth_register_title">Registration</string>
+    <string name="auth_password_hint">At least 8 characters</string>
+    <string name="auth_repeat_password_label">Repeat password</string>
+    <string name="auth_register">Sign up</string>
+    <string name="auth_have_account">Already have an account? Sign in</string>
 
     <!-- Email confirmation -->
-    <string name="auth_verify_title">Confirm your email</string>
-    <!-- 1: the email the code was sent to -->
-    <string name="auth_verify_subtitle">We sent a 6-digit code to %1$s</string>
-    <string name="auth_code_label">Code from the email</string>
-    <string name="auth_code_hint">6 digits</string>
-    <string name="auth_confirm">Confirm</string>
-    <string name="auth_confirming">Checking…</string>
-    <string name="auth_resend">Send the code again</string>
-    <string name="auth_resending">Sending…</string>
+    <string name="auth_confirm_title">Confirm your email</string>
+    <!-- 1: the email the letter was sent to -->
+    <string name="auth_confirm_message">We sent an email to %1$s. Open the link in it — it works for 30 minutes</string>
+    <string name="auth_confirmed">I've confirmed my email</string>
+    <string name="auth_link_label">Link from the email</string>
+    <string name="auth_link_confirm">Confirm</string>
+    <string name="auth_resend">Send the email again</string>
     <!-- 1: the time left as m:ss -->
-    <string name="auth_resend_in">Resend in %1$s</string>
-    <string name="auth_error_wrong_code">Wrong code</string>
-    <plurals name="auth_error_wrong_code_attempts">
-        <item quantity="one">Wrong code. %1$d attempt left</item>
-        <item quantity="other">Wrong code. %1$d attempts left</item>
-    </plurals>
-    <string name="auth_error_expired">The code has expired. Request a new one</string>
-    <string name="auth_error_too_many_attempts">Too many wrong attempts. Request a new code</string>
-    <string name="auth_error_resend_too_many">Too many codes were requested. Wait a little before the next one</string>
+    <string name="auth_resend_in">Send again in %1$s</string>
+    <!-- Also what a screen reader says about the back arrow of the confirmation screen -->
+    <string name="auth_change_email">Change email</string>
+
+    <!-- Problems with the form, under the field they belong to -->
+    <string name="auth_error_email_empty">Enter your email</string>
+    <string name="auth_error_email_malformed">Check the address: it should look like name@university.edu</string>
+    <string name="auth_error_password_empty">Enter your password</string>
+    <string name="auth_error_password_short">At least 8 characters</string>
+    <string name="auth_error_password_long">At most 72 bytes (a Cyrillic letter takes 2)</string>
+    <string name="auth_error_passwords_differ">Passwords don't match</string>
+
+    <!-- What the server answered -->
+    <string name="auth_error_wrong_credentials">Wrong email or password</string>
+    <string name="auth_error_account_unavailable">The email is not confirmed or the account is disabled</string>
+    <string name="auth_error_not_confirmed_yet">The email isn't confirmed yet. Open the link from the email or paste it below</string>
+    <string name="auth_error_domain_not_allowed">Registration with an email of this organization is not available. Use your university email</string>
+    <string name="auth_error_account_exists">An account with this email already exists</string>
+    <string name="auth_error_letter_not_sent">Couldn't send the email. Try again later</string>
+    <string name="auth_error_link_invalid">The link doesn't work or has already been used. Paste the link from the latest email</string>
+    <string name="auth_error_link_expired">The link has expired. Send the email again</string>
+    <string name="auth_error_link_empty">Paste the link from the email</string>
 </resources>

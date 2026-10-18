@@ -15,7 +15,7 @@ import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 /** The projects feature: its repository, use cases and what its screens receive. */
 internal interface ProjectsModule {
     @Provides
-    @AppScope
+    @SessionScope
     fun projectsRepository(source: ProjectsDataSource): ProjectsRepository = ProjectsRepositoryImpl(source)
 
     @Provides
