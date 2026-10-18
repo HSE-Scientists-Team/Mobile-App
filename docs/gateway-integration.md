@@ -125,8 +125,6 @@ ktor = "3.6.0"
 kotlinx-serialization = "1.11.0"
 [libraries]
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
-ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
@@ -135,6 +133,46 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 [plugins]
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ```
+
+Все версии при реализации шага 5 подошли без правок (Ktor 3.6.0, OkHttp 5.5.0 как `okhttp-android`, kotlinx-io 0.9.1,
+coroutines 1.11.0). Из каталога убраны `ktor-client-content-negotiation` и `ktor-serialization-kotlinx-json`: тела
+кодируются и читаются вручную (см. «Реализация `:gateway`» ниже).
+
+### Реализация `:gateway` (шаг 5): что вышло иначе или уточнилось
+
+- **Тела без ContentNegotiation.** Запрос кодируется `Json.encodeToString`, ответ читается `Json.decodeFromString` в
+  `ApiRequests` (то же `Json`, что в разделе «Сериализация»). Причина проверена опытом: исключение kotlinx.serialization
+  цитирует разбираемый текст (`JSON input: {"user_id":…,"access_token":"…"}`), а плагин `Logging` печатает исключения
+  конвейера даже на `LogLevel.INFO` (`RESPONSE … failed with exception: …`) — при битом ответе `login` токен попадал бы в
+  лог. Вне конвейера Ktor исключение в лог не попадает, а в `RemoteFailure.Malformed` уходит его копия без цитаты.
+- **Помощник запросов** называется `ApiRequests` (а не `SessionRequests`): один класс для публичного клиента и для клиента
+  сессии. `GatewaySession.requests` (internal) — точка, на которой блоки 2–5 строят `KtorProfilesApi` и прочие:
+  `get<T>`, `post<B, T>`, `postWithoutAnswer<B>`, `delete`, общий `call(...)` с `query`. `PUT` и прочее добавляются там же.
+- **`:gateway` зависит от `:utils`** (`suspendRunCatching` для терпимого чтения тела ошибки), `:common` — `api`, Ktor core —
+  `api` (тип `HttpClientEngine` входит в публичный API `Gateway`).
+- **Таймаут сокета равен таймауту запроса** (`GatewayConfig` знает два числа). Движки получают те же значения: OkHttp —
+  `connect/read/write`, Darwin — `timeoutIntervalForRequest/Resource`. Значения короче миллисекунды поднимаются до 1 мс,
+  длиннее `Int.MAX_VALUE` мс (24 дня) и бесконечные становятся «без таймаута».
+- **401 и слушатель.** `onSessionRejected(token)` вызывается один раз на каждый запрос сессии с ответом 401 (параллельные
+  запросы дают столько же вызовов; `expireSession` идемпотентна по смыслу «токен текущей сессии»), внутри `NonCancellable`,
+  до того как вызов бросит `Http(401)`. Если слушатель упал, его исключение добавляется к `Http(401)` как suppressed.
+- **Отмена.** Вызов, у которого отменили корутину, всегда заканчивается `CancellationException`: Ktor «разворачивает» отмену
+  с причиной в саму причину (`IOException` → ложный `NoConnection`), поэтому после любого сбоя проверяется `ensureActive()`.
+  `GatewaySession.close()` делает `HttpClient.cancel()` и `close()` клиента сессии: идущие запросы получают
+  `CancellationException` (чуть позже самого `close()`: Ktor отменяет их, когда клиент доработает), новые отменяются сразу.
+  Движок и публичный клиент не затрагиваются — `HttpClient.config {}` от клиента, созданного по экземпляру движка, не
+  управляет движком (`manageEngine = false`); это проверено тестом на `MockEngine` и на реальном OkHttp.
+- **Логи.** `logCalls` пишет через `Logger.SIMPLE` (`println`: Logcat `System.out`, консоль Xcode); уровень `INFO`, `Authorization`
+  маскируется на случай повышения уровня. Редиректы Ktor не отключены (ходит только GET/HEAD, `Authorization` Ktor снимает
+  при смене хоста и не уходит с https на http).
+- **Платформы.** `expect fun platformFailure(cause): RemoteFailure?`: на Android `null` (OkHttp бросает `IOException`),
+  на iOS `DarwinHttpRequestException` → `NoConnection` (`NSURLErrorTimedOut` → `Timeout`). iOS проверен только компиляцией.
+- **Тесты.** Кроме `ktor-client-mock`, в `androidHostTest` есть тесты реального OkHttp против сервера на `127.0.0.1`
+  (отказ в соединении, обрыв, молчание → таймаут): наружу ничего не уходит.
+- **OkHttp и `POST`.** Ktor включает `retryOnConnectionFailure(true)`: на протухшем соединении OkHttp может молча повторить
+  `POST` (тело повторяемое). Для `register`/`login` последствия невелики (письмо уйдёт заново, появится ещё один токен), а
+  для `POST /projects` и отправки достижений (блоки 2 и 4) возможен дубль: решение за этими блоками (например,
+  `retryOnConnectionFailure(false)` в `platformHttpEngine`).
 
 ### Моки и `:mockserver`
 
