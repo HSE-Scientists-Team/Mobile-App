@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -28,6 +29,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.datetime.YearMonth
@@ -199,8 +202,16 @@ private fun BaseComponents() {
         var query by remember { mutableStateOf("") }
         AppSearchBar(query, { query = it }, placeholder = "Поиск проектов и людей")
         AppSearchBarButton(placeholder = "Поиск людей по навыкам и интересам", onClick = {})
+        // The segmented control: the pill slides to the tapped segment, the labels change color with it.
         var scope by remember { mutableIntStateOf(0) }
         AppSegmentedControl(listOf("Проекты", "Люди"), scope, { scope = it })
+        var scope3 by remember { mutableIntStateOf(1) }
+        AppSegmentedControl(listOf("Все", "Научные", "Практические"), scope3, { scope3 = it })
+        // Right to left: the first option is on the right and the pill slides the other way.
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            var scopeRtl by remember { mutableIntStateOf(0) }
+            AppSegmentedControl(listOf("Проекты", "Люди", "Чаты"), scopeRtl, { scopeRtl = it })
+        }
         var title by remember { mutableStateOf("") }
         AppTextField(title, { title = it }, label = "Название проекта", placeholder = "Введите текст")
         AppTextField("", {}, label = "Цель", placeholder = "Что хотите получить на выходе", errorText = "Заполните поле")
