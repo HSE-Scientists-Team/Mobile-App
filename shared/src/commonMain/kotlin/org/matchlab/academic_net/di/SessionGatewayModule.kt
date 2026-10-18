@@ -8,8 +8,9 @@ import org.matchlab.academic_net.gateway.Gateway
 import org.matchlab.academic_net.gateway.GatewaySession
 
 /**
- * The calls of the signed-in user to the Gateway. The data sources of the features that talk to the server take a
- * `Lazy<GatewaySession>` (see [DataSourcesModule]): it is opened at the first call of the session.
+ * The calls of the signed-in user to the Gateway. The data sources of the features that talk to the server take the
+ * [GatewaySession] itself (see [DataSourcesModule]): the client is opened when the graph of the session is built,
+ * which sends no request, and is closed with the graph.
  */
 internal interface SessionGatewayModule {
     /**

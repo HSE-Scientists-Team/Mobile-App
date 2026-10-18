@@ -97,9 +97,9 @@ internal object AppGraph {
     private val processScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**
-     * The graphs of the process; made, and started, on the first call, from the arguments of that call. [backend] is
-     * fixed from then on: the process does not change its mode, and a later call with another one gets the graphs of
-     * the first.
+     * The graphs of the process; made, and started, on the first call, from the arguments of that call. [backend] (the
+     * server the Gateway client talks to) is fixed from then on: the process does not change it, and a later call with
+     * another one gets the graphs of the first.
      */
     fun get(secureStore: () -> SecureStore, backend: Backend): AppGraphs =
         instance ?: createGraphs(secureStore(), backend).also { instance = it }

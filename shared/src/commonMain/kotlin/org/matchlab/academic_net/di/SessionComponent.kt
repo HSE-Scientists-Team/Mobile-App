@@ -41,8 +41,8 @@ internal abstract class SessionComponent(
     abstract val resources: SessionResources
 
     /**
-     * The calls of this session to the Gateway, opened at the first request for it; the data sources connected to the
-     * server take it as a `Lazy`.
+     * The calls of this session to the Gateway, opened when the graph is built (opening a client sends no request); the
+     * data sources connected to the server take it as it is, and [close] closes it.
      */
     abstract val gatewaySession: GatewaySession
 

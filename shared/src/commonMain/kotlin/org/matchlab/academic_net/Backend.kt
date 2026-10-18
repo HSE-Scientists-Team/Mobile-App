@@ -3,12 +3,14 @@ package org.matchlab.academic_net
 import org.matchlab.academic_net.gateway.GatewayConfig
 
 /**
- * Where the app gets its data from: the server of the MatchLab Gateway.
+ * Where the app gets its data from: the server of the MatchLab Gateway. [Gateway] is the only case: the app has no mode
+ * in which it plays the server itself (the mock sign-in and the mock server are gone), so what this type chooses is the
+ * address and the logging of the one client.
  *
  * The platform entry points choose the address and hand it to [App]: the Android build from the Gradle property
  * `matchlab.gatewayUrl`, the iOS app always the production server. It is fixed for the whole process: the object graph
  * is built once for it. Everything but the chats (the API has none, API-GAP G50) goes to the server, the sign-in
- * included; there is no in-memory mode that plays the server.
+ * included; the chats stay local and start empty.
  */
 sealed interface Backend {
     /**

@@ -11,9 +11,11 @@ import kotlin.test.assertNotSame
 
 class AppComponentTest {
     /**
-     * The graph of a signed-in user, as the root builds it after a sign-in, over a Gateway that is a mock engine.
-     * Building it makes no call (the session client of the Gateway only keeps the token); only the chats, which the
-     * API does not have, run on their local mock.
+     * The graph of a signed-in user, as the root builds it after a sign-in. The Gateway client runs over the engine of
+     * [FakeServer] (a Ktor `MockEngine`), so nothing leaves the machine and no engine of the platform is left open.
+     * Building the graph sends no request (the session client of the Gateway only keeps the token). Every feature
+     * but the chats gets its data from that Gateway; the chats, which the API does not have (API-GAP G50), run on
+     * a local source that starts empty.
      */
     private fun sessionGraph(): SessionComponent = createSessionComponent(
         createAppComponent(InMemorySecureStore(), Backend.Gateway(), FakeServer().factory),
