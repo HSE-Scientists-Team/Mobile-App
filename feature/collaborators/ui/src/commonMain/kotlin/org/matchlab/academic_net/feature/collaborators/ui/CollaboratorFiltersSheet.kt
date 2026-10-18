@@ -33,10 +33,17 @@ import org.matchlab.academic_net.utils.toggled
 import org.matchlab.academic_net.utils.withTag
 import org.matchlab.academic_net.utils.withoutTag
 
-/** "08b Фильтры коллабораторов". */
+/**
+ * "08b Фильтры коллабораторов": the draft of the filters, "Сбросить" in the header and "Показать N" below.
+ *
+ * @param showWorkTypes whether the group "Тип работы" is offered (API-GAP G11: only if the server can filter by the
+ * type of a person's works, see `CollaboratorsCapabilities.projectTypeFilter`); when it is not, the group is not there
+ * at all and there is no line that explains why
+ */
 @Composable
 internal fun CollaboratorFiltersSheet(
     state: FiltersSheetState,
+    showWorkTypes: Boolean,
     onDraftChange: (CollaboratorFilters) -> Unit,
     onReset: () -> Unit,
     onApply: () -> Unit,
@@ -66,15 +73,18 @@ internal fun CollaboratorFiltersSheet(
                 onDraftChange(draft.copy(hasPublications = it))
             }
         }
-        FilterChipGroup(stringResource(Res.string.collaborators_group_work_type)) {
-            ToggleChip(Res.string.collaborators_filter_scientific, ProjectType.Scientific in draft.workTypes) {
-                onDraftChange(draft.copy(workTypes = draft.workTypes.toggled(ProjectType.Scientific, it)))
-            }
-            ToggleChip(Res.string.collaborators_filter_practical, ProjectType.Practical in draft.workTypes) {
-                onDraftChange(draft.copy(workTypes = draft.workTypes.toggled(ProjectType.Practical, it)))
+        // API-GAP G11: `project_type` has no list of values, so a source that cannot send it hides the group.
+        if (showWorkTypes) {
+            FilterChipGroup(stringResource(Res.string.collaborators_group_work_type)) {
+                ToggleChip(Res.string.collaborators_filter_scientific, ProjectType.Scientific in draft.workTypes) {
+                    onDraftChange(draft.copy(workTypes = draft.workTypes.toggled(ProjectType.Scientific, it)))
+                }
+                ToggleChip(Res.string.collaborators_filter_practical, ProjectType.Practical in draft.workTypes) {
+                    onDraftChange(draft.copy(workTypes = draft.workTypes.toggled(ProjectType.Practical, it)))
+                }
             }
         }
-        // "Мой вуз" of the design needs the user's profile; until then the university is typed.
+        // "Мой вуз" of the design is not made: the university is typed (the server decides how it is matched).
         AppTextField(
             value = draft.university,
             onValueChange = { onDraftChange(draft.copy(university = it)) },

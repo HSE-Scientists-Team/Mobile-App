@@ -9,7 +9,7 @@
     </plurals>
     <string name="collaborators_empty_title">No one found</string>
     <string name="collaborators_empty_search">Change your query or filters</string>
-    <string name="collaborators_error">Could not load the list. Please try again</string>
+    <string name="collaborators_error">Couldn't load the list</string>
     <string name="collaborators_retry">Retry</string>
 
     <!-- Filters sheet -->

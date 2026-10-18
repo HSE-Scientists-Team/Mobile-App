@@ -42,11 +42,13 @@ import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
 import org.matchlab.academic_net.components.SectionHeader
+import org.matchlab.academic_net.components.format.failureText
 import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_empty_text
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_empty_title
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_error
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_find
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_title
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_profile
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_text
@@ -64,6 +66,10 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_title
  * The search bar is a button: it opens the search screen of the chosen scope ([onSearchPeopleClick]
  * for people, [onSearchProjectsClick] for projects). While [onSearchProjectsClick] is `null` the
  * bar of the "Projects" mode stays inactive.
+ *
+ * The "Люди" scope shows the people the server recommends (API-GAP G32: random people open to collaboration): a tap on
+ * one calls [onPersonClick]; when there are none, "Найти людей" calls [onSearchPeopleClick] too. The header draws the
+ * avatar of the signed-in user (`dependencies.viewerId`), which opens the profile ([onProfileClick]).
  */
 @Composable
 fun FeedRoute(
@@ -74,7 +80,7 @@ fun FeedRoute(
     modifier: Modifier = Modifier,
     onSearchProjectsClick: (() -> Unit)? = null,
 ) {
-    val viewModel = viewModel { FeedViewModel(dependencies.getViewer, dependencies.getRecommendedPeople) }
+    val viewModel = viewModel { FeedViewModel(dependencies.viewerId, dependencies.getRecommendedPeople) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     FeedScreen(
         state = state,
@@ -134,14 +140,19 @@ internal fun FeedScreen(
                 title = stringResource(Res.string.feed_projects_title),
                 text = stringResource(Res.string.feed_projects_text),
             )
-            FeedScope.People -> PeopleContent(state, onPersonClick, onPeopleRetry)
+            FeedScope.People -> PeopleContent(
+                people = state.people,
+                onPersonClick = onPersonClick,
+                onRetry = onPeopleRetry,
+                onFindPeopleClick = onSearchPeopleClick,
+            )
         }
     }
 }
 
 /** "header": the app name and the viewer's avatar, which opens the profile. */
 @Composable
-private fun FeedHeader(avatarKey: String?, onProfileClick: () -> Unit) {
+private fun FeedHeader(avatarKey: String, onProfileClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -166,7 +177,7 @@ private fun FeedHeader(avatarKey: String?, onProfileClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Avatar(
-                image = AppAvatars.forKey(avatarKey.orEmpty()),
+                image = AppAvatars.forKey(avatarKey),
                 contentDescription = stringResource(Res.string.feed_profile),
                 size = 32.dp,
             )
@@ -174,11 +185,16 @@ private fun FeedHeader(avatarKey: String?, onProfileClick: () -> Unit) {
     }
 }
 
+/**
+ * The people block of "01c": the title of the section and, under it, what the state says (see [FeedPeopleState]).
+ * A failure and an empty answer are drawn alike, as a message with the way out under it.
+ */
 @Composable
 private fun PeopleContent(
-    state: FeedUiState,
+    people: FeedPeopleState,
     onPersonClick: (UserSummary) -> Unit,
     onRetry: () -> Unit,
+    onFindPeopleClick: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -188,56 +204,61 @@ private fun PeopleContent(
         item(key = "header") {
             SectionHeader(title = stringResource(Res.string.feed_people_title))
         }
-        when {
-            state.isPeopleLoading -> item(key = "loading") {
+        when (people) {
+            FeedPeopleState.NotLoaded, FeedPeopleState.Loading -> item(key = "loading") {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
-            state.peopleFailed -> item(key = "error") {
-                Column(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.feed_people_error),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    AppButton(
-                        text = stringResource(Res.string.feed_retry),
-                        onClick = onRetry,
-                        variant = AppButtonVariant.Outlined,
+            is FeedPeopleState.Failed -> item(key = "error") {
+                CenteredMessage(
+                    title = stringResource(Res.string.feed_people_error),
+                    text = failureText(people.cause),
+                    modifier = Modifier.fillMaxWidth(),
+                    actionText = stringResource(Res.string.feed_retry),
+                    onAction = onRetry,
+                )
+            }
+            is FeedPeopleState.Loaded -> if (people.people.isEmpty()) {
+                item(key = "empty") {
+                    CenteredMessage(
+                        title = stringResource(Res.string.feed_people_empty_title),
+                        text = stringResource(Res.string.feed_people_empty_text),
+                        modifier = Modifier.fillMaxWidth(),
+                        actionText = stringResource(Res.string.feed_people_find),
+                        onAction = onFindPeopleClick,
                     )
                 }
-            }
-            state.people.isEmpty() -> item(key = "empty") {
-                CenteredMessage(
-                    title = stringResource(Res.string.feed_people_empty_title),
-                    text = stringResource(Res.string.feed_people_empty_text),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            else -> items(state.people, key = { it.user.id.value }) { person ->
-                PersonListItem(
-                    model = PersonListItemUiModel(
-                        name = person.user.name,
-                        subtitle = person.collaborator.subtitleText(),
-                        avatar = AppAvatars.forKey(person.user.id.value),
-                        isVerified = person.user.isVerified,
-                    ),
-                    onClick = { onPersonClick(person.user) },
-                    outlined = true,
-                )
+            } else {
+                items(people.people, key = { it.user.id.value }) { person ->
+                    PersonListItem(
+                        model = PersonListItemUiModel(
+                            name = person.user.name,
+                            subtitle = person.collaborator.subtitleText(),
+                            avatar = AppAvatars.forKey(person.user.id.value),
+                            isVerified = person.user.isVerified,
+                        ),
+                        onClick = { onPersonClick(person.user) },
+                        outlined = true,
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * A title, an explaining [text] and, with [actionText] and [onAction], an outlined button below: a message for a place
+ * inside a list (`MessageState` of `:components` takes the whole screen).
+ */
 @Composable
-private fun CenteredMessage(title: String, text: String, modifier: Modifier = Modifier) {
+private fun CenteredMessage(
+    title: String,
+    text: String,
+    modifier: Modifier = Modifier,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     Column(
         modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -255,5 +276,13 @@ private fun CenteredMessage(title: String, text: String, modifier: Modifier = Mo
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        if (actionText != null && onAction != null) {
+            AppButton(
+                text = actionText,
+                onClick = onAction,
+                modifier = Modifier.padding(top = 4.dp),
+                variant = AppButtonVariant.Outlined,
+            )
+        }
     }
 }

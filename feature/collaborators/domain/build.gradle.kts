@@ -6,7 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Collaborators feature, domain layer: search criteria, matching, repository contract and use cases.
+// Collaborators feature, domain layer: search criteria, the repository contract (the server matches and orders the
+// people) and use cases.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.collaborators.domain"

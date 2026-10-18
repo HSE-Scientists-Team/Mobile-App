@@ -7,7 +7,8 @@
     <string name="feed_search_people">Поиск людей по навыкам и интересам</string>
     <string name="feed_people_title">Люди для ваших проектов</string>
     <string name="feed_people_empty_title">Пока нет рекомендаций</string>
-    <string name="feed_people_empty_text">Объявите роли в проекте, и мы подберём людей</string>
+    <string name="feed_people_empty_text">Здесь появятся люди, открытые к сотрудничеству</string>
+    <string name="feed_people_find">Найти людей</string>
     <string name="feed_people_error">Не удалось загрузить рекомендации</string>
     <string name="feed_retry">Повторить</string>
     <string name="feed_projects_title">Рекомендации проектов</string>

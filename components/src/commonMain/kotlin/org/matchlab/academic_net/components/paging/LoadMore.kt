@@ -45,6 +45,33 @@ enum class LoadMoreState {
 }
 
 /**
+ * The end of a list from what its view model knows, as the [LoadMoreState] that [LoadMoreFooter] and [LoadMoreEffect]
+ * take. The three facts can hold at once, so they are read in a fixed order: a failure is shown until the retry (even if
+ * more could be loaded), then a page on its way, then whether the server may have more ([LoadMoreState.Idle]) or the
+ * list is over ([LoadMoreState.End]).
+ *
+ * | [failed] | [isLoadingMore] | [hasMore] | result |
+ * |---|---|---|---|
+ * | yes | any | any | [LoadMoreState.Failed] |
+ * | no | yes | any | [LoadMoreState.Loading] |
+ * | no | no | yes | [LoadMoreState.Idle] |
+ * | no | no | no | [LoadMoreState.End] |
+ *
+ * A view model that keeps these three (`isLoadingMore`, `loadMoreFailure != null`, `hasMore`) leaves the screen only the
+ * call: the view model itself does not import `:components`.
+ *
+ * @param isLoadingMore the next page is on its way
+ * @param failed the next page could not be loaded and "Повторить" has not been pressed yet
+ * @param hasMore the server may have more records after those loaded
+ */
+fun loadMoreStateOf(isLoadingMore: Boolean, failed: Boolean, hasMore: Boolean): LoadMoreState = when {
+    failed -> LoadMoreState.Failed
+    isLoadingMore -> LoadMoreState.Loading
+    hasMore -> LoadMoreState.Idle
+    else -> LoadMoreState.End
+}
+
+/**
  * The end of a list that loads more as it is scrolled, as the design draws it ("Card/…" list of reviews,
  * frames 09b and 09f). Put it in the last `item {}` of the list; it draws what [state] says:
  *

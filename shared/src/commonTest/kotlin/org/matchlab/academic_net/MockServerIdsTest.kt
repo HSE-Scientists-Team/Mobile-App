@@ -4,13 +4,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.matchlab.academic_net.feature.chats.data.mock.MockChatPeers
-import org.matchlab.academic_net.feature.collaborators.data.mock.MockCollaborators
-import org.matchlab.academic_net.feature.feed.data.mock.MockFeedData
 import org.matchlab.academic_net.mockserver.MockProjectCatalog
 
 /**
- * The mock server's catalog of projects, the mock chats, the people search and the feed are separate databases; the
- * people they share must have one id, or "message the initiator" opens a second, empty chat. (The profiles are the
+ * The mock server's catalog of projects and the mock chats are separate databases; the people they share must have one
+ * id, or "message the initiator" opens a second, empty chat. (The profiles, the people search and the feed are the
  * Gateway's now and do not read the mock server's people, so nothing checks that each person has a row there.)
  */
 class MockServerIdsTest {
@@ -18,8 +16,6 @@ class MockServerIdsTest {
         add(MockChatPeers.elena)
         add(MockChatPeers.maria)
         add(MockChatPeers.daniil)
-        MockCollaborators.all.mapTo(this) { it.collaborator.user }
-        MockFeedData.recommendedPeople.mapTo(this) { it.user }
     }
 
     @Test

@@ -6,6 +6,7 @@ import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsDataSou
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsRepositoryImpl
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorsRepository
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirementProvider
+import org.matchlab.academic_net.feature.collaborators.domain.usecase.CountCollaboratorsUseCase
 import org.matchlab.academic_net.feature.collaborators.domain.usecase.GetRoleRequirementUseCase
 import org.matchlab.academic_net.feature.collaborators.domain.usecase.SearchCollaboratorsUseCase
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorsUiDependencies
@@ -30,5 +31,7 @@ internal interface CollaboratorsModule {
     ): CollaboratorsUiDependencies = CollaboratorsUiDependencies(
         getRoleRequirement = GetRoleRequirementUseCase(requirements),
         searchCollaborators = SearchCollaboratorsUseCase(repository),
+        countCollaborators = CountCollaboratorsUseCase(repository),
+        capabilities = repository.capabilities,
     )
 }

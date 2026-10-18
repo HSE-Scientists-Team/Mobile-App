@@ -1,19 +1,15 @@
 package org.matchlab.academic_net.feature.feed.domain
 
 import org.matchlab.academic_net.common.model.Collaborator
-import org.matchlab.academic_net.common.model.UserSummary
 
 /**
- * What the feed shows. The server chooses the recommendations; the calls throw on failure (e.g.
- * no network) and the use cases turn that into results.
+ * What the feed shows. The server chooses the recommendations; the call throws on failure (no network, a server error)
+ * and the use case turns that into a result.
  */
 interface FeedRepository {
-    /** The signed-in user: the avatar in the feed's header. */
-    suspend fun getViewer(): UserSummary
-
     /**
-     * "Люди для ваших проектов": people the server recommends for the vacant roles of the
-     * viewer's projects, the best fit first.
+     * "Люди для ваших проектов": the people the server recommends, in its order, without the viewer and without
+     * repeats. API-GAP G32: the server picks random people open to collaboration, not people for the viewer's projects.
      */
     suspend fun getRecommendedPeople(): List<Collaborator>
 }

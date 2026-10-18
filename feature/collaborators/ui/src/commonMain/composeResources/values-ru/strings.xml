@@ -11,7 +11,7 @@
     </plurals>
     <string name="collaborators_empty_title">Никого не нашли</string>
     <string name="collaborators_empty_search">Измените запрос или фильтры</string>
-    <string name="collaborators_error">Не удалось загрузить список. Попробуйте ещё раз</string>
+    <string name="collaborators_error">Не удалось загрузить список</string>
     <string name="collaborators_retry">Повторить</string>
 
     <!-- Filters sheet -->

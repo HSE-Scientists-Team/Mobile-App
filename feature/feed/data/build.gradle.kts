@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Feed feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockFeedDataSource.
+// Feed feature, data layer: the repository, and the one server it talks to, the Gateway
+// (GatewayFeedDataSource over the recommendations RecommendationsApi).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.feed.data"
@@ -28,7 +28,9 @@ kotlin {
         commonMain.dependencies {
             api(project(":feature:feed:domain"))
             implementation(project(":utils"))
-            implementation(project(":mockserver"))
+            // RecommendationsApi and the translation of its answer for GatewayFeedDataSource; the feature never
+            // exposes them.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

@@ -3,16 +3,15 @@ package org.matchlab.academic_net.feature.feed.ui
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.Collaborator
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedPeopleUseCase
-import org.matchlab.academic_net.feature.feed.domain.usecase.GetViewerUseCase
 
 /** What the search bar and the list of the feed are about (the "search-scope" of the design). */
 enum class FeedScope { Projects, People }
@@ -29,79 +28,78 @@ data class FeedPerson(
 }
 
 /**
- * @property viewerAvatarKey key of the viewer's avatar illustration, `null` until the viewer is loaded
- * @property isPeopleLoading the recommended people have not arrived yet: they are on their way, or
- * still not asked for because the "Люди" scope has not been shown
- * @property peopleFailed the last request for the recommended people failed
+ * The people block of "01c Лента — люди". The answer of the server lives as long as the feed does, so the switch
+ * "Проекты ↔ Люди" never asks again; only "Повторить" after a [Failed] does.
+ */
+sealed interface FeedPeopleState {
+    /** "Люди" has not been shown yet: nothing was asked. */
+    data object NotLoaded : FeedPeopleState
+
+    /** The recommendations are on their way: the list shows the spinner. */
+    data object Loading : FeedPeopleState
+
+    /** They could not be loaded because of [cause]: the block says so and offers "Повторить". */
+    data class Failed(val cause: Throwable) : FeedPeopleState
+
+    /** The server's answer, in its order; may be empty ("Пока нет рекомендаций"). */
+    @Immutable
+    data class Loaded(val people: List<FeedPerson>) : FeedPeopleState
+}
+
+/**
+ * @property viewerAvatarKey the key of the viewer's avatar illustration: the id of the signed-in user (API-GAP G18: no
+ * avatars yet)
+ * @property scope the mode of the search bar and of the list
+ * @property people the recommended people of the "Люди" scope
  */
 @Immutable
 data class FeedUiState(
+    val viewerAvatarKey: String,
     val scope: FeedScope = FeedScope.Projects,
-    val viewerAvatarKey: String? = null,
-    val isPeopleLoading: Boolean = true,
-    val peopleFailed: Boolean = false,
-    val people: List<FeedPerson> = emptyList(),
+    val people: FeedPeopleState = FeedPeopleState.NotLoaded,
 )
 
 /**
- * "01 Лента": the header with the viewer's avatar, the scope of the search, and the recommended
- * people of "01c Лента — люди". Recommended projects are not built yet.
+ * "01 Лента": the header with the viewer's avatar, the scope of the search, and the recommended people of "01c Лента —
+ * люди". Recommended projects are not built yet.
  *
- * The people are asked for when the "Люди" scope is shown for the first time, not at the start: the
- * feed opens on "Проекты", and a request nobody sees is a wasted one. Whatever comes back (the people,
- * or the failure) stays in the state for as long as the screen lives, so a tap on the other scope and
- * back does not ask again; only "Повторить" asks after a failure.
+ * The people are asked for when the "Люди" scope is shown for the first time, not at the start: the feed opens on
+ * "Проекты", and a request nobody sees is a wasted one. Whatever comes back (the people, or the failure) stays in the
+ * state for as long as the screen lives, so a tap on the other scope and back does not ask again; only "Повторить" asks
+ * after a failure. A load starts only from [FeedPeopleState.NotLoaded] or [FeedPeopleState.Failed] and moves the state to
+ * [FeedPeopleState.Loading] at once, so a burst of taps on "Повторить" makes one request.
+ *
+ * API-GAP G32: the server recommends random people open to collaboration, not people for the viewer's projects.
+ *
+ * @param viewerId the signed-in user; the header draws their avatar by the id, so no request is needed for it
  */
 class FeedViewModel(
-    private val getViewer: GetViewerUseCase,
+    viewerId: UserId,
     private val getRecommendedPeople: GetRecommendedPeopleUseCase,
 ) : ViewModel() {
-    private val state = MutableStateFlow(FeedUiState())
+    private val state = MutableStateFlow(FeedUiState(viewerAvatarKey = viewerId.value))
     val uiState: StateFlow<FeedUiState> = state.asStateFlow()
-
-    private var peopleJob: Job? = null
-
-    /** The people were asked for at least once: they are loaded, have failed or are on their way. */
-    private var peopleRequested = false
-
-    init {
-        loadViewer()
-    }
 
     /** Switches the scope; the first time [FeedScope.People] is shown it asks for the recommended people. */
     fun onScopeSelect(scope: FeedScope) {
         state.update { it.copy(scope = scope) }
-        if (scope == FeedScope.People && !peopleRequested) loadPeople()
+        if (scope == FeedScope.People && state.value.people is FeedPeopleState.NotLoaded) loadPeople()
     }
 
-    /** "Повторить" after the people failed to load; ignored while a request is still on its way. */
-    fun onPeopleRetry() = loadPeople()
-
-    private fun loadViewer() {
-        viewModelScope.launch {
-            // The avatar is decoration: if it cannot be loaded the header keeps the default one.
-            getViewer().onSuccess { viewer ->
-                state.update { it.copy(viewerAvatarKey = viewer.id.value) }
-            }
-        }
+    /** "Повторить" after the people failed to load; it does nothing in any other state. */
+    fun onPeopleRetry() {
+        if (state.value.people is FeedPeopleState.Failed) loadPeople()
     }
 
-    /** The first show of the people and "Повторить"; a load that is still on its way is not doubled. */
     private fun loadPeople() {
-        if (peopleJob?.isActive == true) return
-        peopleRequested = true
-        state.update { it.copy(isPeopleLoading = true, peopleFailed = false) }
-        peopleJob = viewModelScope.launch {
+        state.update { it.copy(people = FeedPeopleState.Loading) }
+        viewModelScope.launch {
             getRecommendedPeople().fold(
                 onSuccess = { people ->
-                    state.update {
-                        it.copy(isPeopleLoading = false, people = people.map(Collaborator::toFeedPerson))
-                    }
+                    state.update { it.copy(people = FeedPeopleState.Loaded(people.map(::FeedPerson))) }
                 },
-                onFailure = { state.update { it.copy(isPeopleLoading = false, peopleFailed = true) } },
+                onFailure = { cause -> state.update { it.copy(people = FeedPeopleState.Failed(cause)) } },
             )
         }
     }
 }
-
-private fun Collaborator.toFeedPerson() = FeedPerson(this)

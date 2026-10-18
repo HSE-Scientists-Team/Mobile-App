@@ -6,8 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Feed feature, domain layer: what the feed shows (the viewer, recommended people), the
-// repository contract and use cases.
+// Feed feature, domain layer: what the feed shows (the recommended people), the repository
+// contract and use cases.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.feed.domain"

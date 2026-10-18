@@ -7,7 +7,8 @@
     <string name="feed_search_people">Search people by skills and interests</string>
     <string name="feed_people_title">People for your projects</string>
     <string name="feed_people_empty_title">No recommendations yet</string>
-    <string name="feed_people_empty_text">Announce roles in a project and we will find people</string>
+    <string name="feed_people_empty_text">People open to collaboration will appear here</string>
+    <string name="feed_people_find">Find people</string>
     <string name="feed_people_error">Could not load recommendations</string>
     <string name="feed_retry">Retry</string>
     <string name="feed_projects_title">Project recommendations</string>

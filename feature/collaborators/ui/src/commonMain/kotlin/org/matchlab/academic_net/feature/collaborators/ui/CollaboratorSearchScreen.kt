@@ -12,13 +12,14 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -36,6 +37,10 @@ import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
+import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.paging.LoadMoreEffect
+import org.matchlab.academic_net.components.paging.LoadMoreFooter
+import org.matchlab.academic_net.components.paging.loadMoreStateOf
 import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.Res
@@ -50,10 +55,12 @@ import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.co
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_title
 
 /**
- * "08 Поиск коллабораторов": for one vacant [role], or for everyone when it is `null` (opened from
- * the feed; [autoFocusSearch] then puts the cursor in the search bar). Opening a person leads to
- * their profile, which is a story of the next block; until it exists [onCollaboratorClick] starts
- * a chat.
+ * "08 Поиск коллабораторов": for one vacant [role], or for everyone when it is `null` (opened from the feed;
+ * [autoFocusSearch] then puts the cursor in the search bar). The people come page by page, the next one as the list is
+ * scrolled ("Загрузка…" under it, or "Не удалось загрузить" with "Повторить"). A tap on a person calls
+ * [onCollaboratorClick]; the filters sheet (08b) is opened from the screen itself.
+ *
+ * @param dependencies what the search needs; its capabilities decide which filters the sheet offers
  */
 @Composable
 fun CollaboratorSearchRoute(
@@ -76,6 +83,8 @@ fun CollaboratorSearchRoute(
         onSearchSubmit = viewModel::onSearchSubmit,
         onFiltersClick = viewModel::onFiltersClick,
         onRetry = viewModel::onRetry,
+        onLoadMore = viewModel::onLoadMore,
+        onRetryLoadMore = viewModel::onRetryLoadMore,
         onCollaboratorClick = onCollaboratorClick,
         autoFocusSearch = autoFocusSearch,
         modifier = modifier,
@@ -84,6 +93,8 @@ fun CollaboratorSearchRoute(
     state.filtersSheet?.let { sheet ->
         CollaboratorFiltersSheet(
             state = sheet,
+            // API-GAP G11: the server cannot filter by the type of a person's works, so the group is not offered.
+            showWorkTypes = dependencies.capabilities.projectTypeFilter,
             onDraftChange = viewModel::onFiltersDraftChange,
             onReset = viewModel::onFiltersReset,
             onApply = viewModel::onFiltersApply,
@@ -100,6 +111,8 @@ internal fun CollaboratorSearchScreen(
     onSearchSubmit: () -> Unit,
     onFiltersClick: () -> Unit,
     onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
+    onRetryLoadMore: () -> Unit,
     onCollaboratorClick: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
     autoFocusSearch: Boolean = false,
@@ -144,35 +157,67 @@ internal fun CollaboratorSearchScreen(
             )
         }
         when {
-            state.isLoading -> LoadingState()
-            state.hasError -> MessageState(
+            state.error != null -> MessageState(
                 title = stringResource(Res.string.collaborators_error),
+                text = failureText(state.error),
                 actionText = stringResource(Res.string.collaborators_retry),
                 onAction = onRetry,
             )
+            state.isLoading -> LoadingState()
             state.results.isEmpty() -> MessageState(
                 title = stringResource(Res.string.collaborators_empty_title),
                 text = stringResource(Res.string.collaborators_empty_search),
             )
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().navigationBarsPadding(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(key = "header") { ResultsHeader(state.results.size) }
-                items(state.results, key = { it.user.id.value }) { person ->
-                    PersonListItem(
-                        model = PersonListItemUiModel(
-                            name = person.user.name,
-                            subtitle = person.collaborator.subtitleText(),
-                            avatar = AppAvatars.forKey(person.user.id.value),
-                            isVerified = person.user.isVerified,
-                        ),
-                        onClick = { onCollaboratorClick(person.user) },
-                        outlined = true,
-                    )
-                }
+            else -> ResultsList(
+                state = state,
+                onLoadMore = onLoadMore,
+                onRetryLoadMore = onRetryLoadMore,
+                onCollaboratorClick = onCollaboratorClick,
+            )
+        }
+    }
+}
+
+/**
+ * "Найдено N", the people loaded so far and the end of the list that asks for the next page. The list is shown from its
+ * start for every new set of results ([CollaboratorSearchUiState.resultsVersion]): left where the user had scrolled the
+ * old list, a short new one would be near its end at once and ask for its next page.
+ */
+@Composable
+private fun ResultsList(
+    state: CollaboratorSearchUiState,
+    onLoadMore: () -> Unit,
+    onRetryLoadMore: () -> Unit,
+    onCollaboratorClick: (UserSummary) -> Unit,
+) {
+    key(state.resultsVersion) {
+        val listState = rememberLazyListState()
+        val footer = loadMoreStateOf(
+            isLoadingMore = state.isLoadingMore,
+            failed = state.loadMoreFailure != null,
+            hasMore = state.hasMore,
+        )
+        LoadMoreEffect(listState = listState, state = footer, onLoadMore = onLoadMore)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+            state = listState,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(key = "header") { ResultsHeader(state.total) }
+            items(state.results, key = { it.user.id.value }) { person ->
+                PersonListItem(
+                    model = PersonListItemUiModel(
+                        name = person.user.name,
+                        subtitle = person.collaborator.subtitleText(),
+                        avatar = AppAvatars.forKey(person.user.id.value),
+                        isVerified = person.user.isVerified,
+                    ),
+                    onClick = { onCollaboratorClick(person.user) },
+                    outlined = true,
+                )
             }
+            item(key = "footer") { LoadMoreFooter(state = footer, onRetry = onRetryLoadMore) }
         }
     }
 }

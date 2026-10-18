@@ -38,8 +38,8 @@ private const val CampusNavigation = "AI-навигация по кампусу"
 /**
  * The seeded content of [MockPeople.default].
  *
- * It has a record for every person that appears in the other mock data sources (the people search,
- * the feed, the chats, the projects and the catalog of projects), under the same id and name.
+ * It has a record for every person that appears in the other mock data sources (the chats, the
+ * projects and the catalog of projects), under the same id and name.
  * The viewer, `user-me`, is "Алексей Морозов" here: the content of the Figma screen "10 Мой
  * профиль"; the other mocks call them "Вы".
  *
