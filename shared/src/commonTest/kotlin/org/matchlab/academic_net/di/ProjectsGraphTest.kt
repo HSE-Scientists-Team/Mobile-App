@@ -92,7 +92,10 @@ class ProjectsGraphTest {
 
         val dependencies = dependenciesOf(server)
 
-        assertEquals(ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true), dependencies.projects.capabilities)
+        assertEquals(
+            ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true, canChangeLifecycle = true),
+            dependencies.projects.capabilities,
+        )
         assertEquals(ProjectSearchCapabilities(typeFilter = true, durationFilter = true), dependencies.projectSearch.capabilities)
         assertEquals(emptyList(), server.calls)
     }
@@ -416,5 +419,144 @@ class ProjectsGraphTest {
 
         assertTrue(result.isFailure)
         assertNull(result.getOrNull())
+    }
+
+    // ---- sprint 2: the lifecycle, the editing and the team ----
+
+    private fun projectWithTeam(id: String = "t-1", revision: Int = 5) =
+        """{"id":"$id","owner_user_id":"owner-a","details":{"title":"Команда","type":"1","field":"7","problem":"П","goal":"Ц","planned_start":"2026-10-01","planned_end":"2027-03-31"},"status":"1","revision":$revision,"roles":[{"id":"r-1","title":"Dev","slots":2,"occupied":2}],"members":[{"user_id":"u-1","role_id":"r-1"},{"user_id":"u-2","role_id":"r-1"},{"user_id":"owner-a","role_id":"r-1"}]}"""
+
+    private fun serverWithTeam() = serverWithProjects().apply {
+        val inner = onOther
+        onOther = { arrival ->
+            when (arrival.call) {
+                "GET /api/v1/projects/t-1" -> json(projectWithTeam())
+                "GET /api/v1/users/u-1/profile" -> json(profile("u-1", "МГУ"))
+                "GET /api/v1/users/u-2/profile" -> jsonError(HttpStatusCode.NotFound, "no such user")
+                else -> inner(arrival)
+            }
+        }
+    }
+
+    @Test
+    fun theLifecycleMovesPostTheCodesWithTheRevisionOfTheList() = runTest {
+        val server = serverWithProjects().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "POST /api/v1/projects/m-1/transitions") {
+                    json(project("m-1", viewer, revision = 4).replace("\"status\":\"1\"", "\"status\":\"3\""))
+                } else {
+                    inner(arrival)
+                }
+            }
+        }
+        val dependencies = dependenciesOf(server)
+        dependencies.projects.observeMyProjects().first()
+
+        val result = dependencies.projects.changeLifecycle(ProjectId("m-1"), org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction.Start)
+
+        val changed = assertIs<org.matchlab.academic_net.feature.projects.domain.usecase.ChangeLifecycleResult.Changed>(result)
+        assertEquals(ProjectStatus.Started, changed.project.status)
+        val post = server.requests("POST /api/v1/projects/m-1/transitions").single()
+        assertTrue("\"action\":\"3\"" in post.body, post.body)
+        assertTrue("\"expected_revision\":3" in post.body, post.body)
+    }
+
+    @Test
+    fun aRefusedMoveIsNotAllowedAndTheProjectIsReadAgain() = runTest {
+        val server = serverWithProjects().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                when (arrival.call) {
+                    "POST /api/v1/projects/m-1/transitions" -> jsonError(HttpStatusCode.Conflict, "no")
+                    "GET /api/v1/projects/m-1" -> json(project("m-1", viewer, revision = 9))
+                    else -> inner(arrival)
+                }
+            }
+        }
+        val dependencies = dependenciesOf(server)
+        dependencies.projects.observeMyProjects().first()
+
+        val result = dependencies.projects.changeLifecycle(ProjectId("m-1"), org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction.Cancel)
+
+        assertEquals(org.matchlab.academic_net.feature.projects.domain.usecase.ChangeLifecycleResult.NotAllowed, result)
+        assertEquals(1, server.requests("GET /api/v1/projects/m-1").size)
+        assertEquals(1, server.requests("POST /api/v1/projects/m-1/transitions").size, "no retry")
+    }
+
+    @Test
+    fun editingPutsTheDescriptionWithoutRolesAndDeletingARoleSendsTheRevisionInTheQuery() = runTest {
+        val server = serverWithProjects().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                when (arrival.call) {
+                    "PUT /api/v1/projects/m-1" -> json(project("m-1", viewer, revision = 4, roles = """[{"id":"r-1","title":"Dev","slots":1,"occupied":0}]"""))
+                    "DELETE /api/v1/projects/m-1/roles/r-1" -> json(project("m-1", viewer, revision = 5))
+                    else -> inner(arrival)
+                }
+            }
+        }
+        val dependencies = dependenciesOf(server)
+        dependencies.projects.observeMyProjects().first()
+        val draft = org.matchlab.academic_net.feature.projects.domain.ProjectInfoDraft(
+            title = "Новое", type = ProjectType.Practical, sphere = Spheres.all[2], problem = "П", goal = "Ц",
+            tags = listOf("ML"), start = YearMonth(2026, 10), end = YearMonth(2027, 3),
+        )
+
+        val saved = dependencies.projects.updateProject(ProjectId("m-1"), draft)
+        assertIs<SubmitResult.Success<Project>>(saved)
+        val removed = dependencies.projects.removeRole(ProjectId("m-1"), RoleId("r-1"))
+
+        assertIs<org.matchlab.academic_net.feature.projects.domain.usecase.RemoveRoleResult.Removed>(removed)
+        val put = server.requests("PUT /api/v1/projects/m-1").single()
+        assertEquals(listOf("Bearer token-1"), put.authorization)
+        assertTrue("\"expected_revision\":3" in put.body, put.body)
+        assertTrue("\"type\":\"2\"" in put.body && "\"field\":\"3\"" in put.body, put.body)
+        assertTrue("\"planned_end\":\"2027-03-31\"" in put.body, put.body)
+        assertTrue("roles" !in put.body, "G63: the roles are never sent: ${put.body}")
+        val delete = server.requests("DELETE /api/v1/projects/m-1/roles/r-1").single()
+        assertEquals("expected_revision=4", delete.query)
+    }
+
+    @Test
+    fun theTeamIsReadThroughOneDirectoryPerSession() = runTest {
+        val server = serverWithTeam()
+        val dependencies = dependenciesOf(server)
+
+        // 07b: the projects feature reads one project with its people.
+        val project = assertIs<LoadResult.Found<Project>>(dependencies.projects.loadProject(ProjectId("t-1"))).value
+        assertEquals(listOf("Имя u-1", ""), project.roles.single().members.map { it.user.name }.take(2))
+        assertEquals(listOf(true, false), project.roles.single().members.take(2).map { it.hasProfile })
+        val afterProjects = server.calls.count { it.startsWith("GET /api/v1/users/") }
+
+        // 04: the page of the project asks for the team: the people are in the one cache of the session.
+        val team = dependencies.projectDetails.getProjectTeam(project)
+
+        assertEquals(listOf("u-1", "u-2"), team.map { it.person.user.id.value })
+        assertEquals("Имя u-1", team[0].person.user.name)
+        assertEquals(false, team[1].person.hasProfile)
+        assertEquals(
+            afterProjects,
+            server.calls.count { it.startsWith("GET /api/v1/users/") },
+            "u-1 and u-2 were read once: the features share the directory of the session",
+        )
+        assertEquals(1, server.requests("GET /api/v1/users/u-1/profile").size)
+        assertEquals(1, server.requests("GET /api/v1/users/u-2/profile").size)
+    }
+
+    @Test
+    fun theTeamNeverFailsWhateverTheServerSaysAboutAPerson() = runTest {
+        val server = serverWithTeam().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "GET /api/v1/users/u-1/profile") jsonError(HttpStatusCode.InternalServerError, "oops") else inner(arrival)
+            }
+        }
+        val dependencies = dependenciesOf(server)
+        val project = assertIs<LoadResult.Found<Project>>(dependencies.projects.loadProject(ProjectId("t-1"))).value
+
+        val team = dependencies.projectDetails.getProjectTeam(project)
+
+        assertEquals(listOf(false, false), team.map { it.person.hasProfile })
     }
 }

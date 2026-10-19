@@ -27,6 +27,10 @@ import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projectdetails.domain.GetProjectDetailsUseCase
+import org.matchlab.academic_net.feature.projectdetails.domain.GetProjectTeamUseCase
+import org.matchlab.academic_net.feature.projectdetails.domain.TeamMember
+import org.matchlab.academic_net.common.model.ProjectMember
+import org.matchlab.academic_net.common.model.RoleMember
 import org.matchlab.academic_net.feature.projectdetails.domain.InitiatorInfo
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetails
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetailsRepository
@@ -46,6 +50,19 @@ class ProjectDetailsViewModelTest {
         var gate: CompletableDeferred<Unit>? = null
         val asked = mutableListOf<ProjectId>()
 
+        /** What the team call answers; [teamFailure] makes it throw. */
+        var team: List<TeamMember> = emptyList()
+        var teamFailure: Throwable? = null
+        var teamGate: CompletableDeferred<Unit>? = null
+        val teamAsked = mutableListOf<Project>()
+
+        override suspend fun getTeam(project: Project): List<TeamMember> {
+            teamAsked += project
+            teamGate?.await()
+            teamFailure?.let { throw it }
+            return team
+        }
+
         override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? {
             asked += id
             gate?.await()
@@ -58,7 +75,7 @@ class ProjectDetailsViewModelTest {
     private val cause = IllegalStateException("offline")
 
     private fun viewModel() =
-        ProjectDetailsViewModel(ProjectId("p1"), GetProjectDetailsUseCase(repository))
+        ProjectDetailsViewModel(ProjectId("p1"), GetProjectDetailsUseCase(repository), GetProjectTeamUseCase(repository))
 
     private fun details(
         viewerIsInitiator: Boolean = false,
@@ -70,6 +87,7 @@ class ProjectDetailsViewModelTest {
         type: ProjectType? = null,
         status: ProjectStatus? = null,
         period: ProjectPeriod? = null,
+        members: List<ProjectMember> = emptyList(),
     ) = ProjectDetails(
         project = Project(
             id = ProjectId("p1"),
@@ -84,6 +102,7 @@ class ProjectDetailsViewModelTest {
             status = status,
             period = period,
             viewerIsInitiator = viewerIsInitiator,
+            members = members,
         ),
         initiator = InitiatorInfo(university, rating, completed),
     )
@@ -297,5 +316,177 @@ class ProjectDetailsViewModelTest {
         notFound.onRetry()
         assertEquals(ProjectDetailsUiState.NotFound, notFound.uiState.value)
         assertEquals(2, repository.asked.size, "one more for the second screen, none for the retries")
+    }
+
+    // ---- "Команда" ----
+
+    private fun member(user: String, role: String = "r1", title: String = "Dev", viewer: Boolean = false) =
+        ProjectMember(UserId(user), RoleId(role), title, viewer)
+
+    private fun teamMember(
+        user: String,
+        name: String = "Имя $user",
+        title: String = "Dev",
+        hasProfile: Boolean = true,
+        viewer: Boolean = false,
+        rating: Double? = 4.0,
+        done: Int = 2,
+    ) = TeamMember(
+        person = RoleMember(UserSummary(UserId(user), if (hasProfile) name else ""), rating, done, hasProfile),
+        roleTitle = title,
+        isViewer = viewer,
+    )
+
+    private fun ProjectDetailsViewModel.shownTeam() = assertIs<TeamUiState.Shown>(content.team).members
+
+    @Test
+    fun aProjectWithoutMembersHasNoTeamAndAsksForNone() {
+        repository.answer = details()
+
+        assertEquals(TeamUiState.Hidden, viewModel().content.team)
+        assertEquals(emptyList(), repository.teamAsked)
+    }
+
+    @Test
+    fun aProjectWhoseOnlyMemberIsTheInitiatorHasNoTeamAndAsksForNone() {
+        repository.answer = details(members = listOf(member("owner-1")))
+
+        assertEquals(TeamUiState.Hidden, viewModel().content.team)
+        assertEquals(emptyList(), repository.teamAsked)
+    }
+
+    @Test
+    fun theTeamIsLoadingUntilItsPeopleComeAndThePageIsShownMeanwhile() {
+        repository.answer = details(members = listOf(member("u1")))
+        repository.team = listOf(teamMember("u1"))
+        repository.teamGate = CompletableDeferred()
+
+        val viewModel = viewModel()
+
+        assertEquals(TeamUiState.Loading, viewModel.content.team)
+        assertEquals("AI-навигация", viewModel.content.title)
+        repository.teamGate!!.complete(Unit)
+        assertIs<TeamUiState.Shown>(viewModel.content.team)
+    }
+
+    @Test
+    fun theInitiatorIsFirstFromWhatThePageKnowsAndThenTheMembersInOrder() {
+        repository.answer = details(
+            university = "МГУ",
+            rating = 4.9,
+            completed = 7,
+            members = listOf(member("owner-1"), member("u1"), member("u2")),
+        )
+        repository.team = listOf(teamMember("u1", title = "Dev"), teamMember("u2", title = "Дизайнер"))
+
+        val members = viewModel().shownTeam()
+
+        assertEquals(listOf("owner-1", "u1", "u2"), members.map { it.user.id.value })
+        val initiator = members.first()
+        assertTrue(initiator.isInitiator)
+        assertEquals("", initiator.roleTitle)
+        assertEquals(4.9, initiator.rating)
+        assertEquals(7, initiator.completedProjects)
+        assertTrue(initiator.hasProfile)
+        assertTrue(initiator.canContact)
+        assertEquals(listOf("Dev", "Дизайнер"), members.drop(1).map { it.roleTitle })
+        assertTrue(members.drop(1).none { it.isInitiator })
+    }
+
+    @Test
+    fun theInitiatorCannotBeContactedOnTheirOwnProject() {
+        repository.answer = details(viewerIsInitiator = true, members = listOf(member("u1")))
+        repository.team = listOf(teamMember("u1"))
+
+        assertFalse(viewModel().shownTeam().first().canContact)
+    }
+
+    @Test
+    fun aMemberWithoutAProfileHasNoChatAndNoStats() {
+        repository.answer = details(members = listOf(member("u1")))
+        repository.team = listOf(teamMember("u1", hasProfile = false, rating = null, done = 0))
+
+        val card = viewModel().shownTeam()[1]
+
+        assertFalse(card.hasProfile)
+        assertFalse(card.canContact)
+        assertEquals("", card.user.name)
+        assertNull(card.rating)
+    }
+
+    @Test
+    fun theViewerOnTheTeamCannotWriteToThemselves() {
+        repository.answer = details(members = listOf(member("me", viewer = true), member("u1")))
+        repository.team = listOf(teamMember("me", viewer = true), teamMember("u1"))
+
+        val cards = viewModel().shownTeam()
+
+        assertFalse(cards[1].canContact)
+        assertTrue(cards[2].canContact)
+    }
+
+    @Test
+    fun aMemberWithABlankIdCannotBeContacted() {
+        repository.answer = details(members = listOf(member("u1")))
+        repository.team = listOf(teamMember("  "))
+
+        assertFalse(viewModel().shownTeam()[1].canContact)
+    }
+
+    @Test
+    fun anEmptyTeamAnswerHidesTheBlock() {
+        repository.answer = details(members = listOf(member("u1")))
+        repository.team = emptyList()
+
+        assertEquals(TeamUiState.Hidden, viewModel().content.team)
+    }
+
+    @Test
+    fun aFailureOfTheTeamNeverFailsThePageAndShowsMembersWithoutProfiles() {
+        repository.answer = details(members = listOf(member("owner-1"), member("u1", title = "Dev")))
+        repository.teamFailure = IllegalStateException("offline")
+
+        val members = viewModel().shownTeam()
+
+        assertEquals(listOf("owner-1", "u1"), members.map { it.user.id.value })
+        assertFalse(members[1].hasProfile)
+        assertEquals("Dev", members[1].roleTitle)
+        assertFalse(members[1].canContact)
+    }
+
+    @Test
+    fun theInitiatorAndOtherMembersAreFilteredBeforeTheTeamIsAsked() {
+        repository.answer = details(members = listOf(member("owner-1"), member("u1"), member("u1"), member("u1", role = "r2")))
+
+        viewModel()
+
+        assertEquals(
+            listOf(UserId("u1") to RoleId("r1"), UserId("u1") to RoleId("r2")),
+            repository.teamAsked.single().members.map { it.userId to it.roleId },
+        )
+    }
+
+    @Test
+    fun theRetryAfterAFailureReadsThePageAndTheTeamAgain() {
+        repository.failure = cause
+        val viewModel = viewModel()
+        repository.failure = null
+        repository.answer = details(members = listOf(member("u1")))
+        repository.team = listOf(teamMember("u1"))
+
+        viewModel.onRetry()
+
+        assertEquals(2, repository.asked.size)
+        assertEquals(1, repository.teamAsked.size)
+        assertEquals(2, viewModel.shownTeam().size)
+    }
+
+    @Test
+    fun aNotFoundProjectNeverAsksForATeam() {
+        repository.answer = null
+
+        viewModel()
+
+        assertEquals(emptyList(), repository.teamAsked)
     }
 }

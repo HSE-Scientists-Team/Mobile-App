@@ -30,6 +30,8 @@ import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.RoleApplyCard
 import org.matchlab.academic_net.components.RoleApplyCardUiModel
 import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.paging.LoadMoreFooter
+import org.matchlab.academic_net.components.paging.LoadMoreState
 import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
@@ -42,10 +44,12 @@ import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.p
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_initiator
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_initiator_subtitle
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_message_initiator
+import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_message_member
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_not_found_text
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_not_found_title
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_open_roles
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_retry
+import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_team
 import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.projectdetails_title
 
 /**
@@ -59,6 +63,10 @@ import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.p
  * @param onInitiatorClick the initiator card itself, which leads to the initiator's profile
  * @param onContactInitiator the chat button of the initiator card; it is not shown on the
  *  viewer's own project
+ * @param onMemberClick a member of "Команда" whose profile is known: opens the profile (the initiator's row uses
+ *  [onInitiatorClick])
+ * @param onContactMember the chat button of a member of "Команда"; the viewer's own row and a member without a
+ *  profile have none (the initiator's row uses [onContactInitiator])
  */
 @Composable
 fun ProjectDetailsRoute(
@@ -67,10 +75,12 @@ fun ProjectDetailsRoute(
     onNavigateBack: () -> Unit,
     onInitiatorClick: (UserId) -> Unit,
     onContactInitiator: (UserSummary) -> Unit,
+    onMemberClick: (UserId) -> Unit,
+    onContactMember: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel(key = projectId.value) {
-        ProjectDetailsViewModel(projectId, dependencies.getProjectDetails)
+        ProjectDetailsViewModel(projectId, dependencies.getProjectDetails, dependencies.getProjectTeam)
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -83,6 +93,12 @@ fun ProjectDetailsRoute(
         onContactInitiatorClick = {
             (state as? ProjectDetailsUiState.Content)?.project?.initiator?.user?.let(onContactInitiator)
         },
+        onTeamMemberClick = { member ->
+            if (member.isInitiator) onInitiatorClick(member.user.id) else onMemberClick(member.user.id)
+        },
+        onTeamMemberChatClick = { member ->
+            if (member.isInitiator) onContactInitiator(member.user) else onContactMember(member.user)
+        },
         onRetry = viewModel::onRetry,
         modifier = modifier,
     )
@@ -94,6 +110,8 @@ internal fun ProjectDetailsScreen(
     onNavigateBack: () -> Unit,
     onInitiatorClick: () -> Unit,
     onContactInitiatorClick: () -> Unit,
+    onTeamMemberClick: (TeamMemberUiModel) -> Unit,
+    onTeamMemberChatClick: (TeamMemberUiModel) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -114,7 +132,13 @@ internal fun ProjectDetailsScreen(
                 actionText = stringResource(Res.string.projectdetails_retry),
                 onAction = onRetry,
             )
-            is ProjectDetailsUiState.Content -> ProjectContent(state.project, onInitiatorClick, onContactInitiatorClick)
+            is ProjectDetailsUiState.Content -> ProjectContent(
+                project = state.project,
+                onInitiatorClick = onInitiatorClick,
+                onContactInitiatorClick = onContactInitiatorClick,
+                onTeamMemberClick = onTeamMemberClick,
+                onTeamMemberChatClick = onTeamMemberChatClick,
+            )
         }
     }
 }
@@ -124,6 +148,8 @@ private fun ColumnScope.ProjectContent(
     project: ProjectDetailsUiModel,
     onInitiatorClick: () -> Unit,
     onContactInitiatorClick: () -> Unit,
+    onTeamMemberClick: (TeamMemberUiModel) -> Unit,
+    onTeamMemberChatClick: (TeamMemberUiModel) -> Unit,
 ) {
     Column(
         Modifier
@@ -140,10 +166,51 @@ private fun ColumnScope.ProjectContent(
             onChatClick = onContactInitiatorClick,
         )
         ProjectDescriptionBlocks(project.problem, project.goal, project.tags)
+        TeamSection(project.team, onTeamMemberClick, onTeamMemberChatClick)
         RolesSection(project)
         project.period?.let { ProjectPeriodCard(it) }
     }
 }
+
+/**
+ * "Команда": the initiator first, then the members with their roles. While the people are being read (04e) the block has
+ * its title and "Загрузка…"; without members besides the initiator it is not drawn. A person whose profile could not be
+ * read is "Без имени" with the neutral avatar, no stats, no chat and no tap (04f).
+ */
+@Composable
+private fun ColumnScope.TeamSection(
+    team: TeamUiState,
+    onMemberClick: (TeamMemberUiModel) -> Unit,
+    onMemberChatClick: (TeamMemberUiModel) -> Unit,
+) {
+    if (team == TeamUiState.Hidden) return
+    Text(
+        text = stringResource(Res.string.projectdetails_team),
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+    when (team) {
+        TeamUiState.Hidden -> Unit
+        TeamUiState.Loading -> LoadMoreFooter(LoadMoreState.Loading, onRetry = {})
+        is TeamUiState.Shown -> team.members.forEach { member ->
+            PersonCard(
+                model = member.toCardUiModel(),
+                onClick = if (member.hasProfile) ({ onMemberClick(member) }) else null,
+                onChatClick = { onMemberChatClick(member) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TeamMemberUiModel.toCardUiModel(): PersonCardUiModel = PersonCardUiModel(
+    name = user.name,
+    subtitle = if (isInitiator) stringResource(Res.string.projectdetails_initiator) else roleTitle,
+    avatar = if (hasProfile) AppAvatars.forKey(avatarKey) else null,
+    stats = if (hasProfile) personStatsText(rating, completedProjects) else null,
+    showChatButton = canContact,
+    chatContentDescription = stringResource(Res.string.projectdetails_message_member, nameOrPlaceholder(user.name)),
+)
 
 /**
  * The open roles with "N из M занято" counted in places. A project without roles has no section; with every role

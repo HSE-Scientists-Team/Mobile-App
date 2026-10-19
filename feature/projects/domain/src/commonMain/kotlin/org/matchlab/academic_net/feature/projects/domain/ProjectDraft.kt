@@ -79,18 +79,18 @@ data class ProjectDraft(
         roles = roles.map { it.normalized() },
     )
 
+    /**
+     * Errors of the draft as typed (call on [normalized] to ignore stray spaces). The description is checked by
+     * [ProjectInfoDraft], the roles here.
+     */
     fun validate(): Set<ProjectDraftError> = buildSet {
-        if (title.isBlank()) add(ProjectDraftError.TitleEmpty)
-        if (title.length > ProjectLimits.MaxTitleLength) add(ProjectDraftError.TitleTooLong)
-        if (type == null) add(ProjectDraftError.TypeMissing)
-        if (sphere == null) add(ProjectDraftError.SphereMissing)
-        if (problem.isBlank()) add(ProjectDraftError.ProblemEmpty)
-        if (goal.isBlank()) add(ProjectDraftError.GoalEmpty)
+        addAll(toInfoDraft().validate())
         if (roles.any { it.validate().isNotEmpty() }) add(ProjectDraftError.RoleInvalid)
-        if (start == null) add(ProjectDraftError.StartMissing)
-        if (end == null) add(ProjectDraftError.EndMissing)
-        if (start != null && end != null && end < start) add(ProjectDraftError.EndBeforeStart)
     }
+
+    /** The description part of the draft: everything but the roles. */
+    internal fun toInfoDraft(): ProjectInfoDraft =
+        ProjectInfoDraft(title, type, sphere, problem, goal, tags, start, end)
 }
 
 /** A project that passed validation and is ready to be sent to the server (see [ProjectDraft] for how it is sent). */

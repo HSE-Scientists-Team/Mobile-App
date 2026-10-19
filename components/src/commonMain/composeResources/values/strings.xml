@@ -23,6 +23,10 @@
     <string name="components_project_type_practical">Practical</string>
     <string name="components_project_status_recruiting">Recruiting</string>
     <string name="components_project_status_unpublished">Unpublished</string>
+    <string name="components_project_status_started">In progress</string>
+    <string name="components_project_status_finished">Finished</string>
+    <string name="components_project_status_cancelled">Cancelled</string>
+    <string name="components_project_status_chip_recruiting">Published</string>
     <plurals name="components_project_roles_count">
         <item quantity="one">%1$d role</item>
         <item quantity="other">%1$d roles</item>

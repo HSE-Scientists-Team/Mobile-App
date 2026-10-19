@@ -29,6 +29,8 @@ import org.matchlab.academic_net.utils.ChatListTime
  * @property reviewCount the number of all reviews, not only of [reviews]
  * @property reviews the newest reviews only
  * @property canMessage the viewer may start a chat with the person, i.e. it is not their own page
+ * @property openToCollaboration the person said they are open to collaboration: the header has the chip
+ *  "Открыт к сотрудничеству" (a profile that does not say so has no chip)
  */
 @Immutable
 data class ProfileUiModel(
@@ -44,6 +46,7 @@ data class ProfileUiModel(
     val reviewCount: Int,
     val reviews: List<Review>,
     val canMessage: Boolean,
+    val openToCollaboration: Boolean = false,
 ) {
     val user: UserSummary get() = person.user
 }
@@ -63,6 +66,7 @@ internal fun UserProfile.toUiModel(): ProfileUiModel = ProfileUiModel(
     reviewCount = reviews.count,
     reviews = latestReviews,
     canMessage = !isViewer,
+    openToCollaboration = openToCollaboration,
 )
 
 /**

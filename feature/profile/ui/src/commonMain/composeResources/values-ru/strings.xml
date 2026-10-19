@@ -166,4 +166,5 @@
     <!-- 1: the earliest year, 2: the latest -->
     <string name="profile_error_year">Введите год от %1$d до %2$d</string>
     <string name="profile_error_proof_missing">Добавьте ссылку на подтверждение</string>
+    <string name="profile_open_to_collaboration">Открыт к сотрудничеству</string>
 </resources>

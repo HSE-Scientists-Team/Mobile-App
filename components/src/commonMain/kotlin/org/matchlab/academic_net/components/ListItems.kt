@@ -19,6 +19,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,7 +28,12 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.interaction.onceClickable
 
-/** "List item/Action": action row in a list or a sheet. A burst of taps runs [onClick] once. */
+/**
+ * "List item/Action": action row in a list or a sheet. A burst of taps runs [onClick] once.
+ *
+ * @param destructive the action ends something for good ("Отменить проект"): the outline, the icon and the title are
+ * `error` instead of `outlineVariant`, `primary` and `onSurface`
+ */
 @Composable
 fun ActionListItem(
     title: String,
@@ -35,10 +41,16 @@ fun ActionListItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     icon: DrawableResource = AppIcons.Check,
+    destructive: Boolean = false,
 ) {
-    OutlinedRow(modifier.onceClickable(onClick = onClick), MaterialTheme.shapes.large) {
-        AppIcon(icon, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.primary)
-        TitleWithSubtitle(title, subtitle)
+    val colors = MaterialTheme.colorScheme
+    OutlinedRow(
+        modifier.onceClickable(onClick = onClick),
+        MaterialTheme.shapes.large,
+        borderColor = if (destructive) colors.error else colors.outlineVariant,
+    ) {
+        AppIcon(icon, contentDescription = null, size = 20.dp, tint = if (destructive) colors.error else colors.primary)
+        TitleWithSubtitle(title, subtitle, color = if (destructive) colors.error else colors.onSurface)
         Chevron()
     }
 }
@@ -216,6 +228,7 @@ private fun OutlinedRow(
     modifier: Modifier,
     shape: Shape,
     verticalPadding: Dp = 14.dp,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -224,7 +237,7 @@ private fun OutlinedRow(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .border(1.dp, colors.outlineVariant, shape)
+            .border(1.dp, borderColor, shape)
             .then(modifier)
             .padding(horizontal = 17.dp, vertical = verticalPadding + 1.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -248,9 +261,14 @@ private fun PlainRow(modifier: Modifier, content: @Composable RowScope.() -> Uni
 }
 
 @Composable
-private fun RowScope.TitleWithSubtitle(title: String, subtitle: String?, dim: Boolean = false) {
+private fun RowScope.TitleWithSubtitle(
+    title: String,
+    subtitle: String?,
+    dim: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.onSurface,
+) {
     val colors = MaterialTheme.colorScheme
-    val titleColor = if (dim) colors.onSurface.copy(alpha = DisabledTextAlpha) else colors.onSurface
+    val titleColor = if (dim) color.copy(alpha = DisabledTextAlpha) else color
     val subtitleColor = if (dim) colors.onSurfaceVariant.copy(alpha = DisabledTextAlpha) else colors.onSurfaceVariant
     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(title, style = MaterialTheme.typography.titleSmall, color = titleColor)

@@ -45,6 +45,8 @@ private class FakeProjectDetailsRepository(var answer: ProjectDetails? = Details
         failure?.let { throw it }
         return answer
     }
+
+    override suspend fun getTeam(project: Project): List<TeamMember> = emptyList()
 }
 
 class GetProjectDetailsUseCaseTest {

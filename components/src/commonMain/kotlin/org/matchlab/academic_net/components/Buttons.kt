@@ -25,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
@@ -278,7 +279,11 @@ fun ReportIconButton(
     )
 }
 
-/** Round 36dp button with a 20dp icon, used for actions inside cards. A burst of taps runs [onClick] once. */
+/**
+ * Round 36dp button with a 20dp icon, used for actions inside cards. A burst of taps runs [onClick] once.
+ *
+ * @param enabled `false` dims the button to 38% and ignores taps (e.g. the trash of a role that has people on it)
+ */
 @Composable
 fun CardIconButton(
     icon: DrawableResource,
@@ -287,12 +292,14 @@ fun CardIconButton(
     containerColor: Color,
     contentColor: Color,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier
+            .alpha(if (enabled) 1f else DisabledAlpha)
             .clip(CircleShape)
             .background(containerColor)
-            .onceClickable(role = Role.Button, onClick = onClick)
+            .onceClickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(8.dp),
     ) {
         AppIcon(icon, contentDescription, size = 20.dp, tint = contentColor)
@@ -318,3 +325,6 @@ fun ChatIconButton(
         modifier = modifier,
     )
 }
+
+/** The alpha of a disabled element (Figma: the layer of a disabled state is 0.38). */
+private const val DisabledAlpha = 0.38f

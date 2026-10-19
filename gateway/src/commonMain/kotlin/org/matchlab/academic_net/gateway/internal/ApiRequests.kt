@@ -146,6 +146,14 @@ internal class ApiRequests(
     suspend inline fun <reified T> putJson(path: String, body: String): T =
         call(HttpMethod.Put, path, body = body) { GatewayJson.decodeFromString<T>(it) }
 
+    /** `PUT` of [body] as JSON, whose answer is a JSON of type [T]. */
+    suspend inline fun <reified B, reified T> put(path: String, body: B): T =
+        call(HttpMethod.Put, path, body = GatewayJson.encodeToString(body)) { GatewayJson.decodeFromString<T>(it) }
+
+    /** `DELETE` whose answer is a JSON of type [T]; [query] is that of [call]. */
+    suspend inline fun <reified T> deleteFor(path: String, query: Map<String, String?> = emptyMap()): T =
+        call(HttpMethod.Delete, path, query) { GatewayJson.decodeFromString<T>(it) }
+
     /** `DELETE` whose answer has no body that matters (204). */
     suspend fun delete(path: String, bearerToken: String? = null) {
         call(HttpMethod.Delete, path, bearerToken = bearerToken) { }

@@ -222,6 +222,8 @@ data class UserProfile(
     val latestReviews: List<Review>,
     /** The viewer looks at their own profile. */
     val isViewer: Boolean,
+    /** The person said they are open to collaboration (`open_to_collaboration`; missing means no). */
+    val openToCollaboration: Boolean = false,
 )
 
 /**

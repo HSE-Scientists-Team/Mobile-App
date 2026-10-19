@@ -49,7 +49,7 @@ enum class ProjectType(val code: String) {
 /**
  * Where a project is in its life. The API has no list of values for the server's `status`, so the app defines the codes it
  * reads (`docs/api-values.md`, decision of 2026-10-19); the status is only read, never sent: the app moves a project by
- * the `action` of a transition.
+ * the `action` of a transition (3 start, 4 finish, 5 cancel are the moves of the project management screen).
  *
  * **Not confirmed by the backend:** the server writes the status itself, so these codes are the app's reading of it until
  * the backend says otherwise; a status the app has no code for is "unknown" (`null` in `Project.status`).
@@ -62,6 +62,15 @@ enum class ProjectStatus(val code: String) {
 
     /** Taken off publication by the initiator: hidden from search, responses are paused. */
     Unpublished("2"),
+
+    /** "В работе": the initiator started the project (transition action "3"); the team works on it. */
+    Started("3"),
+
+    /** "Завершён": the initiator finished the project (transition action "4"). */
+    Finished("4"),
+
+    /** "Отменён": the initiator cancelled the project (transition action "5"). */
+    Cancelled("5"),
     ;
 
     companion object {
@@ -76,20 +85,26 @@ enum class ProjectStatus(val code: String) {
     }
 }
 
-/** Person who works on a [Role], with the numbers shown on the project's role list. */
+/**
+ * Person who works on a [Role], with the numbers shown on the project's role list and team.
+ *
+ * @property hasProfile the app could read the person's public profile. Without it [user] has the id only (an empty
+ *  name, the UI writes "Без имени"), [rating] is `null` and [completedProjects] is 0.
+ */
 data class RoleMember(
     val user: UserSummary,
     /** Average of reviews, `null` while there are none. */
     val rating: Double? = null,
     val completedProjects: Int = 0,
+    val hasProfile: Boolean = true,
 )
 
 /**
  * A position in the project's team: [slots] places, [occupied] of them taken.
  *
  * @property slots how many people the role is for, at least 1. The app creates roles for one person (API-GAP G49).
- * @property members the people on the role the app knows. API-GAP G52: the server's members are not read, so on the
- *  Gateway the list is empty even when [occupied] is more than 0.
+ * @property members the people on the role the app knows: filled when one project is read for its page or its
+ *  management (their profiles are read separately, G47), empty in lists; may differ from [occupied].
  * @property occupied places taken as the server counts them; never negative, may be more than [members].size.
  */
 data class Role(
@@ -111,6 +126,22 @@ data class Role(
     /** Free places; 0 when the server counts as many taken places as there are, or more. */
     val vacantPlaces: Int get() = (slots - occupied).coerceAtLeast(0)
 }
+
+/**
+ * A person on the team of a project as the server lists them (`Project.members`): who, and on which role. Their profile
+ * is read separately (API-GAP G47). API-GAP G52: the server's `status` of a member has no table of values, so it is not
+ * read, and no member is hidden because of it.
+ *
+ * @property roleId `null` when the server named no role.
+ * @property roleTitle the server's `role_title`; when it is blank, the title of the role [roleId] names; else empty.
+ * @property isViewer the member is the user of the session.
+ */
+data class ProjectMember(
+    val userId: UserId,
+    val roleId: RoleId?,
+    val roleTitle: String,
+    val isViewer: Boolean,
+)
 
 /** The months a project runs, from [start] to [end] inclusive; [end] is not before [start]. */
 data class ProjectPeriod(
@@ -147,7 +178,14 @@ data class Project(
     val status: ProjectStatus?,
     val period: ProjectPeriod?,
     val viewerIsInitiator: Boolean,
+    /** The team as the server lists it, in its order; a person on two roles is there twice. Empty when none was sent. */
+    val members: List<ProjectMember> = emptyList(),
+    /** The server's `pending_join_count`, 0 or more. API-GAP G61: what exactly it counts is not described. */
+    val pendingJoinCount: Int = 0,
 ) {
+    /** The user of the session is on the team ([ProjectMember.isViewer]); the initiator is told by [viewerIsInitiator]. */
+    val viewerIsMember: Boolean get() = members.any { it.isViewer }
+
     /** The roles with a free place, in the order of [roles]. */
     val vacantRoles: List<Role> get() = roles.filter { it.isVacant }
 

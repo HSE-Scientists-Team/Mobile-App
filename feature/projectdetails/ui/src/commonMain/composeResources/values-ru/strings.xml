@@ -10,4 +10,7 @@
     <string name="projectdetails_not_found_text">Возможно, его сняли с публикации</string>
     <string name="projectdetails_error">Не удалось загрузить проект</string>
     <string name="projectdetails_retry">Повторить</string>
+    <string name="projectdetails_team">Команда</string>
+    <!-- 1: the name of the team member -->
+    <string name="projectdetails_message_member">Написать: %1$s</string>
 </resources>

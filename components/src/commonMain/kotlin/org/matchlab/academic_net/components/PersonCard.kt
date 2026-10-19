@@ -19,7 +19,9 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * What [PersonCard] and [PersonSummary] show about a person.
  *
- * @property subtitle the line under the name, e.g. "Инициатор · Stanford University"; it wraps
+ * @property avatar the picture of the person; `null` draws the [UnknownAvatar] (a person whose profile is not known)
+ * @property subtitle the line under the name, e.g. "Инициатор · Stanford University"; it wraps, and it is not drawn while
+ * it is blank
  * @property stats extra line under the subtitle, e.g. "★ 4.9 · 12 завершённых проектов"
  * @property showChatButton the chat button at the end of the row
  * @property chatContentDescription what a screen reader says for the chat button; the generic
@@ -29,7 +31,7 @@ import org.jetbrains.compose.resources.stringResource
 data class PersonCardUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: DrawableResource,
+    val avatar: DrawableResource?,
     val stats: String? = null,
     val showChatButton: Boolean = false,
     val chatContentDescription: String? = null,
@@ -86,10 +88,17 @@ fun PersonSummary(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = verticalAlignment,
     ) {
-        Avatar(model.avatar, contentDescription = null, size = avatarSize)
+        if (model.avatar != null) {
+            Avatar(model.avatar, contentDescription = null, size = avatarSize)
+        } else {
+            UnknownAvatar(size = avatarSize)
+        }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             PersonName(model.name, MaterialTheme.typography.titleMedium)
-            Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            // A person without a subtitle (a team member whose role is unknown) has no empty line under the name.
+            if (model.subtitle.isNotBlank()) {
+                Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
             if (model.stats != null) {
                 Text(model.stats, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
             }

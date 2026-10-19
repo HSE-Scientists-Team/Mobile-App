@@ -18,11 +18,16 @@ import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.LoadResult
 import org.matchlab.academic_net.common.result.SubmitResult
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycle
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundException
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeLifecycleResult
+import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectResult
@@ -30,15 +35,21 @@ import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjec
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorState
 
 /**
- * A person who works on a role, as the roles tab shows them. API-GAP G52: on the Gateway the app knows no members, so
- * a [RoleItem] has none.
+ * A person who works on a role, as the roles tab shows them (the server lists the members of a project, their profiles
+ * are read separately, API-GAP G47).
+ *
+ * @property name empty without a profile: the card says "Без имени"
+ * @property hasProfile the app could read the person's profile: only then the card has stats and opens the profile; a
+ *  person without one is a card with the neutral avatar, no numbers and no tap
  */
 @Immutable
 data class RoleMemberItem(
+    val userId: UserId,
     val name: String,
     val avatarKey: String,
     val rating: Double?,
     val completedProjects: Int,
+    val hasProfile: Boolean = true,
 )
 
 /**
@@ -46,7 +57,7 @@ data class RoleMemberItem(
  *
  * @property slots places of the role, at least 1 (API-GAP G49)
  * @property occupied places taken, as the server counts them but never more than [slots]
- * @property members the people on the role the app knows; may be fewer than [occupied] (API-GAP G52)
+ * @property members the people on the role the app knows; may differ from [occupied] (API-GAP G52)
  * @property canFindPeople the search for people for the role is offered: to the initiator, for a role with a free place
  */
 @Immutable
@@ -82,8 +93,15 @@ data class RoleItem(
  * @property period `null` when unknown: the overview has no card of the months
  * @property occupiedPlaces taken places of all roles, the "2" of "2 из 4 занято"
  * @property totalPlaces places of all roles, the "4" of "2 из 4 занято"
- * @property canUnpublish "Снять с публикации" is offered: the source can do it, the viewer is the initiator and the
- *  project is not unpublished yet; a project of an unknown status is offered too
+ * @property canUnpublish "Снять с публикации" is offered: the source can do it, the viewer is the initiator and
+ *  [ProjectLifecycle.canUnpublish] holds for the status (recruiting, or unknown)
+ * @property lifecycleActions "Начать", "Завершить", "Отменить проект" in this order: [ProjectLifecycle.actionsFor] the
+ *  status, only for the initiator and only when the source can do it ([ProjectsCapabilities.canChangeLifecycle]); an
+ *  unknown status offers all of them
+ * @property canEdit the pencil of the app bar: the viewer is the initiator and the project is neither finished nor
+ *  cancelled
+ * @property offersEditAction the row "Редактировать проект" of 07c: the initiator, and the status is unknown, recruiting
+ *  or unpublished (07e of the design, a project in progress, has the pencil but no such row)
  */
 @Immutable
 data class ProjectDetails(
@@ -100,6 +118,9 @@ data class ProjectDetails(
     val occupiedPlaces: Int,
     val totalPlaces: Int,
     val canUnpublish: Boolean,
+    val lifecycleActions: List<ProjectLifecycleAction> = emptyList(),
+    val canEdit: Boolean = false,
+    val offersEditAction: Boolean = false,
 ) {
     val rolesCount: Int get() = roles.size
 }
@@ -117,6 +138,9 @@ data class ProjectDetails(
  * @property roleFailure why sending the new role failed, shown inside the role sheet, which stays open; cleared by the
  *  next try and by closing the sheet. [org.matchlab.academic_net.feature.projects.domain.ProjectConflictException] is
  *  the project having changed on the server: the screen says so in its own words
+ * @property lifecycleDialog the confirmation of "Начать", "Завершить" or "Отменить проект" is open for this action
+ * @property isChangingLifecycle the request of the action is on its way: the screen does not offer another one
+ * @property lifecycleFailure why the last move of the project failed; cleared by the next action
  * @property actionFailed unpublishing has failed; cleared by the next action
  */
 @Immutable
@@ -126,14 +150,30 @@ data class ProjectManagementUiState(
     val loadFailure: Throwable? = null,
     val isUnpublishConfirmVisible: Boolean = false,
     val isUnpublishing: Boolean = false,
+    val lifecycleDialog: ProjectLifecycleAction? = null,
+    val isChangingLifecycle: Boolean = false,
+    val lifecycleFailure: LifecycleFailure? = null,
     val roleEditor: RoleEditorState? = null,
     val isSavingRole: Boolean = false,
     val roleFailure: Throwable? = null,
     val actionFailed: Boolean = false,
 )
 
+/** Why "Начать", "Завершить" or "Отменить проект" did not move the project. */
+sealed interface LifecycleFailure {
+    /**
+     * The action is not available in the project's state: it is not offered for the status, or the server refused it
+     * (a 409; the project has been read again): "Действие недоступно в текущем состоянии проекта".
+     */
+    data object NotAllowed : LifecycleFailure
+
+    /** The request failed for [cause]; the screen says why (see `failureText`). */
+    data class Failed(val cause: Throwable) : LifecycleFailure
+}
+
 /**
- * "07 Управление проектом": "просматривать роли", "снять проект с публикации", "объявить роли".
+ * "07 Управление проектом": "просматривать роли", "снять проект с публикации", "начать, завершить, отменить проект",
+ * "объявить роли".
  *
  * **Reading.** The project is read from the server when the view model is created (the use case puts it into
  * [observeProject]), and the screen shows what [observeProject] has: a project read before is on the screen at once and
@@ -143,10 +183,17 @@ data class ProjectManagementUiState(
  * screen "Проект не найден".
  *
  * **What the source cannot do** is not offered: "Снять с публикации" only with [ProjectsCapabilities.canUnpublish], to
- * the initiator, and while the project is not [ProjectStatus.Unpublished]: an unknown status does not hide the action.
+ * the initiator, and while [ProjectLifecycle.canUnpublish] holds for the status (an unknown status does not hide the
+ * action); "Начать", "Завершить" and "Отменить проект" only with [ProjectsCapabilities.canChangeLifecycle], to the
+ * initiator, as [ProjectLifecycle.actionsFor] says.
  *
- * **Guards.** Unpublishing and adding a role cannot start twice: [onUnpublishConfirm] works only for the open dialog
- * and not while a request is on its way, [onRoleSave] only for the open sheet and not while it is saving.
+ * **Lifecycle.** An action opens its confirmation ([onLifecycleClick]); [onLifecycleConfirm] sends it. A move the
+ * server refused is [LifecycleFailure.NotAllowed], a project that is gone is the screen "Проект не найден", another
+ * failure is told by its kind. The project's new status arrives through the observed project.
+ *
+ * **Guards.** Unpublishing, moving the project and adding a role cannot start twice: [onUnpublishConfirm] and
+ * [onLifecycleConfirm] work only for their open dialog and not while a request of either is on its way, [onRoleSave]
+ * only for the open sheet and not while it is saving.
  */
 class ProjectManagementViewModel(
     private val projectId: ProjectId,
@@ -154,6 +201,7 @@ class ProjectManagementViewModel(
     private val loadProject: LoadProjectUseCase,
     private val unpublishProject: UnpublishProjectUseCase,
     private val addRole: AddRoleUseCase,
+    private val changeLifecycle: ChangeProjectLifecycleUseCase,
     private val capabilities: ProjectsCapabilities,
 ) : ViewModel() {
     private val local = MutableStateFlow(LocalState())
@@ -174,6 +222,9 @@ class ProjectManagementViewModel(
             loadFailure = if (project == null) own.loadFailure else null,
             isUnpublishConfirmVisible = own.isUnpublishConfirmVisible,
             isUnpublishing = own.isUnpublishing,
+            lifecycleDialog = own.lifecycleDialog,
+            isChangingLifecycle = own.isChangingLifecycle,
+            lifecycleFailure = own.lifecycleFailure,
             roleEditor = own.roleEditor,
             isSavingRole = own.isSavingRole,
             roleFailure = own.roleFailure,
@@ -192,7 +243,9 @@ class ProjectManagementViewModel(
         load()
     }
 
-    fun onUnpublishClick() = local.update { it.copy(isUnpublishConfirmVisible = true, actionFailed = false) }
+    fun onUnpublishClick() = local.update {
+        if (it.isChangingLifecycle) it else it.copy(isUnpublishConfirmVisible = true, actionFailed = false, lifecycleFailure = null)
+    }
 
     fun onUnpublishDismiss() = local.update { it.copy(isUnpublishConfirmVisible = false) }
 
@@ -200,13 +253,48 @@ class ProjectManagementViewModel(
         // Only the open dialog confirms. Its button can be tapped again while the dialog fades out,
         // which is after the request has started, and may be after it has ended.
         val current = local.value
-        if (!current.isUnpublishConfirmVisible || current.isUnpublishing) return
+        if (!current.isUnpublishConfirmVisible || current.isUnpublishing || current.isChangingLifecycle) return
         local.update { it.copy(isUnpublishConfirmVisible = false, isUnpublishing = true, actionFailed = false) }
         viewModelScope.launch {
             val result = unpublishProject(projectId)
             // The project's new status arrives through the observed project.
             val failed = result is UnpublishProjectResult.Failure || result is UnpublishProjectResult.NotFound
             local.update { it.copy(isUnpublishing = false, actionFailed = failed) }
+        }
+    }
+
+    /** An action of 07c ("Начать", "Завершить", "Отменить проект") opens its confirmation. */
+    fun onLifecycleClick(action: ProjectLifecycleAction) = local.update {
+        if (it.isChangingLifecycle || it.isUnpublishing) {
+            it
+        } else {
+            it.copy(lifecycleDialog = action, actionFailed = false, lifecycleFailure = null)
+        }
+    }
+
+    fun onLifecycleDismiss() = local.update { it.copy(lifecycleDialog = null) }
+
+    /**
+     * "Начать", "Завершить" or "Отменить" in the confirmation. Only the open dialog confirms, and not while a move or
+     * unpublishing is on its way: the button can be tapped again while the dialog fades out.
+     */
+    fun onLifecycleConfirm() {
+        val current = local.value
+        val action = current.lifecycleDialog ?: return
+        if (current.isChangingLifecycle || current.isUnpublishing) return
+        local.update { it.copy(lifecycleDialog = null, isChangingLifecycle = true, lifecycleFailure = null) }
+        viewModelScope.launch {
+            when (val result = changeLifecycle(projectId, action)) {
+                // The project's new status arrives through the observed project.
+                is ChangeLifecycleResult.Changed -> local.update { it.copy(isChangingLifecycle = false) }
+                ChangeLifecycleResult.NotAllowed -> local.update {
+                    it.copy(isChangingLifecycle = false, lifecycleFailure = LifecycleFailure.NotAllowed)
+                }
+                ChangeLifecycleResult.NotFound -> local.update { it.copy(isChangingLifecycle = false, isGone = true) }
+                is ChangeLifecycleResult.Failure -> local.update {
+                    it.copy(isChangingLifecycle = false, lifecycleFailure = LifecycleFailure.Failed(result.cause))
+                }
+            }
         }
     }
 
@@ -273,6 +361,9 @@ class ProjectManagementViewModel(
         val isGone: Boolean = false,
         val isUnpublishConfirmVisible: Boolean = false,
         val isUnpublishing: Boolean = false,
+        val lifecycleDialog: ProjectLifecycleAction? = null,
+        val isChangingLifecycle: Boolean = false,
+        val lifecycleFailure: LifecycleFailure? = null,
         val roleEditor: RoleEditorState? = null,
         val isSavingRole: Boolean = false,
         val roleFailure: Throwable? = null,
@@ -303,10 +394,12 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
             occupied = minOf(role.occupied, role.slots),
             members = role.members.map { member ->
                 RoleMemberItem(
+                    userId = member.user.id,
                     name = member.user.name,
                     avatarKey = member.user.id.value,
                     rating = member.rating,
                     completedProjects = member.completedProjects,
+                    hasProfile = member.hasProfile,
                 )
             },
             // Only the initiator looks for people, and only for a role with a free place.
@@ -315,7 +408,15 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
     },
     occupiedPlaces = occupiedPlaces,
     totalPlaces = totalPlaces,
-    // A source that cannot unpublish, a viewer who is not the initiator and a project that is unpublished already have no
-    // action; an unknown status is not a reason to hide it (docs/api-values.md).
-    canUnpublish = capabilities.canUnpublish && viewerIsInitiator && status != ProjectStatus.Unpublished,
+    // A source that cannot unpublish, a viewer who is not the initiator and a status that is neither recruiting nor
+    // unknown have no action (docs/api-values.md: an unknown status is not a reason to hide it).
+    canUnpublish = capabilities.canUnpublish && viewerIsInitiator && ProjectLifecycle.canUnpublish(status),
+    lifecycleActions = if (capabilities.canChangeLifecycle && viewerIsInitiator) {
+        ProjectLifecycle.actionsFor(status)
+    } else {
+        emptyList()
+    },
+    canEdit = viewerIsInitiator && status != ProjectStatus.Finished && status != ProjectStatus.Cancelled,
+    offersEditAction = viewerIsInitiator &&
+        (status == null || status == ProjectStatus.Recruiting || status == ProjectStatus.Unpublished),
 )

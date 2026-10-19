@@ -29,6 +29,7 @@ import org.matchlab.academic_net.components.person.subtitleText
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCard
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCardUiModel
+import org.matchlab.academic_net.feature.profile.ui.headerStatuses
 import org.matchlab.academic_net.feature.profile.ui.ProfileSections
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiModel
@@ -161,6 +162,7 @@ private fun ColumnScope.ProfileContent(
                 subtitle = profile.person.subtitleText(),
                 // API-GAP G18: no real avatars yet, an illustration chosen by the id.
                 avatar = AppAvatars.forKey(profile.user.id.value),
+                statuses = profile.headerStatuses(),
                 showChatButton = profile.canMessage,
             ),
             onChatClick = onMessageClick,

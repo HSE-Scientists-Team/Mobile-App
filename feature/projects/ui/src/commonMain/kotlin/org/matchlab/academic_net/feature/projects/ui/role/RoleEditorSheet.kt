@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -15,8 +13,11 @@ import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppBottomSheet
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
+import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTagsField
 import org.matchlab.academic_net.components.AppTextField
+import org.matchlab.academic_net.components.InfoBanner
+import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.SheetHeader
 import org.matchlab.academic_net.feature.projects.domain.ProjectLimits
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
@@ -27,17 +28,18 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_error_too_long
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_new
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_save
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_slots_locked
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_skills
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_skills_hint
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_title
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_role_title_hint
 
 /**
- * Bottom sheet to name a role and list its skills. The design has no such screen, so it is put
- * together from the filter sheet's parts (sheet header, fields, cancel / apply buttons).
+ * Bottom sheet to name a role and list its skills ("Новая роль", "Редактировать роль" of 04n). A role of a published
+ * project that is edited ([RoleEditorState.editedRoleId]) has the note that its places cannot be changed.
  *
  * @param isSaving the role is being sent: "Сохранить" is switched off
- * @param errorText why sending the role has failed, in the error color above the buttons; `null` for none. The sheet
+ * @param errorText why sending the role has failed, in a banner of the error tone above the buttons; `null` for none. The sheet
  *  stays open after a failure so that the user can check the role and send it again
  */
 @Composable
@@ -61,7 +63,7 @@ fun RoleEditorSheet(
     AppBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
         SheetHeader(
             title = stringResource(
-                if (state.editedIndex == null) Res.string.projects_role_new else Res.string.projects_role_edit,
+                if (state.isEditing) Res.string.projects_role_edit else Res.string.projects_role_new,
             ),
         )
         Column(
@@ -84,12 +86,12 @@ fun RoleEditorSheet(
                 onRemoveTag = onRemoveSkill,
                 placeholder = stringResource(Res.string.projects_role_skills_hint),
             )
+            // The places of an existing role cannot be changed (04n): the sheet says so instead of offering a field.
+            if (state.editedRoleId != null) {
+                InfoBanner(text = stringResource(Res.string.projects_role_slots_locked), icon = AppIcons.Lock)
+            }
             if (errorText != null) {
-                Text(
-                    text = errorText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                InfoBanner(text = errorText, tone = InfoBannerTone.Error)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppButton(

@@ -44,6 +44,9 @@ class ProjectCodesTest {
     fun projectStatusCodesAreTheOnesOfTheContract() {
         assertEquals("1", ProjectStatus.Recruiting.code)
         assertEquals("2", ProjectStatus.Unpublished.code)
+        assertEquals("3", ProjectStatus.Started.code)
+        assertEquals("4", ProjectStatus.Finished.code)
+        assertEquals("5", ProjectStatus.Cancelled.code)
     }
 
     @Test
@@ -60,12 +63,60 @@ class ProjectCodesTest {
     fun projectStatusIsReadAfterTheOuterSpacesAreCut() {
         assertEquals(ProjectStatus.Recruiting, ProjectStatus.fromCode(" 1"))
         assertEquals(ProjectStatus.Unpublished, ProjectStatus.fromCode("2 "))
+        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode(" 4 "))
+    }
+
+    @Test
+    fun lifecycleStatusesAreReadFromTheirCodes() {
+        assertEquals(ProjectStatus.Started, ProjectStatus.fromCode("3"))
+        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode("4"))
+        assertEquals(ProjectStatus.Cancelled, ProjectStatus.fromCode("5"))
     }
 
     @Test
     fun anythingButAnExactProjectStatusCodeIsUnknown() {
-        for (raw in listOf(null, "", " ", "0", "3", "5", "01", "1.0", "published", "draft", "Recruiting")) {
+        for (raw in listOf(null, "", " ", "0", "6", "01", "1.0", "published", "draft", "Recruiting")) {
             assertNull(ProjectStatus.fromCode(raw), "status of '$raw'")
+        }
+    }
+
+    // ---- ProjectJoinType / ProjectJoinStatus ----
+
+    @Test
+    fun joinTypeCodesAreTheOnesOfTheContractAndReadBack() {
+        assertEquals("1", ProjectJoinType.Application.code)
+        assertEquals("2", ProjectJoinType.Invitation.code)
+        for (type in ProjectJoinType.entries) assertEquals(type, ProjectJoinType.fromCode(type.code))
+        assertEquals(ProjectJoinType.Invitation, ProjectJoinType.fromCode(" 2 "))
+    }
+
+    @Test
+    fun anythingButAnExactJoinTypeCodeIsUnknown() {
+        for (raw in listOf(null, "", " ", "0", "3", "01", "application", "Application")) {
+            assertNull(ProjectJoinType.fromCode(raw), "join type of '$raw'")
+        }
+    }
+
+    @Test
+    fun joinStatusCodesAreTheOnesOfTheContractAndReadBack() {
+        assertEquals(
+            listOf("1", "2", "3", "4"),
+            listOf(
+                ProjectJoinStatus.Pending,
+                ProjectJoinStatus.Accepted,
+                ProjectJoinStatus.Declined,
+                ProjectJoinStatus.Withdrawn,
+            ).map { it.code },
+        )
+        assertEquals(4, ProjectJoinStatus.entries.size)
+        for (status in ProjectJoinStatus.entries) assertEquals(status, ProjectJoinStatus.fromCode(status.code))
+        assertEquals(ProjectJoinStatus.Declined, ProjectJoinStatus.fromCode("\t3\n"))
+    }
+
+    @Test
+    fun anythingButAnExactJoinStatusCodeIsUnknown() {
+        for (raw in listOf(null, "", " ", "0", "5", "02", "pending", "Pending")) {
+            assertNull(ProjectJoinStatus.fromCode(raw), "join status of '$raw'")
         }
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,21 +102,54 @@ fun AppFilterChip(
     }
 }
 
-enum class AppStatusChipTone { Success, Pending, Off }
+/**
+ * The colors of [AppStatusChip] ("Chip/Status", `tone`).
+ *
+ * - [Success]: `tertiaryContainer` / `onTertiaryContainer`, e.g. "Опубликован", "Завершён", "Принят"
+ * - [Pending]: `warningContainer` / `onWarningContainer` ("tone=warning"), e.g. "Ожидает"; its icon is a clock
+ * - [Off]: `surfaceContainer` / `onSurfaceVariant`, e.g. "Снят с публикации", "Отозван"
+ * - [Progress]: `primaryContainer` / `onPrimaryContainer`, e.g. "В работе"
+ * - [Cancelled]: `errorContainer` / `onErrorContainer`, e.g. "Отменён", "Отклонён"
+ */
+enum class AppStatusChipTone { Success, Pending, Off, Progress, Cancelled }
 
-/** "Chip/Status" (success, off) and "Chip/Status/pending": status with an icon. */
+/** The words and the colors of a status chip, for models that carry a chip as data (e.g. a project's status). */
+@Immutable
+data class StatusChipUiModel(
+    val text: String,
+    val tone: AppStatusChipTone,
+)
+
+/**
+ * "Chip/Status": status of a project, a record or a person. By default it has an icon (a check, a clock for
+ * [AppStatusChipTone.Pending], a cross for [AppStatusChipTone.Cancelled], a clock for [AppStatusChipTone.Progress]);
+ * the statuses of projects are drawn without it (`showIcon = false`, the design's `showIcon` property).
+ *
+ * @param showIcon `false` leaves the icon out: the chip is the text alone
+ */
 @Composable
-fun AppStatusChip(text: String, tone: AppStatusChipTone, modifier: Modifier = Modifier) {
+fun AppStatusChip(
+    text: String,
+    tone: AppStatusChipTone,
+    modifier: Modifier = Modifier,
+    showIcon: Boolean = true,
+) {
     val colors = MaterialTheme.colorScheme
     val extended = MaterialTheme.extendedColors
     val (container, content) = when (tone) {
         AppStatusChipTone.Success -> colors.tertiaryContainer to colors.onTertiaryContainer
         AppStatusChipTone.Pending -> extended.warningContainer to extended.onWarningContainer
         AppStatusChipTone.Off -> colors.surfaceContainer to colors.onSurfaceVariant
+        AppStatusChipTone.Progress -> colors.primaryContainer to colors.onPrimaryContainer
+        AppStatusChipTone.Cancelled -> colors.errorContainer to colors.onErrorContainer
     }
-    val icon = if (tone == AppStatusChipTone.Pending) AppIcons.Clock else AppIcons.Check
+    val icon = when (tone) {
+        AppStatusChipTone.Pending, AppStatusChipTone.Progress -> AppIcons.Clock
+        AppStatusChipTone.Cancelled -> AppIcons.X
+        AppStatusChipTone.Success, AppStatusChipTone.Off -> AppIcons.Check
+    }
     ChipRow(modifier.background(container)) {
-        AppIcon(icon, contentDescription = null, size = 16.dp, tint = content)
+        if (showIcon) AppIcon(icon, contentDescription = null, size = 16.dp, tint = content)
         ChipText(text, content)
     }
 }

@@ -72,7 +72,7 @@
     <string name="projects_roles_header">Roles</string>
     <string name="projects_roles_empty">No roles yet. Announce the first one to start building your team</string>
     <string name="projects_banner_recruiting">Now: recruiting collaborators. The project is visible in search, and people can apply for open roles</string>
-    <string name="projects_banner_unpublished">The project is unpublished: it is hidden from search and applications are paused</string>
+    <string name="projects_banner_unpublished">Now: the project is unpublished. It is not visible in search, and applications are paused</string>
     <string name="projects_action_unpublish">Unpublish</string>
     <string name="projects_action_unpublish_hint">The project will be hidden from search and applications will be paused</string>
     <string name="projects_unpublish_dialog_title">Unpublish the project?</string>
@@ -86,4 +86,37 @@
     <string name="projects_manage_empty">No management actions are available for this project</string>
     <!-- A role could not be added because the project changed on the server meanwhile (a 409) -->
     <string name="projects_conflict">The project has changed on the server: check it and try again</string>
+
+    <!-- 07c: the status of the project and what can be done with it -->
+    <string name="projects_manage_status">Project status</string>
+    <string name="projects_banner_started">Now: the project is in progress. Finish it when the goal is reached, or cancel it</string>
+    <string name="projects_banner_finished">Now: the project is finished. It can no longer be changed</string>
+    <string name="projects_banner_cancelled">Now: the project is cancelled. It can no longer be changed</string>
+    <string name="projects_action_start">Start the project</string>
+    <string name="projects_action_start_hint">The project will move to the status “In progress”</string>
+    <string name="projects_action_complete">Finish the project</string>
+    <string name="projects_action_complete_hint">The project will move to the status “Finished”</string>
+    <string name="projects_action_cancel_project">Cancel the project</string>
+    <string name="projects_action_cancel_project_hint">The project will be closed without a result</string>
+    <string name="projects_action_edit">Edit the project</string>
+    <string name="projects_action_edit_hint">Title, description, tags, dates and roles</string>
+    <string name="projects_start_dialog_title">Start the project?</string>
+    <string name="projects_start_dialog_text">The project will move to the status “In progress”.</string>
+    <string name="projects_start_confirm">Start</string>
+    <string name="projects_complete_dialog_title">Finish the project?</string>
+    <string name="projects_complete_dialog_text">The project will move to the status “Finished”. It can no longer be changed.</string>
+    <string name="projects_complete_confirm">Finish</string>
+    <string name="projects_cancel_project_dialog_title">Cancel the project?</string>
+    <string name="projects_cancel_project_dialog_text">The project will be closed without a result. This can't be undone.</string>
+    <string name="projects_lifecycle_not_allowed">This action is not available in the project's current state</string>
+
+    <!-- 04d: editing a published project -->
+    <string name="projects_edit_title">Editing</string>
+    <string name="projects_save_changes">Save changes</string>
+    <string name="projects_role_delete_title">Delete the role?</string>
+    <!-- 1: the title of the role -->
+    <string name="projects_role_delete_text">The role “%1$s” will be deleted and the applications to it cancelled.</string>
+    <string name="projects_role_not_removable">The role cannot be deleted</string>
+    <string name="projects_role_locked_hint">The role cannot be deleted: it already has people</string>
+    <string name="projects_role_slots_locked">The number of places cannot be changed after the role is created</string>
 </resources>

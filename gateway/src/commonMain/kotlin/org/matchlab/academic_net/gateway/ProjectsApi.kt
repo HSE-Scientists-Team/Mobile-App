@@ -4,6 +4,7 @@ import org.matchlab.academic_net.gateway.dto.ProjectCreateDto
 import org.matchlab.academic_net.gateway.dto.ProjectDto
 import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
 import org.matchlab.academic_net.gateway.dto.ProjectTransitionDto
+import org.matchlab.academic_net.gateway.dto.ProjectUpdateDto
 
 /**
  * The calls of the viewer's own projects (05, 07, 07b, 07c). Every call throws `RemoteFailure` when it fails and lets a
@@ -35,4 +36,22 @@ interface ProjectsApi {
      * escaped. A stale [ProjectTransitionDto.expectedRevision] is answered with a 409, an unknown project with a 404.
      */
     suspend fun transition(id: String, input: ProjectTransitionDto): ProjectDto
+
+    /** `PUT /api/v1/projects/{id}` → 200: the whole project. A stale [ProjectUpdateDto.expectedRevision] is a 409. */
+    suspend fun update(id: String, input: ProjectUpdateDto): ProjectDto
+
+    /** `PUT /api/v1/projects/{id}/roles/{role_id}` → 200: the whole project. Both ids escaped; stale revision: 409. */
+    suspend fun updateRole(id: String, roleId: String, input: ProjectRoleInputDto): ProjectDto
+
+    /**
+     * `DELETE /api/v1/projects/{id}/roles/{role_id}?expected_revision=…` → 200: the whole project ("удалить свободную роль
+     * и отменить её отклики"). API-GAP G64: what "free" means and the code for a role that is not are not described.
+     */
+    suspend fun deleteRole(id: String, roleId: String, expectedRevision: Int): ProjectDto
+
+    /** `DELETE /api/v1/projects/{id}/members/{user_id}` → 200: the whole project. API-GAP G65. */
+    suspend fun removeMember(id: String, userId: String): ProjectDto
+
+    /** `DELETE /api/v1/projects/{id}/membership` → 200: the whole project after the viewer left it. API-GAP G65. */
+    suspend fun leave(id: String): ProjectDto
 }

@@ -48,6 +48,7 @@ import org.matchlab.academic_net.feature.profile.ui.user.UserReviewsRoute
 import org.matchlab.academic_net.feature.profile.ui.user.UserWorksRoute
 import org.matchlab.academic_net.feature.projectdetails.ui.ProjectDetailsRoute
 import org.matchlab.academic_net.feature.projects.ui.create.CreateProjectRoute
+import org.matchlab.academic_net.feature.projects.ui.edit.EditProjectRoute
 import org.matchlab.academic_net.feature.projects.ui.list.MyProjectsRoute
 import org.matchlab.academic_net.feature.projects.ui.management.ProjectManagementRoute
 import org.matchlab.academic_net.feature.projectsearch.ui.ProjectSearchRoute
@@ -67,6 +68,7 @@ private object Routes {
 
     const val Project = "project/{$ProjectArgument}"
     const val ProjectDetails = "project_details/{$ProjectArgument}"
+    const val EditProject = "edit_project/{$ProjectArgument}"
     const val Collaborators = "collaborators/{$ProjectArgument}/{$RoleArgument}"
     const val Chat = "chat/{$ConversationArgument}"
     const val PeopleSearch = "people_search"
@@ -84,6 +86,7 @@ private object Routes {
 
     fun project(id: ProjectId) = "project/${id.value}"
     fun projectDetails(id: ProjectId) = "project_details/${id.value}"
+    fun editProject(id: ProjectId) = "edit_project/${id.value}"
     fun collaborators(projectId: ProjectId, roleId: RoleId) = "collaborators/${projectId.value}/${roleId.value}"
     fun chat(id: ConversationId) = "chat/${id.value}"
     fun profile(id: UserId) = "profile/${id.value}"
@@ -257,6 +260,22 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onFindCollaborators = { projectId, roleId ->
                         navController.navigateOnce(entry, Routes.collaborators(projectId, roleId))
                     },
+                    onEditProject = { projectId -> navController.navigateOnce(entry, Routes.editProject(projectId)) },
+                    onMemberClick = { userId -> openProfile(entry, userId) },
+                )
+            }
+        }
+        composable(
+            route = Routes.EditProject,
+            arguments = listOf(navArgument(Routes.ProjectArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.ProjectArgument) }
+            if (id != null) {
+                // Saving closes the form; 07 below shows the changes from the cache.
+                EditProjectRoute(
+                    dependencies = dependencies.projects,
+                    projectId = ProjectId(id),
+                    onClose = { navController.popBackStackOnce(entry) },
                 )
             }
         }
@@ -310,6 +329,8 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onNavigateBack = { navController.popBackStackOnce(entry) },
                     onContactInitiator = { user -> openChatWith(entry, user) },
                     onInitiatorClick = { userId -> openProfile(entry, userId) },
+                    onMemberClick = { userId -> openProfile(entry, userId) },
+                    onContactMember = { user -> openChatWith(entry, user) },
                 )
             }
         }

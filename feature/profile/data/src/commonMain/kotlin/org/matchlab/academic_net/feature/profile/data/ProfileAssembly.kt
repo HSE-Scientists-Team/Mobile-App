@@ -43,6 +43,7 @@ internal fun assembleProfile(
     reviews = record.reviews,
     latestReviews = latestReviews.take(PreviewReviewsCount),
     isViewer = isViewer,
+    openToCollaboration = record.openToCollaboration,
 )
 
 /** The viewer's profile: the page as the owner sees it, every work, and what is waiting for a moderator. */

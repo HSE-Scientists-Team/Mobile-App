@@ -20,8 +20,10 @@ import org.jetbrains.compose.resources.DrawableResource
  * @property type the project type, the first chip, e.g. "Научный"; `null` leaves the chip out (the type is unknown,
  *  see `docs/api-values.md`)
  * @property footer the line with the team size and, when the months are known, the dates (see `projectCardFooter`)
- * @property tags the chips after the type, e.g. the status and the sphere; the card draws no row of chips when there
- *  is neither a [type] nor a tag
+ * @property statusChip the status of the project as a "Chip/Status" without an icon, right after the type ("В работе",
+ *  "Опубликован"); `null` leaves it out (the status is unknown, or it is among the [tags])
+ * @property tags the chips after the type and the status, e.g. the sphere; the card draws no row of chips when there
+ *  is neither a [type], a [statusChip] nor a tag
  * @property showInvitationActions accept, decline and chat buttons of an invitation to the project
  */
 @Immutable
@@ -32,6 +34,7 @@ data class ProjectCardUiModel(
     val type: String?,
     val footer: String,
     val tags: List<String> = emptyList(),
+    val statusChip: StatusChipUiModel? = null,
     val showInvitationActions: Boolean = false,
 )
 
@@ -59,12 +62,13 @@ fun ProjectCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (model.type != null || model.tags.isNotEmpty()) {
+        if (model.type != null || model.statusChip != null || model.tags.isNotEmpty()) {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (model.type != null) AppFilterChip(model.type, selected = false, onClick = null)
+                model.statusChip?.let { AppStatusChip(it.text, it.tone, showIcon = false) }
                 model.tags.forEach { AppTagChip(it) }
             }
         }

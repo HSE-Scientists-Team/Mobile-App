@@ -25,6 +25,7 @@ import org.matchlab.academic_net.feature.profile.ui.keepCollecting
 import org.matchlab.academic_net.feature.profile.ui.myProfile
 import org.matchlab.academic_net.feature.profile.ui.person
 import org.matchlab.academic_net.feature.profile.ui.uninstallMainDispatcher
+import org.matchlab.academic_net.feature.profile.ui.userProfile
 import org.matchlab.academic_net.feature.profile.ui.work
 import org.matchlab.academic_net.utils.ChatListTime
 import kotlin.test.AfterTest
@@ -105,6 +106,17 @@ class MyProfileViewModelTest {
         assertFalse(content.profile.canMessage, "nobody writes to themselves")
         assertFalse(content.needsName)
         assertEquals(listOf("w1"), content.profile.works.map { it.id.value })
+    }
+
+    @Test
+    fun theOpenToCollaborationFlagReachesTheOwnPage() = runTest {
+        val viewModel = viewModel()
+        keepCollecting(viewModel.uiState)
+        assertFalse(viewModel.content().profile.openToCollaboration)
+
+        repository.profile.value = myProfile().copy(profile = userProfile(openToCollaboration = true))
+
+        assertTrue(viewModel.content().profile.openToCollaboration)
     }
 
     @Test

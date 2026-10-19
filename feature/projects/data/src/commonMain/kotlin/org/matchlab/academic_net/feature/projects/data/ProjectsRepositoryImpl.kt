@@ -4,8 +4,11 @@ import kotlinx.coroutines.flow.Flow
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
+import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.feature.projects.domain.NewProject
+import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
@@ -30,6 +33,17 @@ class ProjectsRepositoryImpl(
 
     override suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role =
         dataSource.addRole(projectId, role)
+
+    override suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project =
+        dataSource.changeLifecycle(id, action)
+
+    override suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project = dataSource.updateProject(id, info)
+
+    override suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role =
+        dataSource.updateRole(projectId, roleId, role)
+
+    override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project =
+        dataSource.removeRole(projectId, roleId)
 
     override suspend fun getSpheres(): List<Sphere> = dataSource.getSpheres()
 }

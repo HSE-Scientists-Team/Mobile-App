@@ -25,6 +25,9 @@ import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projects.domain.NewProject
+import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
+import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundException
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
@@ -45,8 +48,17 @@ internal fun <T> TestScope.keepCollecting(flow: Flow<T>) {
     backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { flow.collect {} }
 }
 
-internal fun caps(canCreate: Boolean = false, canListMine: Boolean = false, canUnpublish: Boolean = false) =
-    ProjectsCapabilities(canCreate = canCreate, canListMine = canListMine, canUnpublish = canUnpublish)
+internal fun caps(
+    canCreate: Boolean = false,
+    canListMine: Boolean = false,
+    canUnpublish: Boolean = false,
+    canChangeLifecycle: Boolean = false,
+) = ProjectsCapabilities(
+    canCreate = canCreate,
+    canListMine = canListMine,
+    canUnpublish = canUnpublish,
+    canChangeLifecycle = canChangeLifecycle,
+)
 
 internal val TestSphere = Sphere("Biology", "Biology")
 
@@ -124,6 +136,24 @@ internal class FakeProjectsRepository(
     var addRoleFailure: Throwable? = null
     var addRoleGate: Gate? = null
 
+    // ---- the lifecycle ----
+    val lifecycleMoves = mutableListOf<Pair<ProjectId, ProjectLifecycleAction>>()
+    var lifecycleFailure: Throwable? = null
+    var lifecycleGate: Gate? = null
+
+    // ---- the description ----
+    val updatedInfos = mutableListOf<Pair<ProjectId, ProjectInfo>>()
+    var updateProjectFailure: Throwable? = null
+    var updateProjectGate: Gate? = null
+
+    // ---- the roles of a published project ----
+    val updatedRoles = mutableListOf<Triple<ProjectId, RoleId, RoleDraft>>()
+    var updateRoleFailure: Throwable? = null
+    var updateRoleGate: Gate? = null
+    val removedRoles = mutableListOf<Pair<ProjectId, RoleId>>()
+    var removeRoleFailure: Throwable? = null
+    var removeRoleGate: Gate? = null
+
     // ---- creating ----
     val published = mutableListOf<NewProject>()
     var publishFailure: Throwable? = null
@@ -179,6 +209,62 @@ internal class FakeProjectsRepository(
         val added = Role(RoleId("added-${current.roles.size}"), role.title, role.skills)
         cache.update { it + (projectId to current.copy(roles = current.roles + added)) }
         return added
+    }
+
+    override suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project {
+        lifecycleMoves += id to action
+        lifecycleGate?.await()
+        lifecycleFailure?.let { throw it }
+        val current = cache.value[id] ?: throw ProjectNotFoundException(id)
+        val status = when (action) {
+            ProjectLifecycleAction.Start -> ProjectStatus.Started
+            ProjectLifecycleAction.Complete -> ProjectStatus.Finished
+            ProjectLifecycleAction.Cancel -> ProjectStatus.Cancelled
+        }
+        val updated = current.copy(status = status)
+        cache.update { it + (id to updated) }
+        return updated
+    }
+
+    override suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project {
+        updatedInfos += id to info
+        updateProjectGate?.await()
+        updateProjectFailure?.let { throw it }
+        val current = cache.value[id] ?: throw ProjectNotFoundException(id)
+        val updated = current.copy(
+            title = info.title,
+            type = info.type,
+            sphere = info.sphere,
+            problem = info.problem,
+            goal = info.goal,
+            tags = info.tags,
+            period = info.period,
+        )
+        cache.update { it + (id to updated) }
+        return updated
+    }
+
+    override suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role {
+        updatedRoles += Triple(projectId, roleId, role)
+        updateRoleGate?.await()
+        updateRoleFailure?.let { throw it }
+        val current = cache.value[projectId] ?: throw ProjectNotFoundException(projectId)
+        val old = current.roles.firstOrNull { it.id == roleId } ?: throw ProjectConflictException(projectId)
+        val updated = old.copy(title = role.title, skills = role.skills)
+        cache.update {
+            it + (projectId to current.copy(roles = current.roles.map { r -> if (r.id == roleId) updated else r }))
+        }
+        return updated
+    }
+
+    override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project {
+        removedRoles += projectId to roleId
+        removeRoleGate?.await()
+        removeRoleFailure?.let { throw it }
+        val current = cache.value[projectId] ?: throw ProjectNotFoundException(projectId)
+        val updated = current.copy(roles = current.roles.filterNot { it.id == roleId })
+        cache.update { it + (projectId to updated) }
+        return updated
     }
 
     override suspend fun getSpheres(): List<Sphere> {

@@ -162,4 +162,5 @@
     <!-- 1: the earliest year, 2: the latest -->
     <string name="profile_error_year">Enter a year from %1$d to %2$d</string>
     <string name="profile_error_proof_missing">Add a link to the proof</string>
+    <string name="profile_open_to_collaboration">Open to collaboration</string>
 </resources>

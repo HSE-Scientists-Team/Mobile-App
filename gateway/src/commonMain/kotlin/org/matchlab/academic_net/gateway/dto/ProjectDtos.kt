@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // The shapes of the project calls of docs/openapi.yaml (schemas Project, ProjectInput, ProjectRole, ProjectList,
-// ProjectRoleInput, ProjectCreate, ProjectInitialRole, ProjectTransitionRequest): only what the app reads or sends, the
+// ProjectRoleInput, ProjectCreate, ProjectInitialRole, ProjectTransitionRequest, ProjectUpdate, ProjectMember): only what the app reads or sends, the
 // client's Json skips the rest. The strings the API leaves open (`type`, `field`, `status`, `planned_start`,
 // `planned_end`, `action`) stay strings here: the app defines their values (docs/api-values.md) and the mapping reads
 // and writes them, the DTOs do not parse anything.
@@ -26,14 +26,27 @@ data class ProjectInputDto(
     @SerialName("planned_end") val plannedEnd: String = "",
 )
 
-/** `ProjectRole`: a position for [slots] people, [occupied] of them taken; `0` when the server left a number out. */
+/**
+ * `ProjectRole`: a position for [slots] people, [occupied] of them taken; `0` when the server left a number out.
+ * [description] is kept as it came, to be sent back by a role update (the PUT replaces the role).
+ */
 @Serializable
 data class ProjectRoleDto(
     val id: String = "",
     val title: String = "",
+    val description: String = "",
     val skills: List<String> = emptyList(),
     val slots: Int = 0,
     val occupied: Int = 0,
+)
+
+/** `ProjectMember`. API-GAP G52: [status] has no table of values and is not read by the mapping. */
+@Serializable
+data class ProjectMemberDto(
+    @SerialName("user_id") val userId: String = "",
+    @SerialName("role_id") val roleId: String = "",
+    @SerialName("role_title") val roleTitle: String = "",
+    val status: String = "",
 )
 
 /** `Project`. [revision] is the version a change sends back as `expected_revision`. */
@@ -46,6 +59,9 @@ data class ProjectDto(
     val status: String = "",
     val revision: Int = 0,
     val roles: List<ProjectRoleDto> = emptyList(),
+    val members: List<ProjectMemberDto> = emptyList(),
+    /** API-GAP G61: what it counts is not described. */
+    @SerialName("pending_join_count") val pendingJoinCount: Int = 0,
 )
 
 /** `ProjectList`: one page and the size of the whole list (int64, a string or a number). */
@@ -106,5 +122,23 @@ data class ProjectInitialRoleDto(
 @Serializable
 data class ProjectTransitionDto(
     val action: String,
+    @SerialName("expected_revision") val expectedRevision: Int,
+)
+
+/**
+ * `ProjectUpdate`, the body of `PUT /projects/{id}`: every field but [tags] is required by the API. API-GAP G63: `roles`
+ * and `id` of `ProjectInput` are never sent (what the PUT does with them is not described); roles change by their own calls.
+ * [tags] always goes (an empty list clears them: the PUT replaces the description).
+ */
+@Serializable
+data class ProjectUpdateDto(
+    val title: String,
+    val type: String,
+    val field: String,
+    val problem: String,
+    val goal: String,
+    val tags: List<String> = emptyList(),
+    @SerialName("planned_start") val plannedStart: String,
+    @SerialName("planned_end") val plannedEnd: String,
     @SerialName("expected_revision") val expectedRevision: Int,
 )

@@ -80,6 +80,22 @@ fun Avatar(
     Avatar(painterResource(image), contentDescription, modifier, size)
 }
 
+/**
+ * "Avatar" (`person=unknown`) of a person the app knows nothing about (no readable profile, no picture): a round
+ * `surfaceContainerHigh` disc with the [AppIcons.User] icon in `onSurfaceVariant`, the icon half the size of the disc.
+ * The design draws it at 64dp (`md`) and 40dp (`sm`).
+ */
+@Composable
+fun UnknownAvatar(modifier: Modifier = Modifier, size: Dp = 48.dp) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier.size(size).clip(CircleShape).background(colors.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        AppIcon(AppIcons.User, contentDescription = null, size = size / 2, tint = colors.onSurfaceVariant)
+    }
+}
+
 /** How an [InfoBanner] speaks: a quiet note, or a problem that the user has to deal with. */
 enum class InfoBannerTone {
     /** A note or a rule of the service: `primaryContainer`. */

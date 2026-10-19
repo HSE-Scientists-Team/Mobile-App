@@ -2,7 +2,11 @@ package org.matchlab.academic_net.components.project
 
 import academicnet.components.generated.resources.Res
 import academicnet.components.generated.resources.components_project_roles_count
+import academicnet.components.generated.resources.components_project_status_cancelled
+import academicnet.components.generated.resources.components_project_status_chip_recruiting
+import academicnet.components.generated.resources.components_project_status_finished
 import academicnet.components.generated.resources.components_project_status_recruiting
+import academicnet.components.generated.resources.components_project_status_started
 import academicnet.components.generated.resources.components_project_status_unpublished
 import academicnet.components.generated.resources.components_project_type_practical
 import academicnet.components.generated.resources.components_project_type_scientific
@@ -14,7 +18,9 @@ import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.components.AppAvatars
+import org.matchlab.academic_net.components.AppStatusChipTone
 import org.matchlab.academic_net.components.ProjectCardUiModel
+import org.matchlab.academic_net.components.StatusChipUiModel
 import org.matchlab.academic_net.components.format.monthRangeText
 
 /** Name of the project type in the app language: "Научный" | "Scientific". */
@@ -26,12 +32,38 @@ fun ProjectType.label(): String = stringResource(
     },
 )
 
-/** Name of the project status in the app language: "Поиск соавторов" | "Recruiting". */
+/**
+ * Name of the project status in the app language: "Поиск соавторов" | "Recruiting", "Снят с публикации", "В работе",
+ * "Завершён", "Отменён". It is the text of the tag in the header of a project page.
+ */
 @Composable
 fun ProjectStatus.label(): String = stringResource(
     when (this) {
         ProjectStatus.Recruiting -> Res.string.components_project_status_recruiting
         ProjectStatus.Unpublished -> Res.string.components_project_status_unpublished
+        ProjectStatus.Started -> Res.string.components_project_status_started
+        ProjectStatus.Finished -> Res.string.components_project_status_finished
+        ProjectStatus.Cancelled -> Res.string.components_project_status_cancelled
+    },
+)
+
+/**
+ * The status as a "Chip/Status" (the status of "Мои проекты" and of 07c): the recruiting project is "Опубликован" |
+ * "Published" here, the others are named by [label]. Colors: published and finished — success, unpublished — off,
+ * started — progress, cancelled — cancelled. The chip is drawn without an icon.
+ */
+@Composable
+fun ProjectStatus.chip(): StatusChipUiModel = StatusChipUiModel(
+    text = if (this == ProjectStatus.Recruiting) {
+        stringResource(Res.string.components_project_status_chip_recruiting)
+    } else {
+        label()
+    },
+    tone = when (this) {
+        ProjectStatus.Recruiting, ProjectStatus.Finished -> AppStatusChipTone.Success
+        ProjectStatus.Unpublished -> AppStatusChipTone.Off
+        ProjectStatus.Started -> AppStatusChipTone.Progress
+        ProjectStatus.Cancelled -> AppStatusChipTone.Cancelled
     },
 )
 
@@ -68,6 +100,8 @@ fun projectCardFooter(rolesCount: Int, period: ProjectPeriod?): String {
  * @param status the project status, `null` when unknown
  * @param sphere the name of the project's sphere, `null` when unknown
  * @param period the months the project runs, `null` when unknown
+ * @param statusAsChip the status is a "Chip/Status" right after the type ([chip], "Мои проекты"), not a tag among the
+ *  others
  */
 @Composable
 fun projectCardUiModel(
@@ -79,13 +113,15 @@ fun projectCardUiModel(
     sphere: String?,
     rolesCount: Int,
     period: ProjectPeriod?,
+    statusAsChip: Boolean = false,
 ): ProjectCardUiModel = ProjectCardUiModel(
     title = title,
     author = author,
     authorAvatar = AppAvatars.forKey(avatarKey),
     type = type?.label(),
     footer = projectCardFooter(rolesCount, period),
-    tags = listOfNotNull(status?.label(), sphere?.takeIf { it.isNotBlank() }),
+    statusChip = if (statusAsChip) status?.chip() else null,
+    tags = listOfNotNull(if (statusAsChip) null else status?.label(), sphere?.takeIf { it.isNotBlank() }),
 )
 
 /**

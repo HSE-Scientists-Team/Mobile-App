@@ -48,7 +48,7 @@ class ProjectMappingTest {
         skills: List<String> = emptyList(),
         slots: Int = 1,
         occupied: Int = 0,
-    ) = ProjectRoleDto(id, title, skills, slots, occupied)
+    ) = ProjectRoleDto(id = id, title = title, skills = skills, slots = slots, occupied = occupied)
 
     // ---- what cannot be shown ----
 

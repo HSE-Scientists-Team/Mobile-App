@@ -43,13 +43,15 @@ class GatewayCollaboratorsDataSource(private val api: PeopleSearchApi) : Collabo
  * What the query asks for, as the parameters of the people search; a value that restricts nothing is left out.
  * API-GAP G31: `q` goes as typed (only the outer spaces are cut), commas and all. `workTypes` goes as the code of its
  * type when there is exactly one (`project_type` holds one value; two of two mean "any" and send nothing). The filters
- * the sheet "08b" does not have (`interest`, `my_university`, `open_only`) are not sent.
+ * the sheet "08b" does not have (`interest`, `my_university`) are not sent. `open_only=true` goes when "Открыт к
+ * сотрудничеству" is on.
  */
 internal fun CollaboratorQuery.toParams(): PeopleSearchParams = PeopleSearchParams(
     q = text.trim().takeIf { it.isNotEmpty() },
     university = filters.university.trim().takeIf { it.isNotEmpty() },
     projectType = filters.workTypes.singleOrNull()?.code,
     skills = filters.keywords.map { it.trim() }.filter { it.isNotEmpty() }.distinct(),
+    openOnly = filters.openOnly,
     verifiedOnly = filters.verifiedProfile,
     verifiedProjects = filters.hasVerifiedProjects,
     publications = filters.hasPublications,

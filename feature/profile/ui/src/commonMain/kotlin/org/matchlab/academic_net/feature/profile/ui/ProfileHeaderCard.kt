@@ -21,6 +21,7 @@ import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.ChatIconButton
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_message
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_open_to_collaboration
 
 /**
  * One chip under the first row of [ProfileHeaderCard], e.g. "Открыт к сотрудничеству".
@@ -102,3 +103,12 @@ fun ProfileHeaderCard(
         }
     }
 }
+
+/** The chips under the header of [this] profile: "Открыт к сотрудничеству" when the person said so, else none. */
+@Composable
+internal fun ProfileUiModel.headerStatuses(): List<ProfileStatusUiModel> =
+    if (openToCollaboration) {
+        listOf(ProfileStatusUiModel(stringResource(Res.string.profile_open_to_collaboration), AppStatusChipTone.Success))
+    } else {
+        emptyList()
+    }

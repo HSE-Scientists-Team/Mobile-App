@@ -1,13 +1,17 @@
 package org.matchlab.academic_net.feature.projectdetails.data
 
+import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projectdetails.domain.InitiatorInfo
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetails
+import org.matchlab.academic_net.feature.projectdetails.domain.TeamMember
 import org.matchlab.academic_net.gateway.ProjectCatalogApi
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
+import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
 import org.matchlab.academic_net.gateway.mapping.ratingOrNull
+import org.matchlab.academic_net.gateway.mapping.toRoleMember
 
 /**
  * [ProjectDetailsDataSource] over `GET /api/v1/projects/{id}` and the public profile of the project's owner.
@@ -24,11 +28,17 @@ import org.matchlab.academic_net.gateway.mapping.ratingOrNull
  * separately. The type, the sphere, the status and the months of the project are read from the codes the app defines
  * (`docs/api-values.md`); a value the app has no code for is `null` and does not hide the project.
  *
+ * **The team** is a second step, [getTeam]: the profiles of the project's `members`, one request per person (API-GAP G47),
+ * so the page does not wait for them. A person whose profile cannot be read is a member without a profile; the team never
+ * fails. API-GAP G52: the status of a member is not read.
+ *
  * @param assembler turns the server's project into the app's, with its owner.
+ * @param team reads the profiles of the people of a project.
  */
 class GatewayProjectDetailsDataSource(
     private val api: ProjectCatalogApi,
     private val assembler: ProjectAssembler,
+    private val team: ProjectTeamReader,
 ) : ProjectDetailsDataSource {
     override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? {
         val dto = try {
@@ -39,6 +49,9 @@ class GatewayProjectDetailsDataSource(
         val assembled = assembler.assemble(listOf(dto)).firstOrNull() ?: return null
         return ProjectDetails(assembled.project, assembled.owner.toInitiatorInfo())
     }
+
+    override suspend fun getTeam(project: Project): List<TeamMember> =
+        team.read(project.members).map { TeamMember(it.toRoleMember(), it.member.roleTitle, it.member.isViewer) }
 
     private companion object {
         /** 400 (not a project id), 403 (not allowed to see it) and 404 (unknown): the project is not there for the viewer. */

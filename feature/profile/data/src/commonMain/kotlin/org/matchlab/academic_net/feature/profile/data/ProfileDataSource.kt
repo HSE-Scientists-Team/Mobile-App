@@ -22,6 +22,7 @@ import org.matchlab.academic_net.feature.profile.domain.WorkId
  * A person's profile without the portfolio and the reviews: what one request for the profile gives.
  *
  * @property reviews the numbers over the reviews, as the server counts them.
+ * @property openToCollaboration the server's `open_to_collaboration`; a missing field or `null` is `false`.
  */
 data class ProfileRecord(
     val person: Collaborator,
@@ -29,6 +30,7 @@ data class ProfileRecord(
     val interests: ProfileInterests,
     val skills: List<String>,
     val reviews: ReviewsSummary,
+    val openToCollaboration: Boolean = false,
 ) {
     companion object {
         /**

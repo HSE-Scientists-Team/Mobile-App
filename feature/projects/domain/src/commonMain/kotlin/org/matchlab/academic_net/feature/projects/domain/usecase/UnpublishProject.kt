@@ -2,7 +2,7 @@ package org.matchlab.academic_net.feature.projects.domain.usecase
 
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
-import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycle
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.utils.suspendRunCatching
 
@@ -12,8 +12,9 @@ sealed interface UnpublishProjectResult {
     data class Unpublished(val project: Project) : UnpublishProjectResult
 
     /**
-     * The project is already off publication ([ProjectStatus.Unpublished]), so there is nothing to take off. A project
-     * whose status is unknown (`null`) is not this: it is tried (`docs/api-values.md`, §4).
+     * The project is not in a state it can be unpublished from ([ProjectLifecycle.canUnpublish]): it is already off
+     * publication, started, finished or cancelled. A project whose status is unknown (`null`) is not this: it is tried
+     * (`docs/api-values.md`, §4).
      */
     data object NotPublished : UnpublishProjectResult
 
@@ -28,7 +29,7 @@ sealed interface UnpublishProjectResult {
 }
 
 /**
- * "Снять проект с публикации": any project that is not already off publication can be unpublished. The status of the
+ * "Снять проект с публикации": a project that is open for people, or whose status is unknown, can be unpublished. The status of the
  * project is whatever the cache has, and an unknown one (`null`) does not stop the attempt: the server decides.
  *
  * The action is `POST /projects/{id}/transitions` (`docs/api-values.md`). Without
@@ -39,7 +40,7 @@ class UnpublishProjectUseCase(private val repository: ProjectsRepository) {
         val project = suspendRunCatching { repository.getProject(id) }
             .getOrElse { return UnpublishProjectResult.Failure(it) }
             ?: return UnpublishProjectResult.NotFound
-        if (project.status == ProjectStatus.Unpublished) return UnpublishProjectResult.NotPublished
+        if (!ProjectLifecycle.canUnpublish(project.status)) return UnpublishProjectResult.NotPublished
 
         return suspendRunCatching { repository.unpublishProject(id) }.fold(
             onSuccess = { UnpublishProjectResult.Unpublished(it) },

@@ -28,6 +28,7 @@ import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectUseCase
@@ -62,6 +63,7 @@ class ProjectManagementViewModelTest {
             loadProject = LoadProjectUseCase(repository),
             unpublishProject = UnpublishProjectUseCase(repository),
             addRole = AddRoleUseCase(repository),
+            changeLifecycle = ChangeProjectLifecycleUseCase(repository),
             capabilities = capabilities,
         )
         keepCollecting(viewModel.uiState)
@@ -619,10 +621,24 @@ class ProjectManagementViewModelTest {
         val details = project("p1", roles = listOf(role("r1", slots = 2, occupied = 1, members = listOf(member)))).toDetails(caps())
 
         assertEquals(
-            listOf(RoleMemberItem(name = "Мария", avatarKey = "u9", rating = 4.5, completedProjects = 3)),
+            listOf(RoleMemberItem(userId = UserId("u9"), name = "Мария", avatarKey = "u9", rating = 4.5, completedProjects = 3)),
             details.roles.single().members,
         )
         assertEquals(RoleId("r1"), details.roles.single().id)
+    }
+
+    @Test
+    fun aMemberWithoutAProfileKeepsHisIdAndIsMarkedSoTheCardDoesNotOpenAProfile() {
+        val known = RoleMember(UserSummary(UserId("u1"), "Анна"), rating = 4.0, completedProjects = 2)
+        val unknown = RoleMember(UserSummary(UserId("u2"), name = ""), hasProfile = false)
+        val details = project("p1", roles = listOf(role("r1", slots = 2, members = listOf(known, unknown)))).toDetails(caps())
+
+        val members = details.roles.single().members
+        assertEquals(listOf(UserId("u1"), UserId("u2")), members.map { it.userId })
+        assertEquals(listOf(true, false), members.map { it.hasProfile })
+        assertEquals("", members[1].name)
+        assertNull(members[1].rating)
+        assertEquals(0, members[1].completedProjects)
     }
 
     @Test
@@ -669,7 +685,7 @@ class ProjectManagementViewModelTest {
         skills = emptyList(),
         slots = slots,
         occupied = occupied,
-        members = List(members) { RoleMemberItem("M$it", "k$it", null, 0) },
+        members = List(members) { RoleMemberItem(UserId("m$it"), "M$it", "k$it", null, 0) },
         canFindPeople = false,
     )
 }

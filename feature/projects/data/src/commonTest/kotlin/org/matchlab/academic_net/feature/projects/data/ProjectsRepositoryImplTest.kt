@@ -18,6 +18,8 @@ import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projects.domain.NewProject
+import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 
@@ -54,6 +56,14 @@ class ProjectsRepositoryImplTest {
         override suspend fun createProject(project: NewProject): Project = this.project.also { calls += "create ${project.title}" }
         override suspend fun unpublishProject(id: ProjectId): Project = project.also { calls += "unpublish ${id.value}" }
         override suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role = this.role.also { calls += "role ${projectId.value} ${role.title}" }
+        override suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project =
+            project.also { calls += "lifecycle ${id.value} $action" }
+        override suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project =
+            project.also { calls += "update ${id.value} ${info.title}" }
+        override suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role =
+            this.role.also { calls += "update-role ${projectId.value} ${roleId.value} ${role.title}" }
+        override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project =
+            project.also { calls += "remove-role ${projectId.value} ${roleId.value}" }
         override suspend fun getSpheres(): List<Sphere> = listOfNotNull(project.sphere).also { calls += "spheres" }
     }
 
@@ -68,11 +78,21 @@ class ProjectsRepositoryImplTest {
         assertSame(project, repository.publishProject(NewProject("Новый", ProjectType.Practical, sphere, "P", "G", emptyList(), emptyList(), ProjectPeriod(YearMonth(2026, 10), YearMonth(2026, 11)))))
         assertSame(project, repository.unpublishProject(id))
         assertSame(source.role, repository.addRole(id, RoleDraft("Дизайнер")))
+        assertSame(project, repository.changeLifecycle(id, ProjectLifecycleAction.Complete))
+        assertSame(
+            project,
+            repository.updateProject(id, ProjectInfo("Новое", ProjectType.Practical, sphere, "P", "G", emptyList(), ProjectPeriod(YearMonth(2026, 10), YearMonth(2026, 11)))),
+        )
+        assertSame(source.role, repository.updateRole(id, RoleId("r1"), RoleDraft("Дев")))
+        assertSame(project, repository.removeRole(id, RoleId("r1")))
         assertEquals(listOf(sphere), repository.getSpheres())
         assertEquals(listOf(project), repository.observeMyProjects().first())
         assertEquals(project, repository.observeProject(id).first())
         assertEquals(
-            listOf("load p1", "get p1", "create Новый", "unpublish p1", "role p1 Дизайнер", "spheres"),
+            listOf(
+                "load p1", "get p1", "create Новый", "unpublish p1", "role p1 Дизайнер",
+                "lifecycle p1 Complete", "update p1 Новое", "update-role p1 r1 Дев", "remove-role p1 r1", "spheres",
+            ),
             source.calls,
         )
     }
@@ -81,10 +101,10 @@ class ProjectsRepositoryImplTest {
     fun theCapabilitiesAreTheSourcesAtTheMomentOfAsking() {
         val source = RecordingSource(project)
         val repository = ProjectsRepositoryImpl(source)
-        assertEquals(ProjectsCapabilities(false, false, false), repository.capabilities)
+        assertEquals(ProjectsCapabilities(false, false, false, false), repository.capabilities)
 
-        source.capabilities = ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true)
+        source.capabilities = ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true, canChangeLifecycle = true)
 
-        assertEquals(ProjectsCapabilities(true, true, true), repository.capabilities)
+        assertEquals(ProjectsCapabilities(true, true, true, true), repository.capabilities)
     }
 }

@@ -10,4 +10,7 @@
     <string name="projectdetails_not_found_text">It may have been taken off publication</string>
     <string name="projectdetails_error">Could not load the project</string>
     <string name="projectdetails_retry">Retry</string>
+    <string name="projectdetails_team">Team</string>
+    <!-- 1: the name of the team member -->
+    <string name="projectdetails_message_member">Message %1$s</string>
 </resources>

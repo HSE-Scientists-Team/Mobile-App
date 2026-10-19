@@ -23,6 +23,10 @@
     <string name="components_project_type_practical">Проектный</string>
     <string name="components_project_status_recruiting">Поиск соавторов</string>
     <string name="components_project_status_unpublished">Снят с публикации</string>
+    <string name="components_project_status_started">В работе</string>
+    <string name="components_project_status_finished">Завершён</string>
+    <string name="components_project_status_cancelled">Отменён</string>
+    <string name="components_project_status_chip_recruiting">Опубликован</string>
     <plurals name="components_project_roles_count">
         <item quantity="one">%1$d роль</item>
         <item quantity="few">%1$d роли</item>

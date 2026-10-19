@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
+import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
 
 /** Requested project does not exist (or the user is not allowed to see it). */
@@ -17,6 +18,10 @@ class ProjectNotFoundException(val projectId: ProjectId) :
  */
 class ProjectConflictException(val projectId: ProjectId) :
     IllegalStateException("Project ${projectId.value} changed on the server")
+
+/** The server refused to delete the role: it has people on it or is otherwise not free (a 403 or 409; API-GAP G64). */
+class RoleNotRemovableException(val projectId: ProjectId, val roleId: RoleId) :
+    IllegalStateException("Role ${roleId.value} of project ${projectId.value} cannot be removed")
 
 /**
  * Projects of the current user as their initiator. Suspending functions throw on failure (no network, a server
@@ -63,6 +68,39 @@ interface ProjectsRepository {
      * @throws ProjectConflictException the project changed meanwhile (409); it has been read again
      */
     suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role
+
+    /**
+     * Moves the project ([ProjectLifecycleAction] to the action "3", "4", "5") with the cached revision. Only with
+     * [ProjectsCapabilities.canChangeLifecycle].
+     * @throws ProjectNotFoundException the project is gone (404)
+     * @throws ProjectConflictException the server refused (409): stale revision or a move not allowed now; read again
+     */
+    suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project
+
+    /**
+     * Replaces the description of the project (`PUT`, without roles: API-GAP G63).
+     * @throws ProjectNotFoundException the project is gone (404)
+     * @throws ProjectConflictException the project changed meanwhile (409); it has been read again
+     */
+    suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project
+
+    /**
+     * Changes the title and the skills of the role; its places and description stay as the server has them.
+     * @throws ProjectNotFoundException the project is gone
+     * @throws ProjectConflictException 409, or the role is no longer there (404 with the project still there); read again
+     * @throws org.matchlab.academic_net.common.result.RemoteFailure.Malformed the answer has no edited role (the project in
+     *  the cache has been updated already)
+     */
+    suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role
+
+    /**
+     * Deletes the role and returns the project. A role that is already gone (404 and the project read again has no such
+     * role) counts as deleted: that project is returned.
+     * @throws ProjectNotFoundException the project is gone
+     * @throws ProjectConflictException 404 while the role is still in the project that was read again
+     * @throws RoleNotRemovableException 403 or 409 (API-GAP G64); the project has been read again
+     */
+    suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project
 
     /** The spheres a project can belong to: the app's own list, `Spheres.all` (`docs/api-values.md`). */
     suspend fun getSpheres(): List<Sphere>

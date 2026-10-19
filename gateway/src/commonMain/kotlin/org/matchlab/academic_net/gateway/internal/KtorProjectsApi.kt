@@ -9,6 +9,7 @@ import org.matchlab.academic_net.gateway.dto.ProjectDto
 import org.matchlab.academic_net.gateway.dto.ProjectListDto
 import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
 import org.matchlab.academic_net.gateway.dto.ProjectTransitionDto
+import org.matchlab.academic_net.gateway.dto.ProjectUpdateDto
 
 /**
  * [ProjectsApi] and [ProjectCatalogApi] over the client of a session. One class serves both interfaces, because they
@@ -25,6 +26,19 @@ internal class KtorProjectsApi(private val requests: ApiRequests) : ProjectsApi,
     override suspend fun transition(id: String, input: ProjectTransitionDto): ProjectDto =
         requests.post("${projectPath(id)}/transitions", input)
 
+    override suspend fun update(id: String, input: ProjectUpdateDto): ProjectDto = requests.put(projectPath(id), input)
+
+    override suspend fun updateRole(id: String, roleId: String, input: ProjectRoleInputDto): ProjectDto =
+        requests.put(rolePath(id, roleId), input)
+
+    override suspend fun deleteRole(id: String, roleId: String, expectedRevision: Int): ProjectDto =
+        requests.deleteFor(rolePath(id, roleId), query = mapOf("expected_revision" to expectedRevision.toString()))
+
+    override suspend fun removeMember(id: String, userId: String): ProjectDto =
+        requests.deleteFor("${projectPath(id)}/members/${pathSegment(userId)}")
+
+    override suspend fun leave(id: String): ProjectDto = requests.deleteFor("${projectPath(id)}/membership")
+
     override suspend fun search(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
         requests.get(
             "search/projects",
@@ -40,6 +54,8 @@ internal class KtorProjectsApi(private val requests: ApiRequests) : ProjectsApi,
         )
 
     private fun projectPath(id: String) = "projects/${pathSegment(id)}"
+
+    private fun rolePath(id: String, roleId: String) = "${projectPath(id)}/roles/${pathSegment(roleId)}"
 
     /**
      * The parameters with one value. `limit` and `offset` always go (the bounds are those of [PageRequest]); a text

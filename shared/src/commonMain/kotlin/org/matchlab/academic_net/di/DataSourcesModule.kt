@@ -20,7 +20,9 @@ import org.matchlab.academic_net.feature.settings.data.GatewaySettingsDataSource
 import org.matchlab.academic_net.feature.settings.data.SettingsDataSource
 import org.matchlab.academic_net.gateway.GatewaySession
 import org.matchlab.academic_net.gateway.mapping.DirectoryProjectAssembler
+import org.matchlab.academic_net.gateway.mapping.DirectoryProjectTeamReader
 import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
+import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
 
 /**
  * Where the data source of every feature comes from, for one session: this is the only place that picks the sources.
@@ -44,17 +46,26 @@ internal interface DataSourcesModule {
         DirectoryProjectAssembler(gateway.users, viewerId = session.userId)
 
     /**
+     * API-GAP G47: the API names the people of a project's team by id only; their profiles are read through the
+     * session's directory. One reader serves the projects and the page of a project.
+     */
+    @Provides
+    @SessionScope
+    fun projectTeamReader(gateway: GatewaySession): ProjectTeamReader = DirectoryProjectTeamReader(gateway.users)
+
+    /**
      * The viewer's projects: creating, "Я инициатор" (the catalog `GET /projects`, the viewer's own picked out by their
-     * owner id) and unpublishing, all on (`docs/api-values.md`).
+     * owner id), unpublishing, the lifecycle moves of 07c and the editing of 04d, all on (`docs/api-values.md`).
      */
     @Provides
     @SessionScope
     fun projectsDataSource(
         gateway: GatewaySession,
         assembler: ProjectAssembler,
+        team: ProjectTeamReader,
         session: Session,
     ): ProjectsDataSource =
-        GatewayProjectsDataSource(gateway.projects, gateway.projectCatalog, assembler, viewerId = session.userId)
+        GatewayProjectsDataSource(gateway.projects, gateway.projectCatalog, assembler, team, viewerId = session.userId)
 
     /** API-GAP G50: the API has no chats, so they are local: they start empty and messages go nowhere. */
     @Provides
@@ -76,11 +87,17 @@ internal interface DataSourcesModule {
     fun profileDataSource(gateway: GatewaySession): ProfileDataSource =
         GatewayProfileDataSource(gateway.profiles, gateway.achievements, gateway.reviews, gateway.users)
 
-    /** The page of a project (04): type, sphere, status and months are read from the app's codes (`docs/api-values.md`). */
+    /**
+     * The page of a project (04): type, sphere, status and months are read from the app's codes (`docs/api-values.md`);
+     * its team is read by [ProjectTeamReader].
+     */
     @Provides
     @SessionScope
-    fun projectDetailsDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ProjectDetailsDataSource =
-        GatewayProjectDetailsDataSource(gateway.projectCatalog, assembler)
+    fun projectDetailsDataSource(
+        gateway: GatewaySession,
+        assembler: ProjectAssembler,
+        team: ProjectTeamReader,
+    ): ProjectDetailsDataSource = GatewayProjectDetailsDataSource(gateway.projectCatalog, assembler, team)
 
     /** The project search: `q`, `field` (the code of the sphere), `tag`, and `type` and `duration` when one chip is chosen. */
     @Provides

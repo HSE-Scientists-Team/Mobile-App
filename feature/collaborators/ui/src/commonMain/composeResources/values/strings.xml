@@ -15,6 +15,7 @@
     <!-- Filters sheet -->
     <string name="collaborators_filters_title">Collaborator filters</string>
     <string name="collaborators_group_status">Status</string>
+    <string name="collaborators_filter_open">Open to collaboration</string>
     <string name="collaborators_filter_verified">Verified profile</string>
     <string name="collaborators_group_works">Verified work</string>
     <string name="collaborators_filter_verified_projects">Has verified projects</string>

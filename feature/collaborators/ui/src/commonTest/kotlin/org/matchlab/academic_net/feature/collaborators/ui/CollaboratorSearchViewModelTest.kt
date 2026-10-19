@@ -1066,6 +1066,31 @@ class CollaboratorSearchViewModelTest {
     }
 
     @Test
+    fun theOpenToCollaborationFilterIsAppliedAndSearchedWithTheText() = runTest {
+        val viewModel = viewModel()
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDraftChange(CollaboratorFilters(openOnly = true))
+
+        viewModel.onFiltersApply()
+
+        assertTrue(viewModel.state.filters.openOnly)
+        assertEquals(firstPage(CollaboratorQuery("", CollaboratorFilters(openOnly = true))), repository.searches.last())
+        assertEquals(1, viewModel.state.filters.activeCount)
+    }
+
+    @Test
+    fun resetTurnsTheOpenToCollaborationFilterOffToo() = runTest {
+        val viewModel = viewModel()
+        viewModel.onFiltersClick()
+        viewModel.onFiltersDraftChange(CollaboratorFilters(openOnly = true, verifiedProfile = true))
+
+        viewModel.onFiltersReset()
+
+        assertEquals(CollaboratorFilters(), viewModel.state.filtersSheet?.draft)
+        assertFalse(viewModel.state.filtersSheet!!.draft.openOnly)
+    }
+
+    @Test
     fun applyingWithoutASheetDoesNothing() {
         val viewModel = viewModel()
 

@@ -46,8 +46,9 @@ class GatewayProjectsDataSourceTest {
     private val id = ProjectId("p1")
     private val api = ScriptedProjectsApi()
     private val assembler = MappingAssembler()
+    private val team = ScriptedTeam()
     private val catalog = ScriptedCatalogApi()
-    private val source = GatewayProjectsDataSource(api, catalog, assembler, TestViewer)
+    private val source = GatewayProjectsDataSource(api, catalog, assembler, team, TestViewer)
 
     private val newProject = NewProject(
         title = "T",
@@ -64,7 +65,10 @@ class GatewayProjectsDataSourceTest {
 
     @Test
     fun everyCapabilityIsOn() {
-        assertEquals(ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true), source.capabilities)
+        assertEquals(
+            ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true, canChangeLifecycle = true),
+            source.capabilities,
+        )
     }
 
     @Test
@@ -95,7 +99,7 @@ class GatewayProjectsDataSourceTest {
     fun aProjectTheViewerMayNotSeeIsNullAndLeavesTheCache() = runTest {
         for (status in listOf(400, 403, 404)) {
             val api = ScriptedProjectsApi()
-            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), MappingAssembler(), TestViewer)
+            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), MappingAssembler(), team, TestViewer)
             api.onGet = { projectDto(it) }
             assertNotNull(source.loadProject(id))
             api.onGet = { throw RemoteFailure.Http(status) }
@@ -400,7 +404,7 @@ class GatewayProjectsDataSourceTest {
         for (failure in listOf<Throwable>(RemoteFailure.NoConnection(), RemoteFailure.Timeout(), RemoteFailure.Http(500), IllegalStateException("boom"))) {
             val api = ScriptedProjectsApi()
             val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
-            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, TestViewer)
+            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, team, TestViewer)
             api.onGet = { projectDto(it, revision = 4, roles = listOf(roleDto("r1"))) }
             source.loadProject(id)
             api.onAddRole = { pid, _ -> projectDto(pid, revision = 5, roles = listOf(roleDto("r1"), roleDto("r2", "Дизайнер"))) }
@@ -420,7 +424,7 @@ class GatewayProjectsDataSourceTest {
     @Test
     fun theNextRoleAfterThatBuildsOnTheRevisionOfTheAnswerThatWasKept() = runTest {
         val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
-        val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, TestViewer)
+        val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, team, TestViewer)
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
         api.onAddRole = { pid, _ -> projectDto(pid, revision = 5, roles = listOf(roleDto("r1", "Первая"))) }
@@ -441,7 +445,7 @@ class GatewayProjectsDataSourceTest {
             val api = ScriptedProjectsApi()
             val viewer = UserId(if (viewerIsOwner) "owner-1" else "somebody-else")
             val assembler = MappingAssembler(viewer = viewer, owners = mutableMapOf("owner-1" to ownerProfile()))
-            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, TestViewer)
+            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, team, TestViewer)
             api.onGet = { projectDto(it, revision = 1) }
             source.loadProject(id)
             api.onAddRole = { pid, _ -> projectDto(pid, revision = 2, roles = listOf(roleDto("r1", "Дизайнер"))) }
@@ -471,7 +475,7 @@ class GatewayProjectsDataSourceTest {
     fun aProjectReadInTheSameCallKeepsItsOwnerWhenTheOwnersProfileFailsAfterThePost() = runTest {
         // The cache is empty: the project is read first (with its owner), then the role is posted.
         val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
-        val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, TestViewer)
+        val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, team, TestViewer)
         api.onGet = { projectDto(it, revision = 8) }
         api.onAddRole = { pid, _ ->
             assembler.failure = RemoteFailure.Timeout() // from now on the owner cannot be asked for
@@ -514,13 +518,17 @@ class GatewayProjectsDataSourceTest {
         assertFailsWith<CancellationException> { source.addRole(id, RoleDraft("Дизайнер")) }
 
         assertEquals(1, api.posts.size)
-        assertEquals(emptyList(), source.observeProject(id).first()?.roles, "a cancelled call changes nothing in the cache")
+        assertEquals(
+            listOf("Дизайнер"),
+            source.observeProject(id).first()?.roles?.map { it.title },
+            "the write went through, so the cache already holds the answer even though the owner was not read",
+        )
     }
 
     @Test
     fun afterAToleratedFailureTheWritesStillGoOneByOne() = runTest {
         val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
-        val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, TestViewer)
+        val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, team, TestViewer)
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
         val gate = CompletableDeferred<Unit>()
@@ -766,7 +774,7 @@ class GatewayProjectsDataSourceTest {
         for (failure in listOf<Throwable>(RemoteFailure.NoConnection(), RemoteFailure.Timeout(), RemoteFailure.Http(500), IllegalStateException("boom"))) {
             val api = ScriptedProjectsApi()
             val assembler = MappingAssembler()
-            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, TestViewer)
+            val source = GatewayProjectsDataSource(api, ScriptedCatalogApi(), assembler, team, TestViewer)
             api.onCreate = { viewerOwned("new-1", revision = 2) }
             assembler.failure = failure // the project is on the server already
 
@@ -1001,7 +1009,7 @@ class GatewayProjectsDataSourceTest {
     @Test
     fun aFailureOfTheOwnersProfileAfterTheTransitionIsStillASuccessWithTheCachedOwner() = runTest {
         val assembler = MappingAssembler(owners = mutableMapOf("owner-1" to ownerProfile()))
-        val source = GatewayProjectsDataSource(api, catalog, assembler, TestViewer)
+        val source = GatewayProjectsDataSource(api, catalog, assembler, team, TestViewer)
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
         api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "2") }
@@ -1230,7 +1238,7 @@ class GatewayProjectsDataSourceTest {
     fun theFailureOfTheFirstReadGoesToTheCollector() = runTest {
         for (failure in listOf(RemoteFailure.NoConnection(), RemoteFailure.Timeout(), RemoteFailure.Http(500), RemoteFailure.Malformed())) {
             val catalog = ScriptedCatalogApi()
-            val source = GatewayProjectsDataSource(api, catalog, assembler, TestViewer)
+            val source = GatewayProjectsDataSource(api, catalog, assembler, team, TestViewer)
             catalog.onList = { _, _ -> throw failure }
 
             assertSame(failure, assertFailsWith<RemoteFailure> { source.observeMyProjects().first() })

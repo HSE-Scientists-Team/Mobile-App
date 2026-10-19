@@ -33,4 +33,11 @@ class RoleEditorStateTest {
         assertEquals(listOf("Python", "TensorFlow"), state.draft.skills)
         assertEquals(listOf("TensorFlow"), state.withoutSkill("PYTHON").draft.skills)
     }
+
+    @Test
+    fun aRoleOfAPublishedProjectIsEditedByItsIdAndAFormRoleByItsIndex() {
+        assertFalse(RoleEditorState().isEditing)
+        assertTrue(RoleEditorState(editedIndex = 0).isEditing)
+        assertTrue(RoleEditorState(editedRoleId = org.matchlab.academic_net.common.model.RoleId("r1")).isEditing)
+    }
 }

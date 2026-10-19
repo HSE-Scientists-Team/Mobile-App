@@ -82,7 +82,7 @@ class ProjectsApiTest {
                 ),
                 status = "1",
                 revision = 7,
-                roles = listOf(ProjectRoleDto("r-1", "ML Engineer", listOf("Python", "PyTorch"), slots = 2, occupied = 1)),
+                roles = listOf(ProjectRoleDto("r-1", "ML Engineer", skills = listOf("Python", "PyTorch"), slots = 2, occupied = 1)),
             ),
             project,
         )

@@ -7,11 +7,13 @@ import kotlin.test.assertSame
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.RoleMember
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projectdetails.domain.InitiatorInfo
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetails
+import org.matchlab.academic_net.feature.projectdetails.domain.TeamMember
 
 class ProjectDetailsRepositoryImplTest {
     private val details = ProjectDetails(
@@ -32,6 +34,26 @@ class ProjectDetailsRepositoryImplTest {
         initiator = InitiatorInfo("МГУ", rating = null, completedProjects = 0),
     )
 
+    private val teamAsked = mutableListOf<Project>()
+    private val team = listOf(TeamMember(RoleMember(UserSummary(UserId("m"), "M")), "Dev", isViewer = false))
+
+    @Test
+    fun theTeamIsAskedFromTheSourceAndComesBackAsItIs() = runTest {
+        val repository = ProjectDetailsRepositoryImpl(
+            object : ProjectDetailsDataSource {
+                override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? = null
+
+                override suspend fun getTeam(project: Project): List<TeamMember> {
+                    teamAsked += project
+                    return team
+                }
+            },
+        )
+
+        assertSame(team, repository.getTeam(details.project))
+        assertEquals(listOf(details.project), teamAsked)
+    }
+
     @Test
     fun theRequestGoesToTheSourceAndTheAnswerComesBackAsItIs() = runTest {
         val asked = mutableListOf<ProjectId>()
@@ -40,6 +62,11 @@ class ProjectDetailsRepositoryImplTest {
                 override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? {
                     asked += id
                     return if (id.value == "p1") details else null
+                }
+
+                override suspend fun getTeam(project: Project): List<TeamMember> {
+                    teamAsked += project
+                    return team
                 }
             },
         )

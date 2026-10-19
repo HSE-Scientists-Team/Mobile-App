@@ -17,6 +17,8 @@ import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.collaborators.domain.RoleRequirement
 import org.matchlab.academic_net.feature.projects.domain.NewProject
+import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
@@ -41,6 +43,10 @@ class ProjectAdaptersTest {
         override suspend fun publishProject(project: NewProject): Project = throw AssertionError()
         override suspend fun unpublishProject(id: ProjectId): Project = throw AssertionError()
         override suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role = throw AssertionError()
+        override suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project = throw AssertionError()
+        override suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project = throw AssertionError()
+        override suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role = throw AssertionError()
+        override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project = throw AssertionError()
         override suspend fun getSpheres(): List<Sphere> {
             failure?.let { throw it }
             return spheres

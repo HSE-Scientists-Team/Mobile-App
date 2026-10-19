@@ -43,11 +43,29 @@ class CollaboratorFiltersBlankTest {
     }
 
     @Test
+    fun openToCollaborationCountsAsAnActiveFilterAndLightsTheDot() {
+        val filters = CollaboratorFilters(openOnly = true)
+
+        assertEquals(1, filters.activeCount)
+        assertFalse(filters.isEmpty)
+        assertEquals(2, filters.copy(verifiedProfile = true).activeCount)
+    }
+
+    @Test
+    fun resettingTheFiltersTurnsOpenOnlyOff() {
+        val reset = CollaboratorFilters(openOnly = true, verifiedProfile = true).copy(openOnly = false, verifiedProfile = false)
+
+        assertTrue(reset.isEmpty)
+        assertEquals(CollaboratorFilters(), reset)
+    }
+
+    @Test
     fun theDotAndTheCountAlwaysAgree() {
         val samples = listOf(
             CollaboratorFilters(),
             CollaboratorFilters(university = " "),
             CollaboratorFilters(university = "МГУ"),
+            CollaboratorFilters(openOnly = true),
             CollaboratorFilters(verifiedProfile = true, university = "  "),
             CollaboratorFilters(keywords = listOf("a", "b"), workTypes = setOf(ProjectType.Practical)),
         )

@@ -42,7 +42,8 @@ import org.matchlab.academic_net.utils.linkSource
 /**
  * The profile without the portfolio and the reviews. The project types are the ones whose code the server's
  * `project_types` hold ([ProjectType.fromCode], in the server's order, each once); an entry the app has no code for is
- * left out of the model (and kept on the server by [withDraft]).
+ * left out of the model (and kept on the server by [withDraft]). `open_to_collaboration` that is missing or `null` is
+ * `false`.
  */
 internal fun UserProfileDto.toRecord(): ProfileRecord = ProfileRecord(
     person = toCollaborator(),
@@ -50,6 +51,7 @@ internal fun UserProfileDto.toRecord(): ProfileRecord = ProfileRecord(
     interests = ProfileInterests(projectTypes = details.projectTypes.knownProjectTypes(), topics = details.interests),
     skills = details.skills,
     reviews = ReviewsSummary(average = ratingOrNull(), count = reviewCount, positiveCount = positiveReviewCount),
+    openToCollaboration = details.openToCollaboration == true,
 )
 
 /**

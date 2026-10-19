@@ -76,6 +76,7 @@ import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppStatusChipTone
+import org.matchlab.academic_net.components.UnknownAvatar
 import org.matchlab.academic_net.components.AppSwitch
 import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTagChip
@@ -227,6 +228,12 @@ private fun BaseComponents() {
             AppStatusChip("Открыт к сотрудничеству", AppStatusChipTone.Success)
             AppStatusChip("Не ищу проекты", AppStatusChipTone.Off)
             AppStatusChip("На проверке", AppStatusChipTone.Pending)
+            // The statuses of a project: no icon, one tone for each (Chip/Status, showIcon off).
+            AppStatusChip("В работе", AppStatusChipTone.Progress, showIcon = false)
+            AppStatusChip("Опубликован", AppStatusChipTone.Success, showIcon = false)
+            AppStatusChip("Снят с публикации", AppStatusChipTone.Off, showIcon = false)
+            AppStatusChip("Отменён", AppStatusChipTone.Cancelled, showIcon = false)
+            AppStatusChip("Ожидает", AppStatusChipTone.Pending, showIcon = false)
         }
         var query by remember { mutableStateOf("") }
         AppSearchBar(query, { query = it }, placeholder = "Поиск проектов и людей")
@@ -310,6 +317,14 @@ private fun BaseComponents() {
         TagsBlock("Теги", listOf("Machine Learning", "Machine Learning", "Machine Learning"))
         TextBlock("Заголовок раздела", "Текст раздела на несколько строк — описание проблемы, цели или любое другое описание.")
         ActionListItem("Действие", onClick = {}, subtitle = "Короткое пояснение, что произойдёт")
+        // "Отменить проект": the outline, the icon and the title in error.
+        ActionListItem(
+            "Отменить проект",
+            onClick = {},
+            subtitle = "Проект закроется без результата",
+            icon = AppIcons.Ban,
+            destructive = true,
+        )
         var option by remember { mutableStateOf(false) }
         RadioListItem("Вариант ответа", option, { option = !option })
         SettingListItem("Название настройки", AppIcons.Lock, onClick = {}, subtitle = "Пояснение к настройке")
@@ -489,6 +504,13 @@ private fun SharedFeatureComponents() {
         // With the chat button and the rating line; without them; a long name and a long subtitle.
         PersonCard(Initiator)
         PersonCard(PersonCardUiModel(name = "Даниил Крюков", subtitle = "ИТМО", avatar = Elena))
+        // A person whose profile is not known: the neutral avatar, no stats, no chat ("Без имени" of "Команда" on 04).
+        PersonCard(PersonCardUiModel(name = "Без имени", subtitle = "Data Analyst", avatar = null))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            UnknownAvatar(size = 64.dp)
+            UnknownAvatar(size = 40.dp)
+            UnknownAvatar(size = 24.dp)
+        }
         PersonCard(
             PersonCardUiModel(
                 name = "Александра Константинопольская-Вишневецкая",
@@ -549,6 +571,28 @@ private fun SharedFeatureComponents() {
                 period = ProjectPeriod(YearMonth(2026, 11), YearMonth(2027, 5)),
             ),
         )
+        // "Мои проекты": the status is a chip without an icon after the type, one tone for each status.
+        listOf(
+            ProjectStatus.Started to "AI-навигация по кампусу",
+            ProjectStatus.Recruiting to "Цифровой двойник лаборатории",
+            ProjectStatus.Unpublished to "Обзор методов сегментации",
+            ProjectStatus.Finished to "Умный кампус: карта аудиторий",
+            ProjectStatus.Cancelled to "Анализ научных публикаций",
+        ).forEach { (status, title) ->
+            ProjectCard(
+                projectCardUiModel(
+                    title = title,
+                    author = "Вы инициатор",
+                    avatarKey = "u-anna",
+                    type = ProjectType.Practical,
+                    status = status,
+                    sphere = "IoT",
+                    rolesCount = 4,
+                    period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)),
+                    statusAsChip = true,
+                ),
+            )
+        }
         // A project of which the app knows neither the type, nor the status, nor the months: the sphere and the number
         // of roles are what the card shows.
         ProjectCard(
@@ -883,6 +927,10 @@ private fun ProjectsComponents() {
         )
         RoleCard(RoleCardUiModel("ML Engineer", "Арджун Мехта", Elena, canManage = true))
         VacantRoleCard(VacantRoleCardUiModel("ML Engineer", listOf("Machine Learning", "Machine Learning"), isEditable = true))
+        // 04d: a role with people on it keeps its pencil, the trash is dimmed and does nothing.
+        VacantRoleCard(
+            VacantRoleCardUiModel("UX Researcher", listOf("Figma", "Интервью"), isEditable = true, canDelete = false),
+        )
         VacantRoleCard(VacantRoleCardUiModel("Mobile Developer", listOf("Flutter", "Dart"), canFindPeople = true))
         // A role of several places, and a role with no free place whose people the app does not know (the Gateway).
         VacantRoleCard(

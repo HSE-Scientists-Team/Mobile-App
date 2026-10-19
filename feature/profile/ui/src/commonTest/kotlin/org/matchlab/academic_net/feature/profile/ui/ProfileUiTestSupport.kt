@@ -156,6 +156,7 @@ fun userProfile(
     isViewer: Boolean = true,
     reviews: ReviewsSummary = ReviewsSummary(average = null, count = 0, positiveCount = 0),
     latestReviews: List<Review> = emptyList(),
+    openToCollaboration: Boolean = false,
 ): UserProfile = UserProfile(
     person = person,
     about = "Люблю данные",
@@ -167,6 +168,7 @@ fun userProfile(
     reviews = reviews,
     latestReviews = latestReviews,
     isViewer = isViewer,
+    openToCollaboration = openToCollaboration,
 )
 
 fun myProfile(

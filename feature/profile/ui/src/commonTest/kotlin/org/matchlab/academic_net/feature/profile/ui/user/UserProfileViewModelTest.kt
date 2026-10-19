@@ -44,6 +44,15 @@ class UserProfileViewModelTest {
     }
 
     @Test
+    fun theOpenToCollaborationFlagReachesThePageOfAnyone() {
+        repository.onGetProfile = { userProfile(isViewer = false, openToCollaboration = true) }
+        assertTrue(assertIs<UserProfileUiState.Content>(viewModel().uiState.value).profile.openToCollaboration)
+
+        repository.onGetProfile = { userProfile(isViewer = false, openToCollaboration = false) }
+        assertFalse(assertIs<UserProfileUiState.Content>(viewModel().uiState.value).profile.openToCollaboration)
+    }
+
+    @Test
     fun theProfileIsAskedForByTheIdOfTheScreen() {
         var asked: UserId? = null
         repository.onGetProfile = { id ->

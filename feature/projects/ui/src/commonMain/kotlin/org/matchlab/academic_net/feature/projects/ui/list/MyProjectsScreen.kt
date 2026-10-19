@@ -12,9 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -153,6 +153,8 @@ private fun MyProjectItem.toCardUiModel(): ProjectCardUiModel = projectCardUiMod
     sphere = sphere,
     rolesCount = rolesCount,
     period = period,
+    // 06c: the status is a chip after the type ("В работе", "Опубликован", "Снят с публикации", "Отменён").
+    statusAsChip = true,
 )
 
 private const val InitiatorTab = 0

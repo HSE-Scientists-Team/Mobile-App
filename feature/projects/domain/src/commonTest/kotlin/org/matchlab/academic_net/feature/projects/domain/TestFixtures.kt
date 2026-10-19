@@ -54,6 +54,7 @@ class FakeProjectsRepository(
         canCreate = true,
         canListMine = true,
         canUnpublish = true,
+        canChangeLifecycle = true,
     ),
 ) : ProjectsRepository {
     val projects = MutableStateFlow(initial)
@@ -115,6 +116,64 @@ class FakeProjectsRepository(
         val added = Role(RoleId("r${current.roles.size}"), role.title, role.skills)
         projects.value = projects.value.map { if (it.id == projectId) it.copy(roles = it.roles + added) else it }
         return added
+    }
+
+    /** The calls of the lifecycle, role and description methods, in order (what the use cases really sent). */
+    val lifecycleCalls = mutableListOf<Pair<ProjectId, ProjectLifecycleAction>>()
+    val updatedInfos = mutableListOf<Pair<ProjectId, ProjectInfo>>()
+    val updatedRoles = mutableListOf<Triple<ProjectId, RoleId, RoleDraft>>()
+    val removedRoles = mutableListOf<Pair<ProjectId, RoleId>>()
+
+    override suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project {
+        lifecycleCalls += id to action
+        failIfNeeded()
+        val current = projects.value.firstOrNull { it.id == id } ?: throw ProjectNotFoundException(id)
+        val status = when (action) {
+            ProjectLifecycleAction.Start -> ProjectStatus.Started
+            ProjectLifecycleAction.Complete -> ProjectStatus.Finished
+            ProjectLifecycleAction.Cancel -> ProjectStatus.Cancelled
+        }
+        val updated = current.copy(status = status)
+        projects.value = projects.value.map { if (it.id == id) updated else it }
+        return updated
+    }
+
+    override suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project {
+        updatedInfos += id to info
+        failIfNeeded()
+        val current = projects.value.firstOrNull { it.id == id } ?: throw ProjectNotFoundException(id)
+        val updated = current.copy(
+            title = info.title,
+            type = info.type,
+            sphere = info.sphere,
+            problem = info.problem,
+            goal = info.goal,
+            tags = info.tags,
+            period = info.period,
+        )
+        projects.value = projects.value.map { if (it.id == id) updated else it }
+        return updated
+    }
+
+    override suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role {
+        updatedRoles += Triple(projectId, roleId, role)
+        failIfNeeded()
+        val current = projects.value.firstOrNull { it.id == projectId } ?: throw ProjectNotFoundException(projectId)
+        val old = current.roles.firstOrNull { it.id == roleId } ?: throw ProjectConflictException(projectId)
+        val updated = old.copy(title = role.title, skills = role.skills)
+        projects.value = projects.value.map {
+            if (it.id == projectId) it.copy(roles = it.roles.map { r -> if (r.id == roleId) updated else r }) else it
+        }
+        return updated
+    }
+
+    override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project {
+        removedRoles += projectId to roleId
+        failIfNeeded()
+        val current = projects.value.firstOrNull { it.id == projectId } ?: throw ProjectNotFoundException(projectId)
+        val updated = current.copy(roles = current.roles.filterNot { it.id == roleId })
+        projects.value = projects.value.map { if (it.id == projectId) updated else it }
+        return updated
     }
 
     override suspend fun getSpheres(): List<Sphere> {

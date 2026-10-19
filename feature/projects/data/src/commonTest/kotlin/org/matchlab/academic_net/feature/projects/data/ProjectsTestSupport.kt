@@ -12,6 +12,11 @@ import org.matchlab.academic_net.gateway.dto.ProjectListDto
 import org.matchlab.academic_net.gateway.dto.ProjectRoleDto
 import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
 import org.matchlab.academic_net.gateway.dto.ProjectTransitionDto
+import org.matchlab.academic_net.gateway.dto.ProjectMemberDto
+import org.matchlab.academic_net.gateway.dto.ProjectUpdateDto
+import org.matchlab.academic_net.common.model.ProjectMember
+import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
+import org.matchlab.academic_net.gateway.mapping.TeamMemberProfile
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.mapping.AssembledProject
 import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
@@ -31,6 +36,7 @@ internal fun projectDto(
     status: String = "1",
     type: String = "1",
     field: String = "7",
+    members: List<ProjectMemberDto> = emptyList(),
 ) = ProjectDto(
     id = id,
     ownerUserId = owner,
@@ -46,10 +52,34 @@ internal fun projectDto(
     status = status,
     revision = revision,
     roles = roles,
+    members = members,
 )
 
-internal fun roleDto(id: String, title: String = "Роль $id", slots: Int = 1, occupied: Int = 0) =
-    ProjectRoleDto(id = id, title = title, slots = slots, occupied = occupied)
+internal fun roleDto(
+    id: String,
+    title: String = "Роль $id",
+    slots: Int = 1,
+    occupied: Int = 0,
+    description: String = "",
+    skills: List<String> = emptyList(),
+) = ProjectRoleDto(id = id, title = title, description = description, skills = skills, slots = slots, occupied = occupied)
+
+internal fun memberDto(user: String, role: String = "", title: String = "") =
+    ProjectMemberDto(userId = user, roleId = role, roleTitle = title)
+
+/** The reads of the team of a project: records what it was asked and answers with [onRead] (no profiles by default). */
+internal class ScriptedTeam : ProjectTeamReader {
+    var onRead: suspend (List<ProjectMember>) -> List<TeamMemberProfile> =
+        { members -> members.map { TeamMemberProfile(it, null) } }
+
+    /** The lists of members it was asked about, in order. */
+    val reads = mutableListOf<List<ProjectMember>>()
+
+    override suspend fun read(members: List<ProjectMember>): List<TeamMemberProfile> {
+        reads += members
+        return onRead(members)
+    }
+}
 
 /**
  * `ProjectsApi` that records what it was asked and answers with [onGet], [onAddRole], [onCreate] and [onTransition]; a
@@ -62,6 +92,21 @@ internal class ScriptedProjectsApi : ProjectsApi {
     var onCreate: suspend (ProjectCreateDto) -> ProjectDto = { throw AssertionError("Unexpected POST of a project") }
     var onTransition: suspend (String, ProjectTransitionDto) -> ProjectDto =
         { id, _ -> throw AssertionError("Unexpected transition of $id") }
+    var onUpdate: suspend (String, ProjectUpdateDto) -> ProjectDto =
+        { id, _ -> throw AssertionError("Unexpected PUT of $id") }
+    var onUpdateRole: suspend (String, String, ProjectRoleInputDto) -> ProjectDto =
+        { id, role, _ -> throw AssertionError("Unexpected PUT of the role $role of $id") }
+    var onDeleteRole: suspend (String, String, Int) -> ProjectDto =
+        { id, role, _ -> throw AssertionError("Unexpected DELETE of the role $role of $id") }
+
+    /** The descriptions that were put, with the id of the project, in order. */
+    val updates = mutableListOf<Pair<String, ProjectUpdateDto>>()
+
+    /** The roles that were put: project id, role id, body. */
+    val roleUpdates = mutableListOf<Triple<String, String, ProjectRoleInputDto>>()
+
+    /** The roles that were deleted: project id, role id, expected revision. */
+    val roleDeletes = mutableListOf<Triple<String, String, Int>>()
 
     /** The projects that were created, in order. */
     val creates = mutableListOf<ProjectCreateDto>()
@@ -94,6 +139,26 @@ internal class ScriptedProjectsApi : ProjectsApi {
         transitions += id to input
         return onTransition(id, input)
     }
+
+    override suspend fun update(id: String, input: ProjectUpdateDto): ProjectDto {
+        updates += id to input
+        return onUpdate(id, input)
+    }
+
+    override suspend fun updateRole(id: String, roleId: String, input: ProjectRoleInputDto): ProjectDto {
+        roleUpdates += Triple(id, roleId, input)
+        return onUpdateRole(id, roleId, input)
+    }
+
+    override suspend fun deleteRole(id: String, roleId: String, expectedRevision: Int): ProjectDto {
+        roleDeletes += Triple(id, roleId, expectedRevision)
+        return onDeleteRole(id, roleId, expectedRevision)
+    }
+
+    override suspend fun removeMember(id: String, userId: String): ProjectDto =
+        throw AssertionError("The projects never remove a member")
+
+    override suspend fun leave(id: String): ProjectDto = throw AssertionError("The projects never leave")
 }
 
 /** `ProjectCatalogApi` that records the reads of the catalog and answers with [onList]; the rest fails the test. */

@@ -4,13 +4,17 @@ import kotlinx.coroutines.flow.Flow
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
+import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.feature.projects.domain.NewProject
 import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
+import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
+import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundException
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
+import org.matchlab.academic_net.feature.projects.domain.RoleNotRemovableException
 
 /**
  * Where the viewer's projects come from: the Gateway ([GatewayProjectsDataSource]). Mirrors [ProjectsRepository]: the
@@ -49,6 +53,37 @@ interface ProjectsDataSource {
 
     /** Adds a vacant role for one person to the project. */
     suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role
+
+    /**
+     * Moves the project with the cached revision. Only with [ProjectsCapabilities.canChangeLifecycle].
+     * @throws ProjectNotFoundException the project is gone (404)
+     * @throws ProjectConflictException the server refused (409); the project has been read again
+     */
+    suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project
+
+    /**
+     * Replaces the description of the project (without roles: API-GAP G63).
+     * @throws ProjectNotFoundException the project is gone (404)
+     * @throws ProjectConflictException the project changed meanwhile (409); it has been read again
+     */
+    suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project
+
+    /**
+     * Changes the title and the skills of the role; its places and description stay as the server has them.
+     * @throws ProjectNotFoundException the project is gone
+     * @throws ProjectConflictException 409, or the role is no longer there; the project has been read again
+     * @throws org.matchlab.academic_net.common.result.RemoteFailure.Malformed the answer has no edited role (the project in
+     *  the cache has been updated already)
+     */
+    suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role
+
+    /**
+     * Deletes the role and returns the project; a role that is already gone (404, not in the project read again) counts as deleted.
+     * @throws ProjectNotFoundException the project is gone
+     * @throws ProjectConflictException 404 while the role is still in the project that was read again
+     * @throws RoleNotRemovableException 403 or 409 (API-GAP G64); the project has been read again
+     */
+    suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project
 
     /** The spheres a project can belong to: the app's own list, `Spheres.all`. */
     suspend fun getSpheres(): List<Sphere>

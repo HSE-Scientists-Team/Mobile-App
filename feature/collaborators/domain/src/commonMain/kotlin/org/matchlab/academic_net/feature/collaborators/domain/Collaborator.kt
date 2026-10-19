@@ -7,6 +7,8 @@ import org.matchlab.academic_net.common.model.RoleId
 /** The filters of "08b Фильтры коллабораторов". Everything off means "no restriction". */
 data class CollaboratorFilters(
     val verifiedProfile: Boolean = false,
+    /** "Открыт к сотрудничеству" of the group "Статус": sent as `open_only=true`. */
+    val openOnly: Boolean = false,
     val hasVerifiedProjects: Boolean = false,
     val hasPublications: Boolean = false,
     /**
@@ -30,6 +32,7 @@ data class CollaboratorFilters(
     val activeCount: Int
         get() = listOf(
             verifiedProfile,
+            openOnly,
             hasVerifiedProjects,
             hasPublications,
             workTypes.isNotEmpty(),

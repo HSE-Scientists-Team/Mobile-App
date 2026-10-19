@@ -55,7 +55,7 @@
 
     <!-- Role editor -->
     <string name="projects_role_new">Новая роль</string>
-    <string name="projects_role_edit">Редактирование роли</string>
+    <string name="projects_role_edit">Редактировать роль</string>
     <string name="projects_role_title">Название роли</string>
     <string name="projects_role_title_hint">Например, ML Engineer</string>
     <string name="projects_role_skills">Навыки</string>
@@ -72,7 +72,7 @@
     <string name="projects_roles_header">Роли</string>
     <string name="projects_roles_empty">Ролей пока нет. Объявите первую, чтобы начать набор команды</string>
     <string name="projects_banner_recruiting">Сейчас: поиск соавторов. Проект виден в поиске, можно откликаться на вакантные роли</string>
-    <string name="projects_banner_unpublished">Проект снят с публикации: он скрыт из поиска, отклики приостановлены</string>
+    <string name="projects_banner_unpublished">Сейчас: проект снят с публикации. В поиске его не видно, отклики приостановлены</string>
     <string name="projects_action_unpublish">Снять с публикации</string>
     <string name="projects_action_unpublish_hint">Проект скроется из поиска, отклики приостановятся</string>
     <string name="projects_unpublish_dialog_title">Снять проект с публикации?</string>
@@ -86,4 +86,37 @@
     <string name="projects_manage_empty">Для этого проекта нет доступных действий</string>
     <!-- A role could not be added because the project changed on the server meanwhile (a 409) -->
     <string name="projects_conflict">Проект изменился на сервере — проверьте данные и повторите действие</string>
+
+    <!-- 07c: the status of the project and what can be done with it -->
+    <string name="projects_manage_status">Статус проекта</string>
+    <string name="projects_banner_started">Сейчас: проект в работе. Завершите его, когда цель достигнута, или отмените</string>
+    <string name="projects_banner_finished">Сейчас: проект завершён. Изменить его уже нельзя</string>
+    <string name="projects_banner_cancelled">Сейчас: проект отменён. Изменить его уже нельзя</string>
+    <string name="projects_action_start">Начать проект</string>
+    <string name="projects_action_start_hint">Проект перейдёт в статус «В работе»</string>
+    <string name="projects_action_complete">Завершить проект</string>
+    <string name="projects_action_complete_hint">Проект перейдёт в статус «Завершён»</string>
+    <string name="projects_action_cancel_project">Отменить проект</string>
+    <string name="projects_action_cancel_project_hint">Проект закроется без результата</string>
+    <string name="projects_action_edit">Редактировать проект</string>
+    <string name="projects_action_edit_hint">Название, описание, теги, сроки и роли</string>
+    <string name="projects_start_dialog_title">Начать проект?</string>
+    <string name="projects_start_dialog_text">Проект перейдёт в статус «В работе».</string>
+    <string name="projects_start_confirm">Начать</string>
+    <string name="projects_complete_dialog_title">Завершить проект?</string>
+    <string name="projects_complete_dialog_text">Проект перейдёт в статус «Завершён». Изменить его будет нельзя.</string>
+    <string name="projects_complete_confirm">Завершить</string>
+    <string name="projects_cancel_project_dialog_title">Отменить проект?</string>
+    <string name="projects_cancel_project_dialog_text">Проект закроется без результата. Это действие нельзя отменить.</string>
+    <string name="projects_lifecycle_not_allowed">Действие недоступно в текущем состоянии проекта</string>
+
+    <!-- 04d: editing a published project -->
+    <string name="projects_edit_title">Редактирование</string>
+    <string name="projects_save_changes">Сохранить изменения</string>
+    <string name="projects_role_delete_title">Удалить роль?</string>
+    <!-- 1: the title of the role -->
+    <string name="projects_role_delete_text">Роль «%1$s» будет удалена, а отклики на неё отменены.</string>
+    <string name="projects_role_not_removable">Роль нельзя удалить</string>
+    <string name="projects_role_locked_hint">Роль нельзя удалить: в ней уже есть участники</string>
+    <string name="projects_role_slots_locked">Количество мест нельзя изменить после создания роли</string>
 </resources>

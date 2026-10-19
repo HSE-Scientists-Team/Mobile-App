@@ -136,4 +136,35 @@ class ProjectTest {
         assertEquals(2, project.occupiedPlaces)
         assertEquals(4, project.totalPlaces)
     }
+
+    // ---- Team ----
+
+    private fun member(user: String, isViewer: Boolean) =
+        ProjectMember(UserId(user), RoleId("r1"), "Role", isViewer)
+
+    @Test
+    fun aProjectWithoutMembersHasNoViewerOnTheTeam() {
+        val project = project(listOf(role("r1")))
+
+        assertEquals(emptyList(), project.members)
+        assertEquals(0, project.pendingJoinCount)
+        assertFalse(project.viewerIsMember)
+    }
+
+    @Test
+    fun theViewerIsOnTheTeamWhenAnyMemberIsTheViewer() {
+        val base = project(listOf(role("r1")))
+
+        assertTrue(base.copy(members = listOf(member("u2", false), member("u3", true))).viewerIsMember)
+        assertFalse(base.copy(members = listOf(member("u2", false))).viewerIsMember)
+    }
+
+    @Test
+    fun aRoleMemberHasAProfileByDefault() {
+        val person = RoleMember(user)
+
+        assertTrue(person.hasProfile)
+        assertEquals(null, person.rating)
+        assertEquals(0, person.completedProjects)
+    }
 }

@@ -1,5 +1,6 @@
 package org.matchlab.academic_net.feature.projectdetails.domain
 
+import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 
 /**
@@ -12,4 +13,10 @@ interface ProjectDetailsRepository {
      * a project: there is no project with this [id] or it is not published.
      */
     suspend fun getProjectDetails(id: ProjectId): ProjectDetails?
+
+    /**
+     * The team of [project] (its `members`) with their profiles, in the server's order. Never throws a `RemoteFailure`:
+     * a person whose profile could not be read is a member without a profile.
+     */
+    suspend fun getTeam(project: Project): List<TeamMember>
 }

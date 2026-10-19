@@ -45,6 +45,7 @@ import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCard
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCardUiModel
+import org.matchlab.academic_net.feature.profile.ui.headerStatuses
 import org.matchlab.academic_net.feature.profile.ui.ProfileSections
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.VerificationResultItem
@@ -244,6 +245,7 @@ private fun ProfileHeader(state: MyProfileUiState.Content) {
             subtitle = profile.person.subtitleText(),
             // API-GAP G18: no real avatars yet, an illustration chosen by the id.
             avatar = AppAvatars.forKey(profile.user.id.value),
+            statuses = profile.headerStatuses(),
         ),
     )
 }

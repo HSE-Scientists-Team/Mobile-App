@@ -144,6 +144,28 @@ class GatewayCollaboratorsDataSourceTest {
     }
 
     @Test
+    fun openToCollaborationIsSentAsOpenOnly() {
+        assertEquals(
+            PeopleSearchParams(openOnly = true),
+            CollaboratorQuery(filters = CollaboratorFilters(openOnly = true)).toParams(),
+        )
+        assertFalse(CollaboratorQuery(filters = CollaboratorFilters(openOnly = false)).toParams().openOnly)
+    }
+
+    @Test
+    fun openOnlyReachesTheApiInTheCallNextToTheOtherFilters() = runTest {
+        source.search(
+            CollaboratorQuery("kotlin", CollaboratorFilters(openOnly = true, verifiedProfile = true)),
+            PageRequest.First,
+        )
+
+        val params = api.calls.single().first
+        assertTrue(params.openOnly)
+        assertTrue(params.verifiedOnly)
+        assertEquals("kotlin", params.q)
+    }
+
+    @Test
     fun theFiltersThatTheSheetDoesNotHaveAreNeverSent() {
         val everything = CollaboratorQuery(
             text = "kotlin",

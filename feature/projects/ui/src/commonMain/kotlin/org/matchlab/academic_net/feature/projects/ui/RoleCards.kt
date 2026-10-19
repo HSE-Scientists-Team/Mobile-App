@@ -87,6 +87,8 @@ data class VacantRoleCardUiModel(
     val skills: List<String>,
     /** Delete and edit actions, shown to the project initiator. */
     val isEditable: Boolean = false,
+    /** With [isEditable]: the trash can be tapped; `false` dims it (a role that has people on it cannot be deleted). */
+    val canDelete: Boolean = true,
     /** Search for people for this role: the only way to it, shown to the project initiator only. */
     val canFindPeople: Boolean = false,
     val places: String? = null,
@@ -119,6 +121,7 @@ fun VacantRoleCard(
                         onClick = onDeleteClick,
                         containerColor = colors.errorContainer,
                         contentColor = colors.error,
+                        enabled = model.canDelete,
                     )
                     CardIconButton(
                         icon = AppIcons.Pencil,

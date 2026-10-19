@@ -5,10 +5,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.test.assertSame
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectMember
+import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.common.result.RemoteFailure
@@ -23,6 +27,8 @@ import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.dto.UserProfileInputDto
 import org.matchlab.academic_net.gateway.mapping.AssembledProject
 import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
+import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
+import org.matchlab.academic_net.gateway.mapping.TeamMemberProfile
 import org.matchlab.academic_net.gateway.mapping.toProject
 
 class GatewayProjectDetailsDataSourceTest {
@@ -42,6 +48,18 @@ class GatewayProjectDetailsDataSourceTest {
             throw AssertionError("The page of a project never reads the catalog")
     }
 
+    private class ScriptedTeam : ProjectTeamReader {
+        val reads = mutableListOf<List<ProjectMember>>()
+        var profiles = mapOf<String, UserProfileDto>()
+        var failure: Throwable? = null
+
+        override suspend fun read(members: List<ProjectMember>): List<TeamMemberProfile> {
+            reads += members
+            failure?.let { throw it }
+            return members.map { TeamMemberProfile(it, profiles[it.userId.value]) }
+        }
+    }
+
     private class Assembler : ProjectAssembler {
         val owners = mutableMapOf<String, UserProfileDto>()
         var failure: Throwable? = null
@@ -58,7 +76,8 @@ class GatewayProjectDetailsDataSourceTest {
     private val id = ProjectId("p1")
     private val api = ScriptedCatalog()
     private val assembler = Assembler()
-    private val source = GatewayProjectDetailsDataSource(api, assembler)
+    private val team = ScriptedTeam()
+    private val source = GatewayProjectDetailsDataSource(api, assembler, team)
 
     private fun dto(owner: String = "owner-1", roles: List<ProjectRoleDto> = emptyList()) =
         ProjectDto(id = "p1", ownerUserId = owner, details = ProjectInputDto(title = "AI-навигация", field = "Biology"), roles = roles)
@@ -186,5 +205,68 @@ class GatewayProjectDetailsDataSourceTest {
         api.onGet = { throw CancellationException("cancelled") }
 
         assertFailsWith<CancellationException> { source.getProjectDetails(id) }
+    }
+
+    // ---- the team (second step) ----
+
+    private fun projectWithMembers() = assertNotNull(
+        ProjectDto(
+            id = "p1",
+            ownerUserId = "owner-1",
+            details = ProjectInputDto(title = "T"),
+            members = listOf(
+                org.matchlab.academic_net.gateway.dto.ProjectMemberDto("u1", "r1", "Dev"),
+                org.matchlab.academic_net.gateway.dto.ProjectMemberDto("viewer", "r2", ""),
+            ),
+            roles = listOf(ProjectRoleDto(id = "r2", title = "Дизайнер")),
+        ).toProject(UserId("viewer"), null),
+    )
+
+    @Test
+    fun theTeamIsTheProfilesOfTheMembersInTheirOrder() = runTest {
+        team.profiles = mapOf(
+            "u1" to UserProfileDto(
+                userId = "u1",
+                details = UserProfileInputDto(displayName = " Анна "),
+                rating = 4.5,
+                reviewCount = 2,
+                completedProjectCount = 3,
+            ),
+        )
+
+        val result = source.getTeam(projectWithMembers())
+
+        assertEquals(listOf("u1", "viewer"), result.map { it.person.user.id.value })
+        assertEquals("Анна", result[0].person.user.name)
+        assertEquals(4.5, result[0].person.rating)
+        assertEquals(3, result[0].person.completedProjects)
+        assertEquals("Dev", result[0].roleTitle)
+        assertFalse(result[0].isViewer)
+        assertTrue(result[0].person.hasProfile)
+    }
+
+    @Test
+    fun aMemberWithoutAProfileIsKeptWithoutOneAndTheRoleTitleComesFromTheRole() = runTest {
+        val result = source.getTeam(projectWithMembers())
+
+        assertFalse(result[1].person.hasProfile)
+        assertEquals("", result[1].person.user.name)
+        assertEquals("Дизайнер", result[1].roleTitle)
+        assertTrue(result[1].isViewer)
+        assertEquals(RoleId("r2"), team.reads.single()[1].roleId)
+    }
+
+    @Test
+    fun theTeamOfAProjectWithoutMembersIsEmpty() = runTest {
+        val project = assertNotNull(dto().toProject(UserId("viewer"), null))
+
+        assertEquals(emptyList(), source.getTeam(project))
+    }
+
+    @Test
+    fun aFailureOfTheTeamReaderCancellationPassesThrough() = runTest {
+        team.failure = CancellationException("cancelled")
+
+        assertFailsWith<CancellationException> { source.getTeam(projectWithMembers()) }
     }
 }
