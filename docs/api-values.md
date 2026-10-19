@@ -82,3 +82,6 @@
 ## 7. Значения спринта 2 (чтение откликов; не подтверждены бэкендом)
 
 Тип отклика `ProjectJoinRequest.type`: `1` Application «отклик», `2` Invitation «приглашение». Статус `ProjectJoinRequest.status`: `1` Pending «ожидает», `2` Accepted «принят», `3` Declined «отклонён», `4` Withdrawn «отозван» (`ProjectJoinType`, `ProjectJoinStatus` в `:common`; сервер пишет эти поля сам, коды — чтения приложения; неизвестное — `null`, запись не прячется). Статус участника `ProjectMember.status` не читается (G52). Причины жалобы: `docs/sprint-2.md` («Таблицы кодов»). Флаг `ProjectsCapabilities.canChangeLifecycle = true`.
+
+Причина жалобы `CreateComplaint.subject`: на пользователя `1` Спам или реклама, `2` Оскорбления, `3` Фальсификация в портфолио, `4` Фейковый аккаунт, `5` Мошенничество, `6` Другое (`UserComplaintReason`); на проект `1` Спам или реклама, `2` Недостоверная информация, `3` Мошенничество, `4` Другое (`ProjectComplaintReason`); оба в `:feature:complaints:domain`.
+
