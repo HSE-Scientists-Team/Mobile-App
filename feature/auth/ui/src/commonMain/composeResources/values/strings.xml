@@ -33,6 +33,11 @@
     <!-- Also what a screen reader says about the back arrow of the confirmation screen -->
     <string name="auth_change_email">Change email</string>
 
+    <!-- The link of the letter opened in the app -->
+    <string name="auth_link_failed_title">Couldn't confirm your email</string>
+    <string name="auth_link_retry">Try again</string>
+    <string name="auth_link_close">Back to sign in</string>
+
     <!-- Problems with the form, under the field they belong to -->
     <string name="auth_error_email_empty">Enter your email</string>
     <string name="auth_error_email_malformed">Check the address: it should look like name@university.edu</string>

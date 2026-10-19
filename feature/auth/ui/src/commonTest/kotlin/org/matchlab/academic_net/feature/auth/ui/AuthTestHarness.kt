@@ -174,6 +174,9 @@ internal class AuthTestHarness(
     fun confirmViewModel(email: String = TrustedEmail) =
         ConfirmEmailViewModel(email, confirmEmail, signInPending, resendLetter, getPendingRegistration)
 
+    fun confirmLinkViewModel(email: String = TrustedEmail, link: String = LetterLink) =
+        ConfirmLinkViewModel(email, link, confirmEmail)
+
     /** The state of the session in the repository. */
     val authState: AuthState get() = repository.authState.value
 
@@ -232,3 +235,6 @@ abstract class AuthViewModelTest {
     @AfterTest
     fun tearDownMain() = Dispatchers.resetMain()
 }
+
+/** The link of the letter as the system hands it over; the token is the one the played server knows. */
+internal const val LetterLink = "https://matchlab.space/verify-email?token=" + PlayedAccountServer.LetterToken

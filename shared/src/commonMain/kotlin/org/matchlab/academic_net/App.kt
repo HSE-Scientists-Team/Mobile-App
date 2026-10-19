@@ -17,11 +17,25 @@ import org.matchlab.academic_net.ui.navigation.AppNavHost
  * when the object graph is built
  * @param backend the Gateway server to talk to (the production one by default, and what the iOS app uses); fixed for
  * the process by the first call
+ * @param incomingLink the link the system opened in the app, if any: on Android an App Link, on iOS a universal link
+ * (`https://matchlab.space/verify-email?token=…` of the confirmation letter). The app takes it when the user is signed
+ * out and confirms the address with it; a link of anything else is dropped
+ * @param onIncomingLinkHandled the app took the link or dropped it: the platform forgets it
  */
 @Composable
-fun App(secureStore: () -> SecureStore, backend: Backend = Backend.Gateway()) {
+fun App(
+    secureStore: () -> SecureStore,
+    backend: Backend = Backend.Gateway(),
+    incomingLink: String? = null,
+    onIncomingLinkHandled: () -> Unit = {},
+) {
     val graphs = AppGraph.get(secureStore, backend)
     AcademicNetTheme {
-        AppNavHost(auth = graphs.auth, sessions = graphs.sessions)
+        AppNavHost(
+            auth = graphs.auth,
+            sessions = graphs.sessions,
+            incomingLink = incomingLink,
+            onIncomingLinkHandled = onIncomingLinkHandled,
+        )
     }
 }

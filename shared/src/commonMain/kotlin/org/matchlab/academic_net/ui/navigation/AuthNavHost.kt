@@ -36,6 +36,8 @@ internal object AuthRoutes {
  * Shown only for a user who is signed out. [start] is what the first screen starts with: the address the user last
  * used (so only the password is left to type) and, if the server stopped accepting their session, the note that says
  * so. The note stays for as long as the user is on the flow, also after a trip to the registration and back.
+ * [emailConfirmed]: the address was just confirmed from the link of the letter and the app could not sign in by
+ * itself (the password of the registration is not remembered), so the sign-in screen says "Почта подтверждена. Войдите".
  *
  * The address travels between the screens in [AuthFlow], not in the routes; **the password travels nowhere**.
  *
@@ -44,9 +46,9 @@ internal object AuthRoutes {
  * nothing, and neither does the address it carries: the flow changes only when the navigation was carried out.
  */
 @Composable
-internal fun AuthNavHost(dependencies: AuthUiDependencies, start: SignInStart) {
+internal fun AuthNavHost(dependencies: AuthUiDependencies, start: SignInStart, emailConfirmed: Boolean = false) {
     val navController = rememberNavController()
-    var flow by rememberSaveable(stateSaver = AuthFlow.Saver) { mutableStateOf(AuthFlow(start.email)) }
+    var flow by rememberSaveable(stateSaver = AuthFlow.Saver) { mutableStateOf(AuthFlow(start.email, emailConfirmed)) }
 
     NavHost(
         navController = navController,

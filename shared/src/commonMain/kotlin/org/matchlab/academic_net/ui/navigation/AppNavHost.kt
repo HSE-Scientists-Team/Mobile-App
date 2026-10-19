@@ -1,5 +1,8 @@
 package org.matchlab.academic_net.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -11,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,6 +34,7 @@ import org.matchlab.academic_net.di.SessionGraphs
 import org.matchlab.academic_net.feature.auth.domain.AuthState
 import org.matchlab.academic_net.feature.auth.ui.AuthSplash
 import org.matchlab.academic_net.feature.auth.ui.AuthUiDependencies
+import org.matchlab.academic_net.feature.auth.ui.ConfirmLinkRoute
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.chat.ChatRoute
 import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
@@ -152,10 +157,43 @@ private fun optionalStringArgument(name: String) = navArgument(name) {
  *
  * @param auth the sign-in of the process: the state of the session and what the sign-in screens need
  * @param sessions the graph of the signed-in user, which the root opens and closes with the state
+ * @param incomingLink the link the system opened in the app, if any (an App Link on Android, a universal link on iOS).
+ * Only the link of the confirmation letter is taken, and only from a user who is signed out ([incomingLinkAction]):
+ * the root shows the confirmation at once; if the app is signed in by it the tabs follow, otherwise the sign-in screen
+ * says that the address is confirmed
+ * @param onIncomingLinkHandled the root has taken [incomingLink] or dropped it: the platform forgets it, so that it is
+ * not handled again
  */
 @Composable
-internal fun AppNavHost(auth: AuthUiDependencies, sessions: SessionGraphs) {
+internal fun AppNavHost(
+    auth: AuthUiDependencies,
+    sessions: SessionGraphs,
+    incomingLink: String? = null,
+    onIncomingLinkHandled: () -> Unit = {},
+) {
     val authState by remember { auth.observeAuthState() }.collectAsStateWithLifecycle()
+    // The link being confirmed, and whether it ended with a confirmed address and no session; kept across a rotation.
+    var linkToConfirm by rememberSaveable { mutableStateOf<String?>(null) }
+    var confirmedByLink by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(incomingLink, authState) {
+        val link = incomingLink ?: return@LaunchedEffect
+        when (val action = incomingLinkAction(link, authState)) {
+            IncomingLinkAction.Wait -> Unit
+            IncomingLinkAction.Ignore -> onIncomingLinkHandled()
+            is IncomingLinkAction.Confirm -> {
+                confirmedByLink = false
+                linkToConfirm = action.link
+                onIncomingLinkHandled()
+            }
+        }
+    }
+    // A session ends the confirmation, and a later sign-out must not bring it back.
+    LaunchedEffect(authState is AuthState.SignedIn) {
+        if (authState is AuthState.SignedIn) {
+            linkToConfirm = null
+            confirmedByLink = false
+        }
+    }
     val stores = viewModel { GraphViewModelStores() }
 
     // Let go of a graph's state when the session says that graph is over.
@@ -167,7 +205,22 @@ internal fun AppNavHost(auth: AuthUiDependencies, sessions: SessionGraphs) {
         // The stored session is being read; nothing to show but the name of the app.
         RootScreen.Splash -> AuthSplash()
         is RootScreen.SignIn -> CompositionLocalProvider(LocalViewModelStoreOwner provides stores.auth) {
-            AuthNavHost(auth, screen.start)
+            val link = linkToConfirm
+            if (link != null) {
+                ConfirmLinkRoute(
+                    dependencies = auth,
+                    email = screen.start.email,
+                    link = link,
+                    onConfirmed = {
+                        confirmedByLink = true
+                        linkToConfirm = null
+                    },
+                    onClose = { linkToConfirm = null },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface).safeDrawingPadding(),
+                )
+            } else {
+                AuthNavHost(auth, screen.start, emailConfirmed = confirmedByLink)
+            }
         }
         is RootScreen.Main -> key(screen.session) {
             CompositionLocalProvider(LocalViewModelStoreOwner provides stores.main) {

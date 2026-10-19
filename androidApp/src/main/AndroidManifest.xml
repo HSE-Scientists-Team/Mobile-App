@@ -17,11 +17,30 @@
         <activity
             android:exported="true"
             android:name=".MainActivity"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                The link of the confirmation letter (matchlab-backend `smtp.verification_url`):
+                https://matchlab.space/verify-email?token=... opens the app, which confirms the address.
+                autoVerify needs https://matchlab.space/.well-known/assetlinks.json (docs/deeplinks.md); without it
+                the link opens in the browser or the system asks which app to use.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="matchlab.space"
+                    android:pathPrefix="/verify-email" />
             </intent-filter>
         </activity>
     </application>
