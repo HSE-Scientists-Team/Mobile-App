@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -68,7 +69,10 @@ class ChatViewModel(
 
     val uiState: StateFlow<ChatUiState> = combine(
         observeConversation(conversationId).catch { emit(null) },
-        observeMessages(conversationId).catch { emit(emptyList()) },
+        // A message that arrives while the chat is open is read at once; the source sends the mark only when it is new.
+        observeMessages(conversationId)
+            .onEach { viewModelScope.launch { markConversationRead(conversationId) } }
+            .catch { emit(emptyList()) },
         local,
     ) { conversation, messages, local ->
         val zone = timeZone()

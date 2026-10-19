@@ -18,6 +18,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 
 @Immutable
 data class ChatListItemUiModel(
@@ -49,7 +50,7 @@ fun ChatListItem(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = model.name,
+                    text = nameOrPlaceholder(model.name),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.onSurface,

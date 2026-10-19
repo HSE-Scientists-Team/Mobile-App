@@ -27,7 +27,8 @@ data class Conversation(
 )
 
 object ChatLimits {
-    const val MaxMessageLength = 2000
+    /** The limit of the server (`ChatSendInput.body`, 1..10000 characters). */
+    const val MaxMessageLength = 10_000
 }
 
 enum class MessageError {

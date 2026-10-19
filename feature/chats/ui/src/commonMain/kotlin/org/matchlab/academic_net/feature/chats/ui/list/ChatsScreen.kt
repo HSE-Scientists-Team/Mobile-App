@@ -20,6 +20,7 @@ import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.format.chatListTimeText
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.ChatListItem
 import org.matchlab.academic_net.feature.chats.ui.ChatListItemUiModel
@@ -64,7 +65,7 @@ internal fun ChatsScreen(
                 items(state.chats, key = { it.id.value }) { chat ->
                     ChatListItem(
                         model = ChatListItemUiModel(
-                            name = chat.name,
+                            name = nameOrPlaceholder(chat.name),
                             lastMessage = chat.lastMessage,
                             time = chatListTimeText(chat.time),
                             avatar = AppAvatars.forKey(chat.avatarKey),

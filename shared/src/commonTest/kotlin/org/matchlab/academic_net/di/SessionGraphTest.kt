@@ -1,5 +1,6 @@
 package org.matchlab.academic_net.di
 
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.UserId
@@ -112,11 +113,16 @@ class SessionGraphTest {
     }
 
     @Test
-    fun theLocalChatsStartEmpty() = runTest {
-        // API-GAP G50: there are no chats on the server and no demo ones made up (their people would not exist there).
-        val chats = launchApp().sessionGraph(session).dependencies.chats
+    fun theChatsAreReadFromTheServerWithTheTokenOfTheSession() = runTest {
+        val server = FakeServer().apply {
+            onOther = { arrival ->
+                if (arrival.call == "GET /api/v1/chat/conversations") json("""{"items":[],"next_cursor":""}""") else jsonError(HttpStatusCode.NotFound, "no")
+            }
+        }
+        val chats = launchApp(server).sessionGraph(session).dependencies.chats
 
-        assertEquals(emptyList(), chats.observeConversations().first())
+        assertEquals(0, chats.observeConversations().first().size)
+        assertEquals(listOf(listOf("Bearer token-1")), server.requests("GET /api/v1/chat/conversations").map { it.authorization })
     }
 
     // ---- the token of the graph ----

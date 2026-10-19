@@ -3,7 +3,7 @@ package org.matchlab.academic_net.di
 import me.tatarka.inject.annotations.Provides
 import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.feature.chats.data.ChatsDataSource
-import org.matchlab.academic_net.feature.chats.data.mock.MockChatsDataSource
+import org.matchlab.academic_net.feature.chats.data.GatewayChatsDataSource
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsDataSource
 import org.matchlab.academic_net.feature.collaborators.data.GatewayCollaboratorsDataSource
 import org.matchlab.academic_net.feature.complaints.data.ComplaintsDataSource
@@ -36,9 +36,8 @@ import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
  * account never sees the caches, the drafts and the local chats of the previous one.
  *
  * **Sources.** The profiles, the settings, the people search, the feed and the projects (their list, the search and the
- * page of a project), the responses and the complaints are the Gateway's and have no mock: their sources are made over the [GatewaySession] of the
- * session. Only the chats run on their local mock (API-GAP G50: the API has none). The Gateway sources take
- * `session.userId`. The values the API leaves open (types, spheres, durations, statuses, months, actions) are the codes
+ * page of a project), the responses, the complaints and the chats are the Gateway's and have no mock: their sources are
+ * made over the [GatewaySession] of the session. The Gateway sources take `session.userId`. The values the API leaves open (types, spheres, durations, statuses, months, actions) are the codes
  * the app defines (`docs/api-values.md`), so the capabilities of these sources are on, except the states of works and
  * documents (API-GAP G12).
  */
@@ -71,10 +70,11 @@ internal interface DataSourcesModule {
     ): ProjectsDataSource =
         GatewayProjectsDataSource(gateway.projects, gateway.projectCatalog, assembler, team, viewerId = session.userId)
 
-    /** API-GAP G50: the API has no chats, so they are local: they start empty and messages go nowhere. */
+    /** The one-to-one text chat; the server has no push, so the source asks again while a screen watches (OpenAPI v2.6.0). */
     @Provides
     @SessionScope
-    fun chatsDataSource(): ChatsDataSource = MockChatsDataSource()
+    fun chatsDataSource(gateway: GatewaySession, session: Session): ChatsDataSource =
+        GatewayChatsDataSource(gateway.chat, gateway.users, viewerId = session.userId)
 
     /** "Открыт к сотрудничеству" is a field of the profile, so the settings go through the profile call. */
     @Provides

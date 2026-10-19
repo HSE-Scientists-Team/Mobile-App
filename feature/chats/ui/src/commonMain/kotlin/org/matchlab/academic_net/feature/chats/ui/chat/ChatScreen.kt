@@ -272,7 +272,7 @@ private fun ChatTopBar(
             ) {
                 Avatar(AppAvatars.forKey(peer.avatarKey), contentDescription = null, size = 40.dp)
                 PersonName(
-                    name = peer.name,
+                    name = nameOrPlaceholder(peer.name),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )

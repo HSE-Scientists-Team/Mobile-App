@@ -6,8 +6,7 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Chats feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockChatsDataSource.
+// Chats feature, data layer: the data source over the chat of the Gateway.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.chats.data"
@@ -28,6 +27,8 @@ kotlin {
         commonMain.dependencies {
             api(project(":feature:chats:domain"))
             implementation(project(":utils"))
+            // The chat calls, their DTOs and the directory of profiles for the Gateway data source; never exposed.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
