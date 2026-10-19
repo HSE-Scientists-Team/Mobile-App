@@ -23,10 +23,10 @@
 | Значение | Где в API | Код → смысл (по дизайну) | Где в коде |
 |---|---|---|---|
 | Тип проекта | `Project.type` (в `ProjectCreate` обязателен), параметр `type` поиска; `project_types` профиля (массив); параметр `project_type` поиска людей | `1` Scientific «Научный», `2` Practical «Проектный» | `ProjectType.code` и `ProjectType.fromCode()` в `:common` |
-| Статус проекта (только чтение) | `Project.status` | `1` Recruiting «Набор открыт», `2` Unpublished «Снят с публикации». Другие значения сервера — `null` | `ProjectStatus.code` и `fromCode()` в `:common` |
+| Статус проекта (только чтение) | `Project.status` | `1` Recruiting «Набор открыт», `2` Unpublished «Снят с публикации», `3` Started «В работе», `4` Finished «Завершён», `5` Cancelled «Отменён» (3–5 добавлены в спринте 2). Другие значения сервера — `null` | `ProjectStatus.code` и `fromCode()` в `:common` |
 | Срок проекта (фильтр) | параметр `duration` поиска | `1` UpTo3Months «до 3 мес», `2` From3To6Months «3–6 мес», `3` Over6Months «6+ мес» | `ProjectDuration.code` в `:feature:projectsearch:domain` |
 | Сфера | `Project.field`, параметр `field` поиска | `1` Computer Science, `2` Data Science, `3` Инженерия, `4` Математика, `5` Физика, `6` Химия, `7` Биология, `8` Медицина, `9` Экономика, `10` Социология, `11` Лингвистика, `12` Дизайн | `Spheres` в `:common` (переезжает из `SphereCatalog` модуля `projects:data`); `Sphere.id` — код, `Sphere.name` — подпись |
-| Действие перехода | `ProjectTransitionRequest.action` | `1` Publish «опубликовать», `2` Pause «приостановить набор» (в приложении это «Снять с публикации»). Порядок взят из `summary` метода: «опубликовать, приостановить набор, начать, завершить или отменить»; `3` начать, `4` завершить, `5` отменить приложением не используются | `ProjectActions` в `:gateway` (`contract`, `@UnverifiedContract`) |
+| Действие перехода | `ProjectTransitionRequest.action` | `1` Publish «опубликовать», `2` Pause «приостановить набор» (в приложении «Снять с публикации»), `3` Start «начать», `4` Complete «завершить», `5` Cancel «отменить». Порядок из `summary` метода: «опубликовать, приостановить набор, начать, завершить или отменить»; 3–5 используются в 07c (спринт 2) | `ProjectActions` в `:gateway` (`contract`, `@UnverifiedContract`) |
 | Уровень обучения | `study_level` | остаётся **свободным текстом** (поле текстовое в макете), кода нет | — |
 
 Даты проекта (`planned_start`, `planned_end`): строка ISO-даты `YYYY-MM-DD`. Начало — первое число месяца начала, конец — последнее число месяца
@@ -78,3 +78,7 @@
 Статусы работ и документов (G12) и всё, что на них стоит: чипы, очередь проверки, результаты, бейдж вкладки; значения, которые сервер пишет
 сам (`Project.status` другими числами, `author_role`, `ProjectMember.status`, `ProjectJoinRequest.type/status`); семантика `mine` и
 `profile_user_id`; формат дат и `action` проверены только по тексту спецификации. Весь список вопросов к бэкенду — отдельный документ.
+
+## 7. Значения спринта 2 (чтение откликов; не подтверждены бэкендом)
+
+Тип отклика `ProjectJoinRequest.type`: `1` Application «отклик», `2` Invitation «приглашение». Статус `ProjectJoinRequest.status`: `1` Pending «ожидает», `2` Accepted «принят», `3` Declined «отклонён», `4` Withdrawn «отозван» (`ProjectJoinType`, `ProjectJoinStatus` в `:common`; сервер пишет эти поля сам, коды — чтения приложения; неизвестное — `null`, запись не прячется). Статус участника `ProjectMember.status` не читается (G52). Причины жалобы: `docs/sprint-2.md` («Таблицы кодов»). Флаг `ProjectsCapabilities.canChangeLifecycle = true`.
