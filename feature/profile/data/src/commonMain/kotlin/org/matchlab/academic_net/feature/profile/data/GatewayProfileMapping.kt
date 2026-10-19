@@ -244,3 +244,13 @@ private fun Instant.inMonthOf(timeZone: TimeZone): YearMonth {
 private fun String?.trimmedOrNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
 private fun String?.nullIfBlank(): String? = this?.takeIf { it.isNotBlank() }
+
+/**
+ * The record with the proof file [fileId] when there is one, and with none when [remove] (the API clears a field that is
+ * sent as an empty string: `null` is not sent at all, so the old id would stay); otherwise as it is.
+ */
+internal fun UserAchievementInputDto.withEvidence(fileId: String?, remove: Boolean): UserAchievementInputDto = when {
+    fileId != null -> copy(evidenceFileId = fileId)
+    remove -> copy(evidenceFileId = "")
+    else -> this
+}

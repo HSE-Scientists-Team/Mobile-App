@@ -32,4 +32,7 @@ enum class FormProblem {
      * shows the version the server has now. The user makes the changes again.
      */
     Conflict,
+
+    /** The file chosen as the proof could not be read: nothing was attached. */
+    FileUnreadable,
 }

@@ -167,4 +167,11 @@
     <!-- The photo of the profile on the edit screen. 1: why it failed -->
     <string name="profile_avatar_change">Change photo</string>
     <string name="profile_avatar_error">Couldn't change the photo. %1$s</string>
+    <!-- The proof file of a work or a document. 1: the name of the chosen file -->
+    <string name="profile_proof_file_attach">Attach a file</string>
+    <string name="profile_proof_file_replace">Replace file</string>
+    <string name="profile_proof_file_remove">Remove file</string>
+    <string name="profile_proof_file_chosen">File: %1$s</string>
+    <string name="profile_proof_file_hint">PDF, JPG or PNG. Only the moderators see the file</string>
+    <string name="profile_file_unreadable">Could not read the file. Choose another one</string>
 </resources>

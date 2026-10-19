@@ -1,5 +1,6 @@
 package org.matchlab.academic_net.feature.profile.ui.my
 
+import kotlin.test.assertSame
 import kotlinx.coroutines.CompletableDeferred
 import org.matchlab.academic_net.feature.profile.domain.DocumentDraftError
 import org.matchlab.academic_net.feature.profile.domain.DocumentId
@@ -7,6 +8,7 @@ import org.matchlab.academic_net.feature.profile.domain.DocumentKind
 import org.matchlab.academic_net.feature.profile.domain.EditOutcome
 import org.matchlab.academic_net.feature.profile.domain.PortfolioChange
 import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddDocumentUseCase
@@ -387,5 +389,55 @@ class DocumentFormViewModelTest {
 
         assertEquals(1, repository.deleted.size)
         assertTrue(viewModel.content().isDone)
+    }
+
+    // ---- the proof file ----
+
+    private val proof = UploadFile(byteArrayOf(1), "image/png", "scan.png")
+
+    @Test
+    fun aFileAloneIsAValidProofOfADocument() {
+        val viewModel = adding()
+        viewModel.onTitleChange("Диплом")
+        viewModel.onIssuerChange("ВШЭ")
+
+        viewModel.onProofFileChosen(proof)
+        viewModel.onSaveClick()
+
+        assertSame(proof, repository.createdDocuments.single().proofFile)
+        assertNull(repository.createdDocuments.single().proof)
+    }
+
+    @Test
+    fun withoutALinkOrAFileTheDocumentIsNotSavedAndAskedForAProof() {
+        val viewModel = adding()
+        viewModel.onTitleChange("Диплом")
+        viewModel.onIssuerChange("ВШЭ")
+
+        viewModel.onSaveClick()
+
+        assertTrue(repository.createdDocuments.isEmpty())
+        assertTrue(DocumentDraftError.ProofMissing in viewModel.content().errors)
+    }
+
+    @Test
+    fun removingTheOnlyProofOfADocumentBringsTheMissingProofError() {
+        repository.onGetMyDocument = { document(it.value, proof = null, hasEvidenceFile = true) }
+        val viewModel = editing()
+
+        viewModel.onProofFileRemoved()
+        viewModel.onSaveClick()
+
+        assertTrue(repository.updatedDocuments.isEmpty())
+        assertTrue(DocumentDraftError.ProofMissing in viewModel.content().errors)
+    }
+
+    @Test
+    fun aFileThatCannotBeReadIsAProblem() {
+        val viewModel = adding()
+
+        viewModel.onProofFileUnreadable()
+
+        assertEquals(FormProblem.FileUnreadable, viewModel.content().problem)
     }
 }

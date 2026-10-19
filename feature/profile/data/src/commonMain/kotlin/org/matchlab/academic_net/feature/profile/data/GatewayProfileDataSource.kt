@@ -127,19 +127,21 @@ class GatewayProfileDataSource(
     override suspend fun getMyDocument(id: DocumentId): ProfileDocument? = myAchievement(id.value)?.toDocument()
 
     override suspend fun createWork(draft: WorkDraft): PortfolioWork {
-        val input = draft.toInput()
+        val input = draft.toInput().withEvidence(uploadProof(draft.proofFile), remove = false)
         return achievements.create(input).withInputIfEmpty(input).toWork() ?: throw RemoteFailure.Malformed()
     }
 
     override suspend fun createDocument(draft: DocumentDraft): ProfileDocument {
-        val input = draft.toInput()
+        val input = draft.toInput().withEvidence(uploadProof(draft.proofFile), remove = false)
         return achievements.create(input).withInputIfEmpty(input).toDocument() ?: throw RemoteFailure.Malformed()
     }
 
     override suspend fun updateWork(id: WorkId, draft: WorkDraft, expectedRevision: Int): EditOutcome<PortfolioWork> =
         edit {
-            achievements.updateMine(id.value, expectedRevision) { details -> details.withDraft(draft) }
-                .toWork() ?: throw RemoteFailure.Malformed()
+            val proofId = uploadProof(draft.proofFile)
+            achievements.updateMine(id.value, expectedRevision) { details ->
+                details.withDraft(draft).withEvidence(proofId, draft.removeEvidenceFile)
+            }.toWork() ?: throw RemoteFailure.Malformed()
         }
 
     override suspend fun updateDocument(
@@ -147,8 +149,10 @@ class GatewayProfileDataSource(
         draft: DocumentDraft,
         expectedRevision: Int,
     ): EditOutcome<ProfileDocument> = edit {
-        achievements.updateMine(id.value, expectedRevision) { details -> details.withDraft(draft) }
-            .toDocument() ?: throw RemoteFailure.Malformed()
+        val proofId = uploadProof(draft.proofFile)
+        achievements.updateMine(id.value, expectedRevision) { details ->
+            details.withDraft(draft).withEvidence(proofId, draft.removeEvidenceFile)
+        }.toDocument() ?: throw RemoteFailure.Malformed()
     }
 
     override suspend fun submit(subject: VerificationSubject): EditOutcome<Unit> = edit {
@@ -201,6 +205,14 @@ class GatewayProfileDataSource(
         is VerificationSubject.Work -> id.value
         is VerificationSubject.Document -> id.value
     }
+
+    /**
+     * Uploads the proof file of a draft as a private file (only the owner and the moderators read it; the server refuses a
+     * public file as a proof) and gives its id, or `null` when the draft has none. The earlier proof file of a record is
+     * left on the storage: the history of the decisions of the moderators refers to it.
+     */
+    private suspend fun uploadProof(file: UploadFile?): String? =
+        file?.let { media.uploadFile(it.fileName, it.contentType, it.bytes, isPublic = false).id }
 
     // The answer to a create is the record; if the server left its details out (the schema omits empty fields), the
     // record is what was sent.

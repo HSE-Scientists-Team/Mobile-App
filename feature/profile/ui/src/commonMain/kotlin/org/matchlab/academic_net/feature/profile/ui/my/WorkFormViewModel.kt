@@ -14,6 +14,7 @@ import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.profile.domain.EditOutcome
 import org.matchlab.academic_net.feature.profile.domain.PortfolioChange
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
@@ -142,6 +143,17 @@ class WorkFormViewModel(
     fun onDescriptionChange(description: String) = editDraft { it.copy(description = description) }
 
     fun onLinkChange(link: String) = editDraft { it.copy(link = link) }
+
+    /** A file was chosen as the proof; it is uploaded on save and replaces the file the work has. */
+    fun onProofFileChosen(file: UploadFile) = editDraft { it.copy(proofFile = file, removeEvidenceFile = false) }
+
+    /** "Убрать файл": nothing is attached any more (a file the work has on the server is cleared on save). */
+    fun onProofFileRemoved() = editDraft { it.copy(proofFile = null, removeEvidenceFile = it.hasEvidenceFile) }
+
+    /** The chosen file could not be read. */
+    fun onProofFileUnreadable() = updateContent { current ->
+        if (current.isBusy) current else current.copy(problem = FormProblem.FileUnreadable)
+    }
 
     /**
      * The main button: adds the work, or, when a work is edited, saves it (and sends it when the server checks a changed

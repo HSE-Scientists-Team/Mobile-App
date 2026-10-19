@@ -67,6 +67,7 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_error_required
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_error_title_too_long
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_error_year
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_file_unreadable
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_item_gone_title
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_load_error
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_public_warning
@@ -133,6 +134,10 @@ private fun DocumentFormRoute(
         )
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pickProofFile = rememberProofFilePicker(
+        onChosen = viewModel::onProofFileChosen,
+        onFailed = viewModel::onProofFileUnreadable,
+    )
 
     val isDone = (state as? DocumentFormUiState.Content)?.isDone == true
     LaunchedEffect(isDone) {
@@ -148,6 +153,8 @@ private fun DocumentFormRoute(
         onIssuerChange = viewModel::onIssuerChange,
         onYearChange = viewModel::onYearChange,
         onProofLinkChange = viewModel::onProofLinkChange,
+        onPickProofFile = pickProofFile,
+        onRemoveProofFile = viewModel::onProofFileRemoved,
         onSaveClick = viewModel::onSaveClick,
         onSendClick = viewModel::onSendClick,
         onDeleteConfirmed = viewModel::onDeleteConfirmed,
@@ -166,6 +173,8 @@ internal fun DocumentFormScreen(
     onIssuerChange: (String) -> Unit,
     onYearChange: (String) -> Unit,
     onProofLinkChange: (String) -> Unit,
+    onPickProofFile: () -> Unit,
+    onRemoveProofFile: () -> Unit,
     onSaveClick: () -> Unit,
     onSendClick: () -> Unit,
     onDeleteConfirmed: () -> Unit,
@@ -224,6 +233,8 @@ internal fun DocumentFormScreen(
                 onIssuerChange = onIssuerChange,
                 onYearChange = onYearChange,
                 onProofLinkChange = onProofLinkChange,
+                onPickProofFile = onPickProofFile,
+                onRemoveProofFile = onRemoveProofFile,
                 onSaveClick = onSaveClick,
                 onSendClick = onSendClick,
                 onDeleteClick = { confirmingDelete = true },
@@ -257,6 +268,8 @@ private fun ColumnScope.DocumentForm(
     onIssuerChange: (String) -> Unit,
     onYearChange: (String) -> Unit,
     onProofLinkChange: (String) -> Unit,
+    onPickProofFile: () -> Unit,
+    onRemoveProofFile: () -> Unit,
     onSaveClick: () -> Unit,
     onSendClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -269,6 +282,7 @@ private fun ColumnScope.DocumentForm(
     val problemText = when (state.problem) {
         FormProblem.SaveFailed -> stringResource(if (state.isEditing) Res.string.profile_save_error else Res.string.profile_send_error)
         FormProblem.SendFailed -> stringResource(Res.string.profile_send_error)
+        FormProblem.FileUnreadable -> stringResource(Res.string.profile_file_unreadable)
         FormProblem.DeleteFailed -> stringResource(Res.string.profile_delete_error)
         // The newer version is told by the banner at the top of the form.
         FormProblem.Conflict, null -> null
@@ -363,7 +377,14 @@ private fun ColumnScope.DocumentForm(
         )
         // API-GAP G17: the link is the public url of the record, and the form says so.
         InfoBanner(stringResource(Res.string.profile_proof_public_warning))
-        if (draft.hasEvidenceFile) EvidenceAttachedCard()
+        ProofFileSection(
+            chosenName = draft.proofFile?.fileName,
+            hasExisting = draft.hasEvidenceFile,
+            removed = draft.removeEvidenceFile,
+            enabled = !state.isBusy,
+            onPick = onPickProofFile,
+            onRemove = onRemoveProofFile,
+        )
         if (base == null) {
             InfoBanner(stringResource(Res.string.profile_document_banner))
         } else {

@@ -754,4 +754,86 @@ class GatewayProfileDataSourceTest {
         assertTrue(rig.profiles.updates.isEmpty())
         assertEquals(emptyList(), rig.media.deleted)
     }
+
+    // ---- the proof file ----
+
+    private val proof = UploadFile(byteArrayOf(5, 6), "application/pdf", "diploma.pdf")
+
+    @Test
+    fun aNewWorkWithAFileUploadsItPrivateFirstAndSendsItsIdWithTheRecord() = runTest {
+        val rig = rig()
+
+        rig.source.createWork(WorkDraft(title = "Статья", description = "О графах", proofFile = proof))
+
+        assertEquals(listOf("create", "put file-1", "complete file-1"), rig.media.calls)
+        val request = rig.media.created.single()
+        assertEquals("diploma.pdf", request.originalName)
+        assertEquals("application/pdf", request.contentType)
+        assertFalse(request.isPublic, "the server accepts only a private file as a proof")
+        assertEquals("file-1", rig.achievements.created.single().evidenceFileId)
+    }
+
+    @Test
+    fun aNewDocumentWithOnlyAFileHasNoLinkAndHasTheFile() = runTest {
+        val rig = rig()
+
+        rig.source.createDocument(DocumentDraft(title = "Диплом", issuer = "ВШЭ", proofFile = proof))
+
+        val input = rig.achievements.created.single()
+        assertEquals("file-1", input.evidenceFileId)
+        assertNull(input.url)
+    }
+
+    @Test
+    fun aFailedUploadCreatesNoRecord() = runTest {
+        val rig = rig()
+        rig.media.failPut = RemoteFailure.Timeout()
+
+        assertFailsWith<RemoteFailure.Timeout> {
+            rig.source.createWork(WorkDraft(title = "Статья", description = "О графах", proofFile = proof))
+        }
+
+        assertTrue(rig.achievements.created.isEmpty())
+    }
+
+    @Test
+    fun editingWithoutTouchingTheFileUploadsNothingAndKeepsTheOldOne() = runTest {
+        val rig = rig()
+        rig.achievements.stored = achievementDto(id = "w1", evidenceFileId = "old-file")
+
+        rig.source.updateWork(WorkId("w1"), WorkDraft(title = "Новое", description = "Описание", hasEvidenceFile = true), expectedRevision = 1)
+
+        assertTrue(rig.media.calls.isEmpty())
+        assertEquals("old-file", rig.achievements.updated.single().second.evidenceFileId)
+    }
+
+    @Test
+    fun aNewFileReplacesTheOldOneOfARecordAndTheOldOneStaysOnTheStorage() = runTest {
+        val rig = rig()
+        rig.achievements.stored = achievementDto(id = "w1", evidenceFileId = "old-file")
+
+        rig.source.updateWork(
+            WorkId("w1"),
+            WorkDraft(title = "Новое", description = "Описание", hasEvidenceFile = true, proofFile = proof),
+            expectedRevision = 1,
+        )
+
+        assertEquals("file-1", rig.achievements.updated.single().second.evidenceFileId)
+        assertTrue(rig.media.deleted.isEmpty(), "the history of the decisions refers to the old file")
+    }
+
+    @Test
+    fun removingTheFileClearsItOnTheRecord() = runTest {
+        val rig = rig()
+        rig.achievements.stored = achievementDto(id = "d1", kind = "education", institution = "ВШЭ", evidenceFileId = "old-file")
+
+        rig.source.updateDocument(
+            DocumentId("d1"),
+            DocumentDraft(title = "Диплом", issuer = "ВШЭ", proof = ProofAttachment("https://x.example/d"), hasEvidenceFile = true, removeEvidenceFile = true),
+            expectedRevision = 1,
+        )
+
+        assertEquals("", rig.achievements.updated.single().second.evidenceFileId)
+        assertTrue(rig.media.calls.isEmpty())
+    }
 }

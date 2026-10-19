@@ -134,9 +134,9 @@ enum class WorkDraftError {
 }
 
 /**
- * "Добавить работу" and the form of a work being edited, as the user has filled it so far. There is no file to
- * attach yet: the proof of a work is its [link]. A work that came from the server with a proof file keeps it
- * ([hasEvidenceFile]).
+ * "Добавить работу" and the form of a work being edited, as the user has filled it so far. The proof of a work is its
+ * [link] (public), a file ([proofFile], private: only the moderators see it), or both; the server takes either. A work that
+ * came from the server with a proof file keeps it ([hasEvidenceFile]) unless the user removes it ([removeEvidenceFile]).
  */
 data class WorkDraft(
     val type: ProjectType = ProjectType.Scientific,
@@ -146,12 +146,19 @@ data class WorkDraft(
     val link: String = "",
     /** The record being edited has a proof file on the server; the form shows it and the save keeps it. */
     val hasEvidenceFile: Boolean = false,
+    /** A file the user chose to prove the work with; it is uploaded on save and replaces the proof file the record has. */
+    val proofFile: UploadFile? = null,
+    /** The user took away the proof file the record has; without a new [proofFile] the save clears it. */
+    val removeEvidenceFile: Boolean = false,
 ) {
+    /** The work has a proof file after the save: the chosen one, or the one the record has and the user did not remove. */
+    val hasProofFile: Boolean get() = proofFile != null || (hasEvidenceFile && !removeEvidenceFile)
+
     /**
      * With a link or a proof file the work can be sent for verification, otherwise it is added as unconfirmed
      * ("Добавить без подтверждения").
      */
-    val sendsForVerification: Boolean get() = link.isNotBlank() || hasEvidenceFile
+    val sendsForVerification: Boolean get() = link.isNotBlank() || hasProofFile
 
     fun normalized(): WorkDraft = copy(
         title = title.normalizeTag(),
@@ -183,7 +190,7 @@ enum class DocumentDraftError {
     /** The year is not a number between [ProfileLimits.MinYear] and [ProfileLimits.MaxYear]. */
     YearInvalid,
 
-    /** A document is always checked, so it needs a proof: a link, or a file that is already attached. */
+    /** A document is always checked, so it needs a proof: a link or a file. */
     ProofMissing,
 
     /** The attachment is not an http/https address. */
@@ -191,9 +198,9 @@ enum class DocumentDraftError {
 }
 
 /**
- * The "new document" form and the form of a document being edited, as the user has filled it so far. The proof is
- * a link (it is public, API-GAP G17); a document that came from the server with a proof file keeps it
- * ([hasEvidenceFile]).
+ * The "new document" form and the form of a document being edited, as the user has filled it so far. The proof is a
+ * link (it is public, API-GAP G17), a file ([proofFile], private: only the moderators see it), or both; a document that
+ * came from the server with a proof file keeps it ([hasEvidenceFile]) unless the user removes it ([removeEvidenceFile]).
  */
 data class DocumentDraft(
     val kind: DocumentKind = DocumentKind.Education,
@@ -204,7 +211,14 @@ data class DocumentDraft(
     val proof: ProofAttachment? = null,
     /** The record being edited has a proof file on the server; the form shows it and the save keeps it. */
     val hasEvidenceFile: Boolean = false,
+    /** A file the user chose to prove the document with; it is uploaded on save and replaces the proof file the record has. */
+    val proofFile: UploadFile? = null,
+    /** The user took away the proof file the record has; without a new [proofFile] the save clears it. */
+    val removeEvidenceFile: Boolean = false,
 ) {
+    /** The document has a proof file after the save: the chosen one, or the one the record has and the user did not remove. */
+    val hasProofFile: Boolean get() = proofFile != null || (hasEvidenceFile && !removeEvidenceFile)
+
     /** The year as a number, `null` while it is blank or not a valid year (see [validate]). */
     val yearNumber: Int?
         get() = year.trim()
@@ -213,7 +227,7 @@ data class DocumentDraft(
             ?.takeIf { it in ProfileLimits.MinYear..ProfileLimits.MaxYear }
 
     /** A document is sent for verification when it has a proof; without one it is not valid (see [validate]). */
-    val sendsForVerification: Boolean get() = proof != null || hasEvidenceFile
+    val sendsForVerification: Boolean get() = proof != null || hasProofFile
 
     fun normalized(): DocumentDraft = copy(
         title = title.normalizeTag(),
@@ -230,7 +244,7 @@ data class DocumentDraft(
         if (issuer.length > ProfileLimits.MaxIssuerLength) add(DocumentDraftError.IssuerTooLong)
         if (year.isNotBlank() && yearNumber == null) add(DocumentDraftError.YearInvalid)
         if (proof == null) {
-            if (!hasEvidenceFile) add(DocumentDraftError.ProofMissing)
+            if (!hasProofFile) add(DocumentDraftError.ProofMissing)
         } else if (!proof.url.isWebLink()) {
             add(DocumentDraftError.ProofInvalid)
         }

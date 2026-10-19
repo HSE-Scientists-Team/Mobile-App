@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.matchlab.academic_net.common.model.ProjectType
 
@@ -199,5 +200,52 @@ class DocumentDraftTest {
     @Test
     fun normalizingKeepsAMissingProofMissing() {
         assertNull(valid.copy(proof = null).normalized().proof)
+    }
+
+    // ---- the proof file ----
+
+    private val file = UploadFile(byteArrayOf(1), "application/pdf", "diploma.pdf")
+
+    @Test
+    fun aChosenFileIsAProofOfAWorkAndAllowsSendingIt() {
+        val draft = WorkDraft(title = "T", description = "D")
+
+        assertFalse(draft.sendsForVerification)
+        assertTrue(draft.copy(proofFile = file).sendsForVerification)
+        assertTrue(draft.copy(proofFile = file).hasProofFile)
+    }
+
+    @Test
+    fun theFileARecordHasCountsUntilTheUserRemovesIt() {
+        val has = WorkDraft(title = "T", description = "D", hasEvidenceFile = true)
+
+        assertTrue(has.hasProofFile)
+        assertTrue(has.sendsForVerification)
+        assertFalse(has.copy(removeEvidenceFile = true).hasProofFile)
+        assertFalse(has.copy(removeEvidenceFile = true).sendsForVerification)
+        assertTrue(has.copy(removeEvidenceFile = true, proofFile = file).hasProofFile, "a new file replaces the removed one")
+    }
+
+    @Test
+    fun aDocumentNeedsALinkOrAFileAsItsProof() {
+        val bare = valid.copy(proof = null)
+
+        assertEquals(setOf(DocumentDraftError.ProofMissing), bare.validate())
+        assertEquals(emptySet(), bare.copy(proofFile = file).validate())
+        assertEquals(emptySet(), bare.copy(hasEvidenceFile = true).validate())
+        assertEquals(setOf(DocumentDraftError.ProofMissing), bare.copy(hasEvidenceFile = true, removeEvidenceFile = true).validate())
+    }
+
+    @Test
+    fun aLinkAndAFileTogetherAreFineAndTheLinkIsStillChecked() {
+        assertEquals(emptySet(), valid.copy(proofFile = file).validate())
+        assertEquals(setOf(DocumentDraftError.ProofInvalid), valid.copy(proof = ProofAttachment("cert.pdf"), proofFile = file).validate())
+    }
+
+    @Test
+    fun normalizingKeepsTheChosenFile() {
+        val normalized = valid.copy(proofFile = file, title = " Диплом ").normalized()
+
+        assertSame(file, normalized.proofFile)
     }
 }

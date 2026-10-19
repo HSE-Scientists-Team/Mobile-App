@@ -1,9 +1,11 @@
 package org.matchlab.academic_net.feature.profile.ui.my
 
+import kotlin.test.assertSame
 import kotlinx.coroutines.CompletableDeferred
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.feature.profile.domain.EditOutcome
 import org.matchlab.academic_net.feature.profile.domain.PortfolioChange
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraftError
@@ -601,5 +603,56 @@ class WorkFormViewModelTest {
         assertEquals(FormProblem.Conflict, viewModel.content().problem)
         assertFalse(viewModel.content().isDone)
         assertNull(viewModel.content().running)
+    }
+
+    // ---- the proof file ----
+
+    private val proof = UploadFile(byteArrayOf(1), "application/pdf", "paper.pdf")
+
+    @Test
+    fun aChosenFileIsInTheDraftAndTheWorkIsSentWithIt() {
+        val viewModel = adding()
+        viewModel.onTitleChange("Статья")
+        viewModel.onDescriptionChange("О графах")
+
+        viewModel.onProofFileChosen(proof)
+        viewModel.onSaveClick()
+
+        assertSame(proof, repository.createdWorks.single().proofFile)
+        assertTrue(repository.createdWorks.single().sendsForVerification)
+    }
+
+    @Test
+    fun removingTheFileOfAWorkThatHasOneMarksItForClearing() {
+        repository.onGetMyWork = { work(it.value, hasEvidenceFile = true) }
+        val viewModel = editing()
+
+        assertTrue(viewModel.content().draft.hasProofFile)
+        viewModel.onProofFileRemoved()
+
+        assertTrue(viewModel.content().draft.removeEvidenceFile)
+        assertFalse(viewModel.content().draft.hasProofFile)
+    }
+
+    @Test
+    fun aNewFileAfterARemovalBringsTheProofBack() {
+        repository.onGetMyWork = { work(it.value, hasEvidenceFile = true) }
+        val viewModel = editing()
+        viewModel.onProofFileRemoved()
+
+        viewModel.onProofFileChosen(proof)
+
+        assertFalse(viewModel.content().draft.removeEvidenceFile)
+        assertTrue(viewModel.content().draft.hasProofFile)
+    }
+
+    @Test
+    fun aFileThatCannotBeReadIsAProblemAndNothingIsAttached() {
+        val viewModel = adding()
+
+        viewModel.onProofFileUnreadable()
+
+        assertEquals(FormProblem.FileUnreadable, viewModel.content().problem)
+        assertNull(viewModel.content().draft.proofFile)
     }
 }

@@ -49,6 +49,7 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_error_link
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_error_required
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_error_title_too_long
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_file_unreadable
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_item_gone_title
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_load_error
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_resubmit_warning_work
@@ -129,6 +130,10 @@ private fun WorkFormRoute(
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val openLink = rememberLinkOpener()
+    val pickProofFile = rememberProofFilePicker(
+        onChosen = viewModel::onProofFileChosen,
+        onFailed = viewModel::onProofFileUnreadable,
+    )
 
     val isDone = (state as? WorkFormUiState.Content)?.isDone == true
     LaunchedEffect(isDone) {
@@ -143,6 +148,8 @@ private fun WorkFormRoute(
         onTitleChange = viewModel::onTitleChange,
         onDescriptionChange = viewModel::onDescriptionChange,
         onLinkChange = viewModel::onLinkChange,
+        onPickProofFile = pickProofFile,
+        onRemoveProofFile = viewModel::onProofFileRemoved,
         onSaveClick = viewModel::onSaveClick,
         onSendClick = viewModel::onSendClick,
         onDeleteConfirmed = viewModel::onDeleteConfirmed,
@@ -161,6 +168,8 @@ internal fun WorkFormScreen(
     onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onLinkChange: (String) -> Unit,
+    onPickProofFile: () -> Unit,
+    onRemoveProofFile: () -> Unit,
     onSaveClick: () -> Unit,
     onSendClick: () -> Unit,
     onDeleteConfirmed: () -> Unit,
@@ -223,6 +232,8 @@ internal fun WorkFormScreen(
                 onTitleChange = onTitleChange,
                 onDescriptionChange = onDescriptionChange,
                 onLinkChange = onLinkChange,
+                onPickProofFile = onPickProofFile,
+                onRemoveProofFile = onRemoveProofFile,
                 onSaveClick = onSaveClick,
                 onSendClick = onSendClick,
                 onDeleteClick = { confirmingDelete = true },
@@ -256,6 +267,8 @@ private fun ColumnScope.WorkForm(
     onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onLinkChange: (String) -> Unit,
+    onPickProofFile: () -> Unit,
+    onRemoveProofFile: () -> Unit,
     onSaveClick: () -> Unit,
     onSendClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -269,6 +282,7 @@ private fun ColumnScope.WorkForm(
     val problemText = when (state.problem) {
         FormProblem.SaveFailed -> stringResource(if (state.isEditing) Res.string.profile_save_error else Res.string.profile_send_error)
         FormProblem.SendFailed -> stringResource(Res.string.profile_send_error)
+        FormProblem.FileUnreadable -> stringResource(Res.string.profile_file_unreadable)
         FormProblem.DeleteFailed -> stringResource(Res.string.profile_delete_error)
         // The newer version is told by the banner at the top of the form.
         FormProblem.Conflict, null -> null
@@ -345,7 +359,14 @@ private fun ColumnScope.WorkForm(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             errorText = if (WorkDraftError.LinkInvalid in errors) stringResource(Res.string.profile_error_link) else null,
         )
-        if (draft.hasEvidenceFile) EvidenceAttachedCard()
+        ProofFileSection(
+            chosenName = draft.proofFile?.fileName,
+            hasExisting = draft.hasEvidenceFile,
+            removed = draft.removeEvidenceFile,
+            enabled = !state.isBusy,
+            onPick = onPickProofFile,
+            onRemove = onRemoveProofFile,
+        )
         if (base == null) {
             InfoBanner(stringResource(Res.string.profile_work_banner))
         } else {

@@ -13,8 +13,8 @@ import kotlinx.serialization.Serializable
  * [org.matchlab.academic_net.gateway.contract.AchievementKinds].
  *
  * @property url a public link: whoever opens the profile can read it (API-GAP G17).
- * @property evidenceFileId a file of the Media API that proves the achievement; the app does not upload files yet and
- * only keeps the id when it edits a record.
+ * @property evidenceFileId a private file of the Media API that proves the achievement; the server takes a link
+ * ([url]) or a file, either of them is enough to send the record for verification. Left out (`null`) it is cleared.
  * @property expectedRevision the revision the change is based on; sent with `PUT` only.
  */
 @Serializable

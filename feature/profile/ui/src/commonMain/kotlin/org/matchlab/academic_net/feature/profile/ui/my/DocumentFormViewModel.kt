@@ -18,6 +18,7 @@ import org.matchlab.academic_net.feature.profile.domain.EditOutcome
 import org.matchlab.academic_net.feature.profile.domain.PortfolioChange
 import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
 import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.toDraft
@@ -140,6 +141,17 @@ class DocumentFormViewModel(
     /** The text of the field of the proof; a blank text is no proof at all. */
     fun onProofLinkChange(link: String) = editDraft {
         it.copy(proof = if (link.isBlank()) null else ProofAttachment(link))
+    }
+
+    /** A file was chosen as the proof; it is uploaded on save and replaces the file the document has. */
+    fun onProofFileChosen(file: UploadFile) = editDraft { it.copy(proofFile = file, removeEvidenceFile = false) }
+
+    /** "Убрать файл": nothing is attached any more (a file the document has on the server is cleared on save). */
+    fun onProofFileRemoved() = editDraft { it.copy(proofFile = null, removeEvidenceFile = it.hasEvidenceFile) }
+
+    /** The chosen file could not be read. */
+    fun onProofFileUnreadable() = updateContent { current ->
+        if (current.isBusy) current else current.copy(problem = FormProblem.FileUnreadable)
     }
 
     /**

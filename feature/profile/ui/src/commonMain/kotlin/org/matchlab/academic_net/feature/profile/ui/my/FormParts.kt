@@ -3,14 +3,23 @@ package org.matchlab.academic_net.feature.profile.ui.my
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.name
+import io.github.vinceglb.filekit.readBytes
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
@@ -19,12 +28,18 @@ import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.InfoCard
 import org.matchlab.academic_net.components.StatusBanner
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_conflict
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_moderator_comment
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_open_link
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_attached
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_file_attach
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_file_chosen
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_file_hint
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_file_remove
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_proof_file_replace
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_submit
 import org.matchlab.academic_net.feature.profile.ui.bannerTitle
 import org.matchlab.academic_net.feature.profile.ui.toBannerStatus
@@ -161,6 +176,105 @@ internal fun PortfolioActions(
             modifier = Modifier.fillMaxWidth(),
             variant = AppButtonVariant.TextError,
             enabled = enabled,
+        )
+    }
+}
+
+/** The extensions of the files that can prove a record: the storage takes documents and images (`docs/openapi.yaml`, `CreateMediaUpload`). */
+internal val ProofFileExtensions = listOf("pdf", "jpg", "jpeg", "png")
+
+/**
+ * The picker of the proof file of a record: the gallery and the files of the device (FileKit). Returns the function that
+ * opens it. A chosen file is read and handed to [onChosen]; one that cannot be read goes to [onFailed]. Remember it at the
+ * root of the screen, not in a sheet (on iOS a launcher in a transient surface does not work).
+ */
+@Composable
+internal fun rememberProofFilePicker(onChosen: (UploadFile) -> Unit, onFailed: () -> Unit): () -> Unit {
+    val scope = rememberCoroutineScope()
+    val launcher = rememberFilePickerLauncher(
+        type = FileKitType.File(extensions = ProofFileExtensions),
+        onError = { onFailed() },
+        onResult = { file ->
+            if (file != null) {
+                scope.launch {
+                    try {
+                        onChosen(proofFileOf(file))
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (failure: Exception) {
+                        onFailed()
+                    }
+                }
+            }
+        },
+    )
+    return launcher::launch
+}
+
+/** The MIME type of a proof file by its extension (the storage checks the type it is given); anything else is a plain stream. */
+internal fun proofContentType(fileName: String): String = when (fileName.substringAfterLast('.', "").lowercase()) {
+    "pdf" -> "application/pdf"
+    "jpg", "jpeg" -> "image/jpeg"
+    "png" -> "image/png"
+    else -> "application/octet-stream"
+}
+
+/** The file [file] chosen on the device as a file to upload: its bytes, its name and the type its extension says. */
+internal suspend fun proofFileOf(file: PlatformFile): UploadFile =
+    UploadFile(file.readBytes(), contentType = proofContentType(file.name), fileName = file.name)
+
+/**
+ * The proof file of a record on its form: the file chosen now ([chosenName]), the file the record has on the server
+ * ([hasExisting] and not [removed]), or the button that attaches one. The file is private: only the moderators see it,
+ * unlike the link, which everyone who opens the profile sees.
+ */
+@Composable
+internal fun ProofFileSection(
+    chosenName: String?,
+    hasExisting: Boolean,
+    removed: Boolean,
+    enabled: Boolean,
+    onPick: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val attached = chosenName != null || (hasExisting && !removed)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when {
+            chosenName != null -> InfoCard(
+                text = stringResource(Res.string.profile_proof_file_chosen, chosenName),
+                icon = AppIcons.Check,
+            )
+            attached -> EvidenceAttachedCard()
+        }
+        if (attached) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppButton(
+                    text = stringResource(Res.string.profile_proof_file_replace),
+                    onClick = onPick,
+                    variant = AppButtonVariant.Text,
+                    enabled = enabled,
+                )
+                AppButton(
+                    text = stringResource(Res.string.profile_proof_file_remove),
+                    onClick = onRemove,
+                    variant = AppButtonVariant.TextError,
+                    enabled = enabled,
+                )
+            }
+        } else {
+            AppButton(
+                text = stringResource(Res.string.profile_proof_file_attach),
+                onClick = onPick,
+                modifier = Modifier.fillMaxWidth(),
+                variant = AppButtonVariant.Outlined,
+                enabled = enabled,
+            )
+        }
+        Text(
+            text = stringResource(Res.string.profile_proof_file_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
