@@ -317,3 +317,18 @@ sealed interface PortfolioChange<out T> {
     /** The record is gone; nothing was saved. */
     data object NotFound : PortfolioChange<Nothing>
 }
+
+/**
+ * A file the user chose, ready to be uploaded: the photo of the avatar now, the proof of a work or a document later.
+ * [bytes] is the whole file; they are not printed.
+ */
+class UploadFile(
+    val bytes: ByteArray,
+    val contentType: String,
+    val fileName: String,
+) {
+    override fun toString(): String = "UploadFile($fileName, ${bytes.size} bytes, $contentType)"
+}
+
+/** The avatar belongs to a profile, and the account has none yet (no name): the profile has to be saved first. */
+class ProfileRequiredException : IllegalStateException("The profile has no name yet")

@@ -28,6 +28,7 @@ import org.matchlab.academic_net.feature.profile.domain.ProfileRepository
 import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.domain.ReviewsPage
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.UserProfile
 import org.matchlab.academic_net.feature.profile.domain.UserReviews
 import org.matchlab.academic_net.feature.profile.domain.UserWorks
@@ -190,6 +191,10 @@ class ProfileRepositoryImpl(
             }
         }
     }
+
+    // The pictures are read by id of the profile, and the directory forgets the viewer when the profile is saved; the text
+    // fields of the profile did not change, so the cache of this repository stays as it is.
+    override suspend fun changeAvatar(photo: UploadFile) = source.changeAvatar(photo)
 
     override suspend fun updateProfile(draft: ProfileDraft): MyProfile {
         val record = source.updateMyProfile(draft).ofViewer()

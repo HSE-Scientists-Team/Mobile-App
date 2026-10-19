@@ -13,8 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.AvatarSource
 
 /**
  * What [PersonCard] and [PersonSummary] show about a person.
@@ -31,7 +31,7 @@ import org.jetbrains.compose.resources.stringResource
 data class PersonCardUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: DrawableResource?,
+    val avatar: AvatarSource?,
     val stats: String? = null,
     val showChatButton: Boolean = false,
     val chatContentDescription: String? = null,

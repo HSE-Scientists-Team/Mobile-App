@@ -16,13 +16,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppFilterChip
@@ -30,6 +37,7 @@ import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTagsField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.format.failureText
@@ -43,6 +51,8 @@ import org.matchlab.academic_net.feature.profile.ui.WorkCard
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_add_document
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_add_work
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_avatar_change
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_avatar_error
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_close
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_edit_title
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_education
@@ -98,9 +108,29 @@ fun EditProfileRoute(
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel {
-        EditProfileViewModel(dependencies.observeMyProfile, dependencies.updateProfile)
+        EditProfileViewModel(dependencies.observeMyProfile, dependencies.updateProfile, dependencies.changeAvatar)
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    // The gallery picker is remembered here, at the root of the screen (not in a sheet): on iOS a launcher in a transient
+    // surface does not work.
+    val photoPicker = rememberFilePickerLauncher(
+        type = FileKitType.Image,
+        onError = viewModel::onAvatarUnreadable,
+        onResult = { file ->
+            if (file != null) {
+                scope.launch {
+                    try {
+                        viewModel.onAvatarChosen(avatarPhotoOf(file))
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (failure: Exception) {
+                        viewModel.onAvatarUnreadable(failure)
+                    }
+                }
+            }
+        },
+    )
 
     LaunchedEffect(state.isSaved) {
         if (state.isSaved) onClose()
@@ -127,6 +157,7 @@ fun EditProfileRoute(
         onEditDocument = onEditDocument,
         onSaveClick = viewModel::onSaveClick,
         onRetry = viewModel::onRetry,
+        onChangePhotoClick = photoPicker::launch,
         modifier = modifier,
     )
 }
@@ -153,6 +184,7 @@ internal fun EditProfileScreen(
     onEditDocument: (DocumentId) -> Unit,
     onSaveClick: () -> Unit,
     onRetry: () -> Unit,
+    onChangePhotoClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -195,6 +227,7 @@ internal fun EditProfileScreen(
                     onAddDocumentClick = onAddDocumentClick,
                     onEditWork = onEditWork,
                     onEditDocument = onEditDocument,
+                    onChangePhotoClick = onChangePhotoClick,
                     modifier = Modifier.weight(1f),
                 )
                 FormBottomBar(
@@ -228,6 +261,7 @@ private fun EditForm(
     onAddDocumentClick: () -> Unit,
     onEditWork: (WorkId) -> Unit,
     onEditDocument: (DocumentId) -> Unit,
+    onChangePhotoClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -242,6 +276,7 @@ private fun EditForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        AvatarEditor(state.avatar, onChangePhotoClick)
         AppTextField(
             value = draft.name,
             onValueChange = onNameChange,
@@ -399,4 +434,35 @@ private fun EditForm(
 @Composable
 private fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+}
+
+/**
+ * The photo of the profile with "Изменить фото" under it. Only for an account that has a profile (the photo is a field
+ * of it); the photo is changed at once, not with "Сохранить". While the new one is uploaded the button turns; a failure is
+ * written under it and the old photo stays.
+ */
+@Composable
+private fun AvatarEditor(avatar: AvatarState, onChangePhotoClick: () -> Unit, modifier: Modifier = Modifier) {
+    val userKey = avatar.userKey
+    if (!avatar.canChange || userKey == null) return
+    Column(
+        modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Avatar(AppAvatars.forKey(userKey), contentDescription = null, size = 96.dp)
+        AppButton(
+            text = stringResource(Res.string.profile_avatar_change),
+            onClick = onChangePhotoClick,
+            variant = AppButtonVariant.Text,
+            loading = avatar.isUploading,
+        )
+        avatar.failure?.let { failure ->
+            Text(
+                text = stringResource(Res.string.profile_avatar_error, failureText(failure)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
 }

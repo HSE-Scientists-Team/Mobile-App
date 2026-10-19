@@ -41,6 +41,9 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            // Choosing a photo and getting it ready (a JPEG of 512 px at most): the library does it on both platforms.
+            implementation(libs.filekit.core)
+            implementation(libs.filekit.dialogs.compose)
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

@@ -16,6 +16,7 @@ import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraftError
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationResult
 import org.matchlab.academic_net.feature.profile.domain.VerificationResultId
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
@@ -48,6 +49,11 @@ class UpdateProfileUseCase(private val repository: MyProfileRepository) {
             onFailure = { SubmitResult.Failure(it) },
         )
     }
+}
+
+/** "Сменить фото": [photo] becomes the avatar of the viewer; the failure (no network, no profile yet, a refusal) is the result. */
+class ChangeAvatarUseCase(private val repository: MyProfileRepository) {
+    suspend operator fun invoke(photo: UploadFile): Result<Unit> = suspendRunCatching { repository.changeAvatar(photo) }
 }
 
 /**

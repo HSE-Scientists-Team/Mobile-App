@@ -28,6 +28,7 @@ internal abstract class SessionComponent(
     DataSourcesModule,
     ProjectsModule,
     ChatsModule,
+    AvatarsModule,
     CollaboratorsModule,
     ProjectSearchModule,
     ProjectDetailsModule,

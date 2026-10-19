@@ -26,6 +26,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
 import org.matchlab.academic_net.SessionDependencies
+import org.matchlab.academic_net.avatars.rememberAvatarImages
+import org.matchlab.academic_net.components.LocalAvatarImages
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
@@ -223,9 +225,13 @@ internal fun AppNavHost(
             }
         }
         is RootScreen.Main -> key(screen.session) {
-            CompositionLocalProvider(LocalViewModelStoreOwner provides stores.main) {
+            val dependencies = remember(screen.session) { sessions.open(screen.session) }
+            CompositionLocalProvider(
+                LocalViewModelStoreOwner provides stores.main,
+                LocalAvatarImages provides rememberAvatarImages(dependencies.avatars),
+            ) {
                 MainNavHost(
-                    dependencies = remember(screen.session) { sessions.open(screen.session) },
+                    dependencies = dependencies,
                     signOut = { auth.signOut() },
                 )
             }

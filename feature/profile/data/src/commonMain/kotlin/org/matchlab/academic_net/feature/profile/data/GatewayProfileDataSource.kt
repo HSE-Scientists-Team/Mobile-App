@@ -10,16 +10,20 @@ import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileCapabilities
 import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
+import org.matchlab.academic_net.feature.profile.domain.ProfileRequiredException
 import org.matchlab.academic_net.feature.profile.domain.Review
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import org.matchlab.academic_net.gateway.AchievementsApi
+import org.matchlab.academic_net.gateway.MediaApi
 import org.matchlab.academic_net.gateway.ProfilesApi
 import org.matchlab.academic_net.gateway.ReviewsApi
 import org.matchlab.academic_net.gateway.UserDirectory
 import org.matchlab.academic_net.gateway.dto.UserAchievementDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
+import org.matchlab.academic_net.gateway.uploadFile
 
 /**
  * [ProfileDataSource] over the profile calls of the Gateway: it turns the status code of each answer into the result
@@ -58,6 +62,7 @@ class GatewayProfileDataSource(
     private val achievements: AchievementsApi,
     private val reviews: ReviewsApi,
     private val users: UserDirectory,
+    private val media: MediaApi,
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) : ProfileDataSource {
     // The states of a record are the ones the backend lists (`AchievementStatuses`), the project types are the app's own
@@ -90,6 +95,25 @@ class GatewayProfileDataSource(
 
     override suspend fun updateMyProfile(draft: ProfileDraft): ProfileRecord =
         profiles.updateMyProfile { details -> details.withDraft(draft) }.toRecord()
+
+    override suspend fun changeAvatar(photo: UploadFile) {
+        val file = media.uploadFile(photo.fileName, photo.contentType, photo.bytes, isPublic = true)
+        var previous: String? = null
+        profiles.updateMyProfile { details ->
+            if (details.displayName.isBlank()) throw ProfileRequiredException()
+            previous = details.avatarFileId
+            details.copy(avatarFileId = file.id)
+        }
+        // The old picture is no use any more; if it stays on the storage it is only a file nobody shows.
+        previous?.takeIf { it.isNotBlank() && it != file.id }?.let { old ->
+            try {
+                media.delete(old)
+            } catch (cancellation: kotlin.coroutines.cancellation.CancellationException) {
+                throw cancellation
+            } catch (ignored: Exception) {
+            }
+        }
+    }
 
     override suspend fun getMyPortfolio(): Portfolio =
         try {

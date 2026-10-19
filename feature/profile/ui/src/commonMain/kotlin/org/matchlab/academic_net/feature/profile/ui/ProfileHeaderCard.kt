@@ -12,12 +12,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppStatusChipTone
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.ChatIconButton
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_message
@@ -50,7 +50,7 @@ data class ProfileStatusUiModel(
 data class ProfileHeaderCardUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: DrawableResource,
+    val avatar: AvatarSource,
     val statuses: List<ProfileStatusUiModel> = emptyList(),
     val showChatButton: Boolean = false,
 )

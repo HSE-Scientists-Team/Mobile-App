@@ -15,7 +15,9 @@ import org.matchlab.academic_net.feature.profile.domain.DocumentKind
 import org.matchlab.academic_net.feature.profile.domain.EditOutcome
 import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
+import org.matchlab.academic_net.feature.profile.domain.ProfileRequiredException
 import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
@@ -41,6 +43,7 @@ class GatewayProfileDataSourceTest {
         val profiles = FakeProfilesApi()
         val achievements = FakeAchievementsApi()
         val reviews = FakeReviewsApi()
+        val media = FakeMediaApi()
         val people = mutableMapOf<String, UserProfileDto>()
         val publicReads = mutableListOf<String>()
 
@@ -55,7 +58,7 @@ class GatewayProfileDataSourceTest {
             },
             scope = scope,
         )
-        val source = GatewayProfileDataSource(profiles, achievements, reviews, directory) { zone }
+        val source = GatewayProfileDataSource(profiles, achievements, reviews, directory, media) { zone }
     }
 
     private fun kotlinx.coroutines.test.TestScope.rig() = Rig(backgroundScope)
@@ -684,5 +687,71 @@ class GatewayProfileDataSourceTest {
 
         assertEquals(listOf("r1", "r2"), reviews.map { it.id.value })
         assertEquals(listOf<YearMonth?>(null, YearMonth(2025, Month.JUNE)), reviews.map { it.projectFinished })
+    }
+
+    // ---- the avatar ----
+
+    private val photo = UploadFile(byteArrayOf(1, 2, 3), "image/jpeg", "avatar.jpg")
+
+    @Test
+    fun aPhotoIsUploadedPublicAndSavedAsTheAvatarKeepingTheRestOfTheProfile() = runTest {
+        val rig = rig()
+        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Арджун")
+
+        rig.source.changeAvatar(photo)
+
+        assertEquals(listOf("create", "put file-1", "complete file-1"), rig.media.calls)
+        val request = rig.media.created.single()
+        assertEquals("avatar.jpg", request.originalName)
+        assertEquals("image/jpeg", request.contentType)
+        assertEquals(3L, request.sizeBytes)
+        assertTrue(request.isPublic, "an avatar is read by everybody")
+        val saved = rig.profiles.updates.single()
+        assertEquals("file-1", saved.avatarFileId)
+        assertEquals("Арджун", saved.displayName)
+    }
+
+    @Test
+    fun thePreviousAvatarFileIsRemovedAfterTheSwitch() = runTest {
+        val rig = rig()
+        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Арджун").let { it.copy(details = it.details.copy(avatarFileId = "old-file")) }
+
+        rig.source.changeAvatar(photo)
+
+        assertEquals(listOf("old-file"), rig.media.deleted)
+        assertEquals("file-1", rig.profiles.updates.single().avatarFileId)
+    }
+
+    @Test
+    fun aFailureToRemoveTheOldFileIsNotAFailureOfTheChange() = runTest {
+        val rig = rig()
+        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Арджун").let { it.copy(details = it.details.copy(avatarFileId = "old-file")) }
+        rig.media.failDelete = RemoteFailure.Http(500)
+
+        rig.source.changeAvatar(photo)
+
+        assertEquals("file-1", rig.profiles.updates.single().avatarFileId)
+    }
+
+    @Test
+    fun anAccountWithoutAProfileCannotHaveAnAvatarAndNothingIsSaved() = runTest {
+        val rig = rig()
+        rig.profiles.stored = null
+
+        assertFailsWith<ProfileRequiredException> { rig.source.changeAvatar(photo) }
+
+        assertTrue(rig.profiles.updates.isEmpty())
+    }
+
+    @Test
+    fun aFailedUploadSavesNothing() = runTest {
+        val rig = rig()
+        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Арджун")
+        rig.media.failPut = RemoteFailure.NoConnection()
+
+        assertFailsWith<RemoteFailure.NoConnection> { rig.source.changeAvatar(photo) }
+
+        assertTrue(rig.profiles.updates.isEmpty())
+        assertEquals(emptyList(), rig.media.deleted)
     }
 }

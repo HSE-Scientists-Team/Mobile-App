@@ -69,6 +69,13 @@ interface MyProfileRepository {
     suspend fun updateProfile(draft: ProfileDraft): MyProfile
 
     /**
+     * Makes [photo] the avatar of the viewer: the file is uploaded as a public image and the profile is saved with it
+     * (the other fields of the profile are not touched); the file of the previous avatar is removed. The pictures of the
+     * viewer on the screens are read again. Throws [ProfileRequiredException] for an account whose profile has no name yet.
+     */
+    suspend fun changeAvatar(photo: UploadFile)
+
+    /**
      * Adds a work to the profile: the server gets it unconfirmed, and when [draft] has a link or a proof file
      * ([WorkDraft.sendsForVerification]) it is also sent for verification, as the two calls of the API. If the
      * sending fails the work is still added: [PortfolioChange.Saved] with `sent = false`, and it can be sent again.

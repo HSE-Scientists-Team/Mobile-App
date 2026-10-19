@@ -13,12 +13,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.AcceptDeclineActions
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.ChatIconButton
 import org.matchlab.academic_net.components.PersonName
 import org.matchlab.academic_net.components.StatusChipUiModel
@@ -43,7 +43,7 @@ import org.matchlab.academic_net.components.UnknownAvatar
 data class CandidateCardUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: DrawableResource?,
+    val avatar: AvatarSource?,
     val note: String? = null,
     val tags: List<String> = emptyList(),
     val status: StatusChipUiModel? = null,

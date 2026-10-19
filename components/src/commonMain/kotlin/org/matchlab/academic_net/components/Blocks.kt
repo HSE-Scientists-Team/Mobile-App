@@ -23,6 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.matchlab.academic_net.theme.extendedColors
@@ -69,7 +70,36 @@ fun Avatar(
     )
 }
 
-/** [Avatar] for an image from resources, as UI models carry it. */
+/**
+ * [Avatar] of a person: the picture they uploaded when the app has it ([LocalAvatarImages]), otherwise the
+ * illustration of [source]. The illustration is shown while the picture loads and when there is none or it fails.
+ */
+@Composable
+fun Avatar(
+    source: AvatarSource,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+) {
+    val illustration = painterResource(source.illustration)
+    val images = LocalAvatarImages.current
+    if (images == null) {
+        Avatar(illustration, contentDescription, modifier, size)
+        return
+    }
+    AsyncImage(
+        model = AvatarPicture(source.key, images.revision),
+        contentDescription = contentDescription,
+        imageLoader = images.imageLoader,
+        modifier = modifier.size(size).clip(CircleShape),
+        placeholder = illustration,
+        error = illustration,
+        fallback = illustration,
+        contentScale = ContentScale.Crop,
+    )
+}
+
+/** [Avatar] for an image from resources: the illustrations of the catalog. */
 @Composable
 fun Avatar(
     image: DrawableResource,

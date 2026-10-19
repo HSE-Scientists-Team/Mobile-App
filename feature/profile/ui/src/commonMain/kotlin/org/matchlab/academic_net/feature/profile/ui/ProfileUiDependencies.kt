@@ -5,6 +5,7 @@ import kotlinx.datetime.TimeZone
 import org.matchlab.academic_net.feature.profile.domain.ProfileCapabilities
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddWorkUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.ChangeAvatarUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.DeletePortfolioItemUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyWorkUseCase
@@ -43,6 +44,7 @@ class ProfileUiDependencies(
     val observeMyProfile: ObserveMyProfileUseCase,
     val refreshMyProfile: RefreshMyProfileUseCase,
     val updateProfile: UpdateProfileUseCase,
+    val changeAvatar: ChangeAvatarUseCase,
     val addWork: AddWorkUseCase,
     val addDocument: AddDocumentUseCase,
     val getMyWork: GetMyWorkUseCase,

@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
+import org.matchlab.academic_net.components.AvatarSource
 
 /**
  * What [ProjectCard] shows.
@@ -37,7 +37,7 @@ import org.jetbrains.compose.resources.DrawableResource
 data class ProjectCardUiModel(
     val title: String,
     val author: String,
-    val authorAvatar: DrawableResource,
+    val authorAvatar: AvatarSource,
     val type: String?,
     val footer: String,
     val tags: List<String> = emptyList(),

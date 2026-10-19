@@ -38,7 +38,7 @@ class ProfileOverGatewayTest {
             fetch = { id -> people[id] ?: throw RemoteFailure.Http(404) },
             scope = scope,
         )
-        private val source = GatewayProfileDataSource(profiles, achievements, reviews, directory) { TimeZone.UTC }
+        private val source = GatewayProfileDataSource(profiles, achievements, reviews, directory, FakeMediaApi()) { TimeZone.UTC }
         val repository = ProfileRepositoryImpl(source, UserId(ViewerRaw))
 
         init {

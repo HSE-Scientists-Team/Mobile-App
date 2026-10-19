@@ -39,6 +39,7 @@ import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppSearchBarButton
 import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
 import org.matchlab.academic_net.components.SectionHeader
@@ -177,7 +178,7 @@ private fun FeedHeader(avatarKey: String, onProfileClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Avatar(
-                image = AppAvatars.forKey(avatarKey),
+                source = AppAvatars.forKey(avatarKey),
                 contentDescription = stringResource(Res.string.feed_profile),
                 size = 32.dp,
             )

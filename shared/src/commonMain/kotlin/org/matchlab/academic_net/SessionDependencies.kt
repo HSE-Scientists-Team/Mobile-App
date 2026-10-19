@@ -1,6 +1,7 @@
 package org.matchlab.academic_net
 
 import me.tatarka.inject.annotations.Inject
+import org.matchlab.academic_net.avatars.AvatarDirectory
 import org.matchlab.academic_net.di.SessionScope
 import org.matchlab.academic_net.feature.chats.ui.ChatsUiDependencies
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorsUiDependencies
@@ -34,4 +35,6 @@ internal class SessionDependencies(
     val settings: SettingsUiDependencies,
     val responses: ResponsesUiDependencies,
     val complaints: ComplaintsUiDependencies,
+    /** The uploaded pictures of people; the avatars of every screen ask for them. */
+    val avatars: AvatarDirectory,
 )

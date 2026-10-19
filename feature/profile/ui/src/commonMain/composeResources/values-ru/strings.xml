@@ -168,4 +168,7 @@
     <string name="profile_error_proof_missing">Добавьте ссылку на подтверждение</string>
     <string name="profile_open_to_collaboration">Открыт к сотрудничеству</string>
     <string name="profile_invite">Пригласить в проект</string>
+    <!-- The photo of the profile on the edit screen. 1: why it failed -->
+    <string name="profile_avatar_change">Изменить фото</string>
+    <string name="profile_avatar_error">Не удалось сменить фото. %1$s</string>
 </resources>

@@ -54,6 +54,9 @@ class Gateway internal constructor(
             defaultRequest { bearerAuth(accessToken) }
         }
         val requests = ApiRequests(sessionHttp, apiBase) { onRejected.onSessionRejected(accessToken) }
-        return GatewaySession(sessionHttp, requests)
+        // The storage links are signed: the client for them has no token. It is made when the first file moves
+        // (most sessions never move one) and is closed with the session.
+        val externalHttp = lazy { http.config { } }
+        return GatewaySession(sessionHttp, requests, externalHttp)
     }
 }

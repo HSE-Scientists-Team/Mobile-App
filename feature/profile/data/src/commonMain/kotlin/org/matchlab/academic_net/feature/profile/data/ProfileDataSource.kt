@@ -14,6 +14,7 @@ import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
 import org.matchlab.academic_net.feature.profile.domain.ProfileInterests
 import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewsSummary
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
@@ -97,6 +98,13 @@ interface ProfileDataSource {
     suspend fun updateMyProfile(draft: ProfileDraft): ProfileRecord
 
     /** The viewer's works and documents as the owner sees them: every record, with the moderator's comment. */
+    /**
+     * Uploads [photo] as a public image and saves the profile with it as the avatar, then removes the file of the previous
+     * one (failing to remove it is not a failure). Throws [org.matchlab.academic_net.feature.profile.domain.ProfileRequiredException]
+     * when the profile has no name yet.
+     */
+    suspend fun changeAvatar(photo: UploadFile)
+
     suspend fun getMyPortfolio(): Portfolio
 
     /** A work of the viewer, or `null` when there is none with this id. */

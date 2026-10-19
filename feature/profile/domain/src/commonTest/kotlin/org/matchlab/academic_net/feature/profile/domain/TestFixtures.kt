@@ -125,6 +125,7 @@ internal class FakeMyProfileRepository : MyProfileRepository {
     var onSubmit: suspend (VerificationSubject) -> EditOutcome<Unit> = { EditOutcome.Done(Unit) }
     var onDelete: suspend (VerificationSubject) -> EditOutcome<Unit> = { EditOutcome.Done(Unit) }
     var onRefresh: suspend () -> Unit = {}
+    var onChangeAvatar: suspend (UploadFile) -> Unit = {}
     var results: Flow<List<VerificationResult>> = MutableStateFlow(emptyList())
 
     /** The drafts and the revisions the repository was asked to save. */
@@ -142,6 +143,14 @@ internal class FakeMyProfileRepository : MyProfileRepository {
     override suspend fun refreshMyProfile() {
         calls += "refresh"
         onRefresh()
+    }
+
+    val changedAvatars = mutableListOf<UploadFile>()
+
+    override suspend fun changeAvatar(photo: UploadFile) {
+        calls += "changeAvatar"
+        changedAvatars += photo
+        onChangeAvatar(photo)
     }
 
     override suspend fun updateProfile(draft: ProfileDraft): MyProfile {

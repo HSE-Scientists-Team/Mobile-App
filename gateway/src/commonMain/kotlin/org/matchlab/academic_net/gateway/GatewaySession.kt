@@ -7,9 +7,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.internal.ApiRequests
+import org.matchlab.academic_net.gateway.internal.ExternalRequests
 import org.matchlab.academic_net.gateway.internal.KtorAchievementsApi
 import org.matchlab.academic_net.gateway.internal.KtorChatApi
 import org.matchlab.academic_net.gateway.internal.KtorComplaintsApi
+import org.matchlab.academic_net.gateway.internal.KtorMediaApi
 import org.matchlab.academic_net.gateway.internal.KtorPeopleSearchApi
 import org.matchlab.academic_net.gateway.internal.KtorProfilesApi
 import org.matchlab.academic_net.gateway.internal.KtorProjectJoinsApi
@@ -37,7 +39,11 @@ class GatewaySession internal constructor(
     private val http: HttpClient,
     /** Where the calls of this session are made from: the client with the token, and the 401 reporting. */
     internal val requests: ApiRequests,
+    /** The client for the signed links of the file storage: the Gateway's own, with no token. */
+    private val externalHttp: Lazy<HttpClient>,
 ) : AutoCloseable {
+    private val external = ExternalRequests(externalHttp)
+
     // Runs the requests of [users], which outlive the callers that asked for them; cancelled by [close].
     private val directoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -80,6 +86,9 @@ class GatewaySession internal constructor(
     /** Complaints about a person or a project. */
     val complaints: ComplaintsApi = KtorComplaintsApi(requests)
 
+    /** The files: avatars now, the proof of achievements later. */
+    val media: MediaApi = KtorMediaApi(requests, external)
+
     /** The one-to-one text chat. */
     val chat: ChatApi = KtorChatApi(requests)
 
@@ -101,9 +110,12 @@ class GatewaySession internal constructor(
     override fun close() {
         // First, so that no call that begins after this method has started can slip into the client that is closing.
         requests.refuseFurtherCalls()
+        external.refuseFurtherCalls()
         // Cancel before closing: closing a client only lets its running requests finish.
         directoryScope.cancel(CancellationException("The session was closed"))
         http.cancel(CancellationException("The session was closed"))
+        if (externalHttp.isInitialized()) externalHttp.value.cancel(CancellationException("The session was closed"))
         http.close()
+        if (externalHttp.isInitialized()) externalHttp.value.close()
     }
 }

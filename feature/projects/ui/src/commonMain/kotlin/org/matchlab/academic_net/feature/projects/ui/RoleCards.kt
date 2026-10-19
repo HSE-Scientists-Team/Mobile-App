@@ -11,13 +11,13 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.CardIconButton
 import org.matchlab.academic_net.components.ChatIconButton
 import org.matchlab.academic_net.components.RoleCardTitle
@@ -34,7 +34,7 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 data class RoleCardUiModel(
     val role: String,
     val memberName: String,
-    val memberAvatar: DrawableResource,
+    val memberAvatar: AvatarSource,
     /** Kick and chat actions, shown to the project initiator. */
     val canManage: Boolean = false,
 )

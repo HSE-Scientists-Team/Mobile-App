@@ -18,10 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.ChatIconButton
 import org.matchlab.academic_net.components.RatingStars
 import org.matchlab.academic_net.components.interaction.onceClickable
@@ -44,7 +44,7 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 data class ReviewCardUiModel(
     val authorName: String,
     val authorLine: String,
-    val authorAvatar: DrawableResource,
+    val authorAvatar: AvatarSource,
     val title: String,
     val rating: Int,
     val date: String?,

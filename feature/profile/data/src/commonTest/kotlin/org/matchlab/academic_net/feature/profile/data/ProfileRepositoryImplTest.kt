@@ -25,6 +25,7 @@ import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
 import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
 import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.VerificationResultId
 import org.matchlab.academic_net.feature.profile.domain.VerificationSubject
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
@@ -89,6 +90,13 @@ class ProfileRepositoryImplTest {
         override suspend fun getMyProfile(): ProfileRecord? {
             calls += "getMyProfile"
             return onGetMyProfile()
+        }
+
+        val avatars = mutableListOf<UploadFile>()
+
+        override suspend fun changeAvatar(photo: UploadFile) {
+            calls += "changeAvatar"
+            avatars += photo
         }
 
         override suspend fun updateMyProfile(draft: ProfileDraft): ProfileRecord {

@@ -1,9 +1,14 @@
 package org.matchlab.academic_net.feature.profile.ui.my
 
+import kotlin.test.assertIs
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Study
+import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraftError
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
+import org.matchlab.academic_net.feature.profile.domain.usecase.ChangeAvatarUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.feature.profile.ui.FakeMyProfileRepository
@@ -35,7 +40,11 @@ class EditProfileViewModelTest {
 
     private val repository = FakeMyProfileRepository()
 
-    private fun viewModel() = EditProfileViewModel(ObserveMyProfileUseCase(repository), UpdateProfileUseCase(repository))
+    private fun viewModel() = EditProfileViewModel(
+        ObserveMyProfileUseCase(repository),
+        UpdateProfileUseCase(repository),
+        ChangeAvatarUseCase(repository),
+    )
 
     // ---- starting ----
 
@@ -468,5 +477,74 @@ class EditProfileViewModelTest {
             assertEquals(listOf("Kotlin", "Rust"), draft.skills)
             assertEquals(emptySet(), errors)
         }
+    }
+
+    // ---- the photo ----
+
+    private val photo = UploadFile(byteArrayOf(1, 2), "image/jpeg", "avatar.jpg")
+
+    @Test
+    fun theAvatarKnowsWhoseItIsAndAnAccountWithAProfileCanChangeIt() {
+        repository.profile.value = myProfile(person = person(name = "Арджун"))
+
+        val avatar = viewModel().uiState.value.avatar
+
+        assertTrue(avatar.canChange)
+        assertEquals(repository.profile.value.profile.person.user.id.value, avatar.userKey)
+        assertFalse(avatar.isUploading)
+        assertNull(avatar.failure)
+    }
+
+    @Test
+    fun anAccountWithoutANameCannotChangeTheAvatarYet() {
+        repository.profile.value = myProfile(person = person(name = ""))
+        val viewModel = viewModel()
+
+        assertFalse(viewModel.uiState.value.avatar.canChange)
+        viewModel.onAvatarChosen(photo)
+
+        assertTrue(repository.changedAvatars.isEmpty())
+    }
+
+    @Test
+    fun aChosenPhotoIsUploadedOnceAndTheControlIsFreeAgainAfterIt() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        repository.onChangeAvatar = { gate.await() }
+        val viewModel = viewModel()
+
+        viewModel.onAvatarChosen(photo)
+        viewModel.onAvatarChosen(photo)
+        assertTrue(viewModel.uiState.value.avatar.isUploading)
+        gate.complete(Unit)
+
+        assertEquals(1, repository.changedAvatars.size, "a second choice while one is on its way does nothing")
+        assertFalse(viewModel.uiState.value.avatar.isUploading)
+        assertNull(viewModel.uiState.value.avatar.failure)
+    }
+
+    @Test
+    fun aFailedChangeShowsItsCauseAndTheNextTryClearsIt() {
+        repository.onChangeAvatar = { throw RemoteFailure.NoConnection() }
+        val viewModel = viewModel()
+
+        viewModel.onAvatarChosen(photo)
+
+        assertIs<RemoteFailure.NoConnection>(viewModel.uiState.value.avatar.failure)
+        assertFalse(viewModel.uiState.value.avatar.isUploading)
+
+        repository.onChangeAvatar = {}
+        viewModel.onAvatarChosen(photo)
+
+        assertNull(viewModel.uiState.value.avatar.failure)
+    }
+
+    @Test
+    fun aPhotoThatCouldNotBeReadIsAFailureToo() {
+        val viewModel = viewModel()
+
+        viewModel.onAvatarUnreadable(IllegalStateException("not an image"))
+
+        assertIs<IllegalStateException>(viewModel.uiState.value.avatar.failure)
+        assertTrue(repository.changedAvatars.isEmpty())
     }
 }

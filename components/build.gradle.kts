@@ -42,6 +42,8 @@ kotlin {
             // type must be visible to every module that calls it. :utils is plain Kotlin and depends on
             // no feature or UI module, so the layering stays acyclic.
             api(project(":utils"))
+            // The pictures of people (Avatar) are loaded by Coil; the type of its loader is in AvatarImages.
+            api(libs.coil.compose)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

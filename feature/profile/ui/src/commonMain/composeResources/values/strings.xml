@@ -164,4 +164,7 @@
     <string name="profile_error_proof_missing">Add a link to the proof</string>
     <string name="profile_open_to_collaboration">Open to collaboration</string>
     <string name="profile_invite">Invite to a project</string>
+    <!-- The photo of the profile on the edit screen. 1: why it failed -->
+    <string name="profile_avatar_change">Change photo</string>
+    <string name="profile_avatar_error">Couldn't change the photo. %1$s</string>
 </resources>

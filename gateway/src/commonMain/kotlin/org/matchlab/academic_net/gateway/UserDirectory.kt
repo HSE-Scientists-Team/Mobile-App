@@ -6,6 +6,9 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -61,6 +64,15 @@ class UserDirectory(
      */
     private class Flight(val outcome: Deferred<Result<UserProfileDto?>>)
 
+    private val invalidations = MutableSharedFlow<String>(extraBufferCapacity = 64)
+
+    /**
+     * The ids of the people [invalidate] forgot, as they happen: whoever keeps something made from a profile (the picture
+     * of a person) drops it when its id comes. A collector that is slow loses the oldest ids, so it should also drop
+     * everything now and then.
+     */
+    val invalidated: SharedFlow<String> = invalidations.asSharedFlow()
+
     // All the state below is touched only under [lock]; a request runs outside it.
     private val lock = Mutex()
     private val answers = mutableMapOf<String, Answer>()
@@ -104,6 +116,7 @@ class UserDirectory(
             flights.remove(userId)
             versions[userId] = (versions[userId] ?: 0) + 1
         }
+        invalidations.tryEmit(userId)
     }
 
     /** Starts the request for [userId]; the caller holds [lock] and registers the flight. */

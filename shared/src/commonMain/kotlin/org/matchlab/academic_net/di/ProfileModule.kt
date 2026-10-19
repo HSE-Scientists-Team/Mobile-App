@@ -8,6 +8,7 @@ import org.matchlab.academic_net.feature.profile.domain.MyProfileRepository
 import org.matchlab.academic_net.feature.profile.domain.ProfileRepository
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddWorkUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.ChangeAvatarUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.DeletePortfolioItemUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyWorkUseCase
@@ -57,6 +58,7 @@ internal interface ProfileModule {
         observeMyProfile = ObserveMyProfileUseCase(mine),
         refreshMyProfile = RefreshMyProfileUseCase(mine),
         updateProfile = UpdateProfileUseCase(mine),
+        changeAvatar = ChangeAvatarUseCase(mine),
         addWork = AddWorkUseCase(mine),
         addDocument = AddDocumentUseCase(mine),
         getMyWork = GetMyWorkUseCase(mine),

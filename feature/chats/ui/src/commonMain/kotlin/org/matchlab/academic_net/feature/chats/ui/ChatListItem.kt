@@ -14,9 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.DrawableResource
 import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.interaction.onceClickable
 import org.matchlab.academic_net.components.person.nameOrPlaceholder
 
@@ -25,7 +25,7 @@ data class ChatListItemUiModel(
     val name: String,
     val lastMessage: String,
     val time: String,
-    val avatar: DrawableResource,
+    val avatar: AvatarSource,
     val unreadCount: Int = 0,
 )
 

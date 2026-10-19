@@ -35,6 +35,7 @@ import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.domain.ReviewsPage
 import org.matchlab.academic_net.feature.profile.domain.ReviewsSummary
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.UserProfile
 import org.matchlab.academic_net.feature.profile.domain.UserReviews
 import org.matchlab.academic_net.feature.profile.domain.UserWorks
@@ -47,6 +48,7 @@ import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.AddWorkUseCase
+import org.matchlab.academic_net.feature.profile.domain.usecase.ChangeAvatarUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.DeletePortfolioItemUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyDocumentUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.GetMyWorkUseCase
@@ -190,6 +192,7 @@ class FakeMyProfileRepository : MyProfileRepository {
     /** When set, observing fails with it, as a first load that failed does. */
     var observeFailure: Throwable? = null
     var onRefresh: suspend () -> Unit = {}
+    var onChangeAvatar: suspend (UploadFile) -> Unit = {}
     var onUpdateProfile: suspend (ProfileDraft) -> MyProfile = { profile.value }
     var onCreateWork: suspend (WorkDraft) -> PortfolioChange<PortfolioWork> =
         { PortfolioChange.Saved(work(title = it.title), sent = it.sendsForVerification) }
@@ -224,6 +227,14 @@ class FakeMyProfileRepository : MyProfileRepository {
     override suspend fun refreshMyProfile() {
         calls += "refresh"
         onRefresh()
+    }
+
+    val changedAvatars = mutableListOf<UploadFile>()
+
+    override suspend fun changeAvatar(photo: UploadFile) {
+        calls += "changeAvatar"
+        changedAvatars += photo
+        onChangeAvatar(photo)
     }
 
     override suspend fun updateProfile(draft: ProfileDraft): MyProfile {
@@ -346,6 +357,7 @@ fun profileUiDependencies(
     observeMyProfile = ObserveMyProfileUseCase(mine),
     refreshMyProfile = RefreshMyProfileUseCase(mine),
     updateProfile = UpdateProfileUseCase(mine),
+    changeAvatar = ChangeAvatarUseCase(mine),
     addWork = AddWorkUseCase(mine),
     addDocument = AddDocumentUseCase(mine),
     getMyWork = GetMyWorkUseCase(mine),

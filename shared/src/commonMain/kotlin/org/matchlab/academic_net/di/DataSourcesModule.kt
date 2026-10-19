@@ -89,7 +89,7 @@ internal interface DataSourcesModule {
     @Provides
     @SessionScope
     fun profileDataSource(gateway: GatewaySession): ProfileDataSource =
-        GatewayProfileDataSource(gateway.profiles, gateway.achievements, gateway.reviews, gateway.users)
+        GatewayProfileDataSource(gateway.profiles, gateway.achievements, gateway.reviews, gateway.users, gateway.media)
 
     /**
      * The page of a project (04): type, sphere, status and months are read from the app's codes (`docs/api-values.md`);

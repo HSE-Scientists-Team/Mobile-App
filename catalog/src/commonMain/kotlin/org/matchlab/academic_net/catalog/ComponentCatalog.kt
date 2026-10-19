@@ -54,6 +54,7 @@ import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.components.ActionListItem
 import org.matchlab.academic_net.components.AppAvatars
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.AppBadgeDot
 import org.matchlab.academic_net.components.AppButton
@@ -202,8 +203,8 @@ fun ComponentCatalog() {
 }
 
 private val NoInsets = WindowInsets(0)
-private val Elena = AppAvatars.Elena
-private val Arjun = AppAvatars.Arjun
+private val Elena = AvatarSource("catalog-elena", AppAvatars.Elena)
+private val Arjun = AvatarSource("catalog-arjun", AppAvatars.Arjun)
 
 private val Initiator = PersonCardUiModel(
     name = "Проф. Елена Васкес",

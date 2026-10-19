@@ -1,8 +1,13 @@
 package org.matchlab.academic_net.feature.profile.data
 
 import org.matchlab.academic_net.gateway.AchievementsApi
+import org.matchlab.academic_net.gateway.MediaApi
 import org.matchlab.academic_net.gateway.ProfilesApi
 import org.matchlab.academic_net.gateway.ReviewsApi
+import org.matchlab.academic_net.gateway.dto.CreateMediaUploadDto
+import org.matchlab.academic_net.gateway.dto.MediaDownloadDto
+import org.matchlab.academic_net.gateway.dto.MediaFileDto
+import org.matchlab.academic_net.gateway.dto.MediaUploadDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementListDto
@@ -212,5 +217,46 @@ internal class FakeReviewsApi : ReviewsApi {
     override suspend fun userReviews(userId: String, limit: Int, offset: Int): UserReviewListDto {
         calls += Triple(userId, limit, offset)
         return onUserReviews(userId, limit, offset)
+    }
+}
+
+/** [MediaApi] in memory: the files it was asked to make, the bytes sent to them and the files deleted. */
+internal class FakeMediaApi : MediaApi {
+    val calls = mutableListOf<String>()
+    val created = mutableListOf<CreateMediaUploadDto>()
+    val sent = mutableListOf<ByteArray>()
+    val deleted = mutableListOf<String>()
+    var failCreate: Throwable? = null
+    var failPut: Throwable? = null
+    var failDelete: Throwable? = null
+    private var counter = 0
+
+    override suspend fun createUpload(input: CreateMediaUploadDto): MediaUploadDto {
+        calls += "create"
+        failCreate?.let { throw it }
+        created += input
+        val file = MediaFileDto(id = "file-${++counter}", originalName = input.originalName, contentType = input.contentType, status = "pending", isPublic = input.isPublic)
+        return MediaUploadDto(file = file, uploadUrl = "https://storage.example/${file.id}")
+    }
+
+    override suspend fun putContent(upload: MediaUploadDto, bytes: ByteArray) {
+        calls += "put ${upload.file.id}"
+        failPut?.let { throw it }
+        sent += bytes
+    }
+
+    override suspend fun complete(fileId: String): MediaFileDto {
+        calls += "complete $fileId"
+        return MediaFileDto(id = fileId, status = "ready")
+    }
+
+    override suspend fun downloadUrl(fileId: String): MediaDownloadDto = error("downloadUrl was not expected")
+
+    override suspend fun fetch(url: String): ByteArray = error("fetch was not expected")
+
+    override suspend fun delete(fileId: String) {
+        calls += "delete $fileId"
+        failDelete?.let { throw it }
+        deleted += fileId
     }
 }

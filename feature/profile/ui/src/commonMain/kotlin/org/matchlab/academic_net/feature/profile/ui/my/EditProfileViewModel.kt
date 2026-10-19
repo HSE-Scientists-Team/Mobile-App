@@ -16,7 +16,9 @@ import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraftError
+import org.matchlab.academic_net.feature.profile.domain.UploadFile
 import org.matchlab.academic_net.feature.profile.domain.toDraft
+import org.matchlab.academic_net.feature.profile.domain.usecase.ChangeAvatarUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.utils.withTag
@@ -45,6 +47,23 @@ data class EditProfileUiState(
     val isSaving: Boolean = false,
     val saveFailed: Boolean = false,
     val isSaved: Boolean = false,
+    val avatar: AvatarState = AvatarState(),
+)
+
+/**
+ * The photo of the profile on "10b".
+ *
+ * @property userKey the viewer, whose picture it is; `null` while the profile is loading
+ * @property canChange the account has a profile (a name): only then the photo can be changed, and the control is shown
+ * @property isUploading the photo is being uploaded and saved; the control waits
+ * @property failure why the last change failed; `null` if it did not (it is cleared by the next try)
+ */
+@Immutable
+data class AvatarState(
+    val userKey: String? = null,
+    val canChange: Boolean = false,
+    val isUploading: Boolean = false,
+    val failure: Throwable? = null,
 )
 
 /**
@@ -63,6 +82,7 @@ data class EditProfileUiState(
 class EditProfileViewModel(
     private val observeMyProfile: ObserveMyProfileUseCase,
     private val updateProfile: UpdateProfileUseCase,
+    private val changeAvatar: ChangeAvatarUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow(EditProfileUiState())
 
@@ -108,6 +128,27 @@ class EditProfileViewModel(
 
     fun onRemoveSkill(tag: String) = editDraft { it.copy(skills = it.skills.withoutTag(tag)) }
 
+    /**
+     * A photo was chosen: it is uploaded and becomes the avatar at once (not with "Сохранить": the photo is not a field
+     * of the form). One change at a time; a failure is shown under the photo and the old picture stays.
+     */
+    fun onAvatarChosen(photo: UploadFile) {
+        val current = state.value.avatar
+        if (!current.canChange || current.isUploading) return
+        state.update { it.copy(avatar = it.avatar.copy(isUploading = true, failure = null)) }
+        viewModelScope.launch {
+            changeAvatar(photo).fold(
+                onSuccess = { state.update { it.copy(avatar = it.avatar.copy(isUploading = false)) } },
+                onFailure = { cause -> state.update { it.copy(avatar = it.avatar.copy(isUploading = false, failure = cause)) } },
+            )
+        }
+    }
+
+    /** The photo could not be read or prepared: the same message as a failed upload. */
+    fun onAvatarUnreadable(cause: Throwable) {
+        state.update { it.copy(avatar = it.avatar.copy(failure = cause)) }
+    }
+
     fun onSaveClick() {
         val current = state.value
         // Nothing to save while the profile is not there, while a save is running, and once the
@@ -148,6 +189,10 @@ class EditProfileViewModel(
                             draft = if (draftTaken) current.draft else profile.toDraft(),
                             documents = profile.profile.documents,
                             works = profile.allWorks,
+                            avatar = current.avatar.copy(
+                                userKey = profile.profile.person.user.id.value,
+                                canChange = !profile.needsName,
+                            ),
                         )
                     }
                     draftTaken = true
