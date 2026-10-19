@@ -1,5 +1,11 @@
 # Значения, которые задаёт клиент (текст)
 
+> **Обновление 2026-10-20.** Бэкенд описал значения в OpenAPI (matchlab-backend PR #16, `scripts/api/string-enums.json`, ещё не влит на момент
+> сверки). Источник правды для статусов, типов, действий и сроков — он, а не таблицы ниже, где они расходятся: статусы проекта `active` и
+> `completed` (были `started`, `finished`), статусы отклика `rejected` и `cancelled` (были `declined`, `withdrawn`), действие `unpublish` (было
+> `pause`), сроки `up_to_3m`, `3_to_6m`, `over_6m`. Статусы достижений: `unverified`, `pending_review`, `verified`, `needs_evidence`; статус
+> участника: `active`, `left`, `removed`; фильтр `mine`: `owner`, `participant`. Таблицы раздела 2 приведены в соответствие; раздел 6 устарел.
+
 Статус на 2026-10-19. Решение пользователя: в Gateway API **нет перечислений**; поля, у которых в `docs/openapi.yaml` стоит просто
 `type: string`, задаём мы, по дизайну. Первое решение было «числом», позднее изменено: **«Field и Type у проектов надо передавать текстом. То же
 самое касается всех остальных enum значений»**. На сервер уходит и с сервера читается стабильный текст (не зависит от языка интерфейса). Всё, чего не
@@ -22,12 +28,12 @@
 | Значение | Где в API | Текст (по дизайну) | Где в коде |
 |---|---|---|---|
 | Тип проекта | `Project.type` (в `ProjectCreate` обязателен), параметр `type` поиска; `project_types` профиля (массив); параметр `project_type` поиска людей | `scientific` «Научный», `practical` «Проектный» | `ProjectType.code`, `fromCode()` в `:common` |
-| Статус проекта (только чтение) | `Project.status` | `recruiting` «Набор открыт», `unpublished` «Снят с публикации», `started` «В работе», `finished` «Завершён», `cancelled` «Отменён». Другие значения сервера — `null` | `ProjectStatus.code`, `fromCode()` в `:common` |
-| Срок проекта (фильтр) | параметр `duration` поиска | `up_to_3_months` «до 3 мес», `from_3_to_6_months` «3–6 мес», `over_6_months` «6+ мес» | `ProjectDuration.code` в `:feature:projectsearch:domain` |
+| Статус проекта (только чтение) | `Project.status` | `recruiting` «Набор открыт», `unpublished` «Снят с публикации», `active` «В работе», `completed` «Завершён», `cancelled` «Отменён». Другие значения сервера — `null` | `ProjectStatus.code`, `fromCode()` в `:common` |
+| Срок проекта (фильтр) | параметр `duration` поиска | `up_to_3m` «до 3 мес» (не более 92 дней), `3_to_6m` «3–6 мес» (92–183 дня), `over_6m` «6+ мес» (больше 183 дней) | `ProjectDuration.code` в `:feature:projectsearch:domain` |
 | Сфера | `Project.field`, параметр `field` поиска | название сферы как есть: `Computer Science`, `Data Science`, `Инженерия`, `Математика`, `Физика`, `Химия`, `Биология`, `Медицина`, `Экономика`, `Социология`, `Лингвистика`, `Дизайн` | `Spheres` в `:common` (`Sphere.id` = название) |
-| Действие перехода | `ProjectTransitionRequest.action` | `publish`, `pause` (в приложении «Снять с публикации»), `start`, `complete`, `cancel` (порядок из `summary` метода: «опубликовать, приостановить набор, начать, завершить или отменить») | `ProjectActions` в `:gateway` (`contract`, `@UnverifiedContract`) |
+| Действие перехода | `ProjectTransitionRequest.action` | `publish` (unpublished → recruiting), `unpublish` (recruiting → unpublished, «Снять с публикации»), `start` (recruiting → active), `complete` (active → completed), `cancel` (recruiting, unpublished, active → cancelled); недопустимый переход — 409 | `ProjectActions` в `:gateway` (`contract`) |
 | Тип отклика | `ProjectJoinRequest.type` (чтение) | `application` «отклик», `invitation` «приглашение» | `ProjectJoinType` в `:common` |
-| Статус отклика | `ProjectJoinRequest.status` (чтение) | `pending` «ожидает», `accepted` «принят», `declined` «отклонён», `withdrawn` «отозван» | `ProjectJoinStatus` в `:common` |
+| Статус отклика | `ProjectJoinRequest.status` (чтение) | `pending` «ожидает», `accepted` «принят», `rejected` «отклонён», `cancelled` «отменён» (инициатором или сервером после смены проекта, роли или принятия другого отклика) | `ProjectJoinStatus` в `:common` |
 | Причина жалобы на пользователя | `CreateComplaint.subject` | `spam`, `insults`, `portfolio_fraud`, `fake_account`, `scam`, `other` | `UserComplaintReason` в `:feature:complaints:domain` |
 | Причина жалобы на проект | `CreateComplaint.subject` | `spam`, `false_information`, `scam`, `other` | `ProjectComplaintReason` |
 | Уровень обучения | `study_level` | остаётся **свободным текстом** | — |
@@ -42,12 +48,12 @@
 |---|---|---|---|
 | `ProjectsCapabilities.canCreate` | `false` (G40, G43) | `true` | `POST /projects`: `title`, `type`, `field`, `problem`, `goal`, `tags`, `planned_start`, `planned_end`, `roles` (каждая роль: `title`, `skills`, `slots = 1`) |
 | `ProjectsCapabilities.canListMine` | `false` (G44) | `true` | «Я инициатор»: `GET /projects` (каталог и мои проекты) страницами по 100 до 10 страниц, без `mine` и `profile_user_id`; остаются проекты с `owner_user_id` = пользователь сессии; порядок сервера |
-| `ProjectsCapabilities.canUnpublish` | `false` (G42) | `true` | `POST /projects/{id}/transitions` с `action = "pause"` и `expected_revision` из кэша |
+| `ProjectsCapabilities.canUnpublish` | `false` (G42) | `true` | `POST /projects/{id}/transitions` с `action = "unpublish"` и `expected_revision` из кэша |
 | `ProjectSearchCapabilities.typeFilter` | `false` (G40) | `true` | параметр `type` поиска |
 | `ProjectSearchCapabilities.durationFilter` | `false` (G45) | `true` | параметр `duration` поиска |
 | `CollaboratorsCapabilities.projectTypeFilter` | `false` (G11) | `true` | параметр `project_type` поиска людей |
 | `ProfileCapabilities.interestTypes` | `false` (G11) | `true` | `project_types` профиля: читаем и пишем текст значений |
-| `ProfileCapabilities.verificationStatuses` | `false` (G12) | **остаётся `false`** | статус работ и документов пишет сервер, его значений мы не знаем, задать их с нашей стороны нельзя |
+| `ProfileCapabilities.verificationStatuses` | `false` (G12) | `true` (с 2026-10-20) | статус работ и документов: `unverified` → «Не подтверждено», `pending_review` → «На проверке», `verified` → «Подтверждено», `needs_evidence` → «Нужны подтверждения» (`AchievementStatuses` в `:gateway`) |
 
 **Фильтры с несколькими чипами.** Параметры `type`, `duration`, `project_type` в API — одна строка. Отправляем значение, только когда выбран **ровно один**
 чип; ноль или несколько — параметр не отправляется (два типа из двух — это и есть «любой»). Для `duration` выбор двух из трёх так не выразить:
