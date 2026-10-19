@@ -17,14 +17,11 @@ import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.co
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_field_keywords_hint
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_field_university
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_field_university_hint
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filter_open
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filter_practical
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filter_publications
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filter_scientific
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filter_verified
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filter_verified_projects
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filters_title
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_group_status
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_group_work_type
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_group_works
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_reset
@@ -37,8 +34,9 @@ import org.matchlab.academic_net.utils.withoutTag
 /**
  * "08b Фильтры коллабораторов": the draft of the filters, "Сбросить" in the header and "Показать N" below.
  *
- * "Открыт к сотрудничеству" is sent as `open_only=true`. "Верифицированный профиль" and "Есть верифицированные проекты" are filters of the search (the server looks at its own
- * data); the people in the results carry no verification mark.
+ * There is no group "Статус" ("Открыт к сотрудничеству", "Верифицированный профиль"): the design of the app dropped it
+ * (2026-10-20). "Есть верифицированные проекты" is a filter of the search (the server looks at its own data); the people
+ * in the results carry no verification mark.
  *
  * @param showWorkTypes whether the group "Тип работы" is offered (only if the source can filter by the type of a
  * person's works, see `CollaboratorsCapabilities.projectTypeFilter` and `docs/api-values.md`); when it is not, the
@@ -64,14 +62,6 @@ internal fun CollaboratorFiltersSheet(
         onPrimary = onApply,
         modifier = modifier,
     ) {
-        FilterChipGroup(stringResource(Res.string.collaborators_group_status)) {
-            ToggleChip(Res.string.collaborators_filter_open, draft.openOnly) {
-                onDraftChange(draft.copy(openOnly = it))
-            }
-            ToggleChip(Res.string.collaborators_filter_verified, draft.verifiedProfile) {
-                onDraftChange(draft.copy(verifiedProfile = it))
-            }
-        }
         FilterChipGroup(stringResource(Res.string.collaborators_group_works)) {
             ToggleChip(Res.string.collaborators_filter_verified_projects, draft.hasVerifiedProjects) {
                 onDraftChange(draft.copy(hasVerifiedProjects = it))

@@ -95,7 +95,9 @@ internal fun MyProjectsScreen(
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(InitiatorTab) }
-    // The projects of "Я участник" are read each time the tab is chosen, also after the screen is restored on it.
+    // The projects of "Я участник" are read as soon as the screen opens, so the tab has its number before it is chosen,
+    // and again each time the tab is chosen. A read that is running is not doubled.
+    LaunchedEffect(Unit) { onParticipantTabShown() }
     LaunchedEffect(selectedTab) { if (selectedTab != InitiatorTab) onParticipantTabShown() }
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -113,6 +115,11 @@ internal fun MyProjectsScreen(
                     ),
                     selectedIndex = selectedTab,
                     onTabSelected = { selectedTab = it },
+                    // A number only for a list that has been read: not while it loads, fails or cannot be listed.
+                    counts = listOf(
+                        state.projects.size.takeIf { !state.isListUnavailable && !state.isLoading && !state.hasError },
+                        (state.participating as? ParticipatingState.Loaded)?.projects?.size,
+                    ),
                 )
             }
             when {

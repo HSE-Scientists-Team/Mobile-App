@@ -16,9 +16,6 @@
 
     <!-- Filters sheet -->
     <string name="collaborators_filters_title">Фильтры коллабораторов</string>
-    <string name="collaborators_group_status">Статус</string>
-    <string name="collaborators_filter_open">Открыт к сотрудничеству</string>
-    <string name="collaborators_filter_verified">Верифицированный профиль</string>
     <string name="collaborators_group_works">Подтверждённые работы</string>
     <string name="collaborators_filter_verified_projects">Есть верифицированные проекты</string>
     <string name="collaborators_filter_publications">Есть публикации</string>
