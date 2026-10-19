@@ -21,7 +21,7 @@ class ComplaintsApiTest {
     fun aComplaintAboutAPersonIsAPostInSnakeCaseWithOneTargetAndNoFiles() = runTest {
         val server = server()
 
-        server.session.complaints.create(CreateComplaintDto(subject = "3", description = "Подделал диплом", targetUserId = "u/1"))
+        server.session.complaints.create(CreateComplaintDto(subject = "portfolio_fraud", description = "Подделал диплом", targetUserId = "u/1"))
 
         val request = server.requests.single()
         assertEquals(HttpMethod.Post, request.method)
@@ -29,7 +29,7 @@ class ComplaintsApiTest {
         assertEquals(listOf("Bearer ${ProjectSessionFixture.Token}"), request.authorizations)
         assertEquals(ContentType.Application.Json, request.body.contentType?.withoutParameters())
         val body = request.bodyObject()
-        assertEquals("3", body.getValue("subject").jsonPrimitive.content)
+        assertEquals("portfolio_fraud", body.getValue("subject").jsonPrimitive.content)
         assertEquals("Подделал диплом", body.getValue("description").jsonPrimitive.content)
         assertEquals("u/1", body.getValue("target_user_id").jsonPrimitive.content)
         assertFalse("target_project_id" in body.keys, "the other target is not sent")
@@ -40,12 +40,12 @@ class ComplaintsApiTest {
     fun aComplaintAboutAProjectSendsTheProjectTargetOnly() = runTest {
         val server = server()
 
-        server.session.complaints.create(CreateComplaintDto(subject = "2", description = "Ложь", targetProjectId = "p-1"))
+        server.session.complaints.create(CreateComplaintDto(subject = "false_information", description = "Ложь", targetProjectId = "p-1"))
 
         val body = server.requests.single().bodyObject()
         assertEquals("p-1", body.getValue("target_project_id").jsonPrimitive.content)
         assertFalse("target_user_id" in body.keys)
-        assertEquals("2", body.getValue("subject").jsonPrimitive.content)
+        assertEquals("false_information", body.getValue("subject").jsonPrimitive.content)
     }
 
     @Test

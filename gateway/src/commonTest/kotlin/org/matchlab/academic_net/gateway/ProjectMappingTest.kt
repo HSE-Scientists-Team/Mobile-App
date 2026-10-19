@@ -31,8 +31,8 @@ class ProjectMappingTest {
     private fun dto(
         id: String = "p-1",
         owner: String = "owner-1",
-        details: ProjectInputDto = ProjectInputDto(title = "AI-навигация", field = "1"),
-        status: String = "1",
+        details: ProjectInputDto = ProjectInputDto(title = "AI-навигация", field = "Computer Science"),
+        status: String = "recruiting",
         roles: List<ProjectRoleDto> = emptyList(),
     ) = ProjectDto(id = id, ownerUserId = owner, details = details, status = status, revision = 3, roles = roles)
 
@@ -73,7 +73,7 @@ class ProjectMappingTest {
                 id = "p-9",
                 details = ProjectInputDto(
                     title = "  AI-навигация ",
-                    field = " 1\t",
+                    field = " Computer Science\t",
                     problem = "\nGPS не работает ",
                     goal = " Маршруты ",
                 ),
@@ -88,15 +88,15 @@ class ProjectMappingTest {
     }
 
     @Test
-    fun theSphereIsTheOneWhoseCodeTheFieldHolds() {
+    fun theSphereIsTheOneWhoseNameTheFieldHolds() {
         for (sphere in Spheres.all) {
             assertEquals(sphere, project(dto(details = ProjectInputDto(field = sphere.id))).sphere)
         }
     }
 
     @Test
-    fun aFieldThatIsNoCodeOfASphereIsUnknownAndTheProjectStays() {
-        for (field in listOf("", "  ", "0", "13", "03", "Биология", "Computer Science")) {
+    fun aFieldThatIsNoNameOfASphereIsUnknownAndTheProjectStays() {
+        for (field in listOf("", "  ", "0", "1", "13", "биология", "Computer  Science", "Биология и химия")) {
             val project = project(dto(details = ProjectInputDto(title = "T", field = field)))
 
             assertNull(project.sphere, "field '$field'")
@@ -112,11 +112,11 @@ class ProjectMappingTest {
     }
 
     @Test
-    fun theTypeTheStatusAndThePeriodAreReadByTheirCodes() {
+    fun theTypeTheStatusAndThePeriodAreReadByTheirTexts() {
         val project = project(
             dto(
-                details = ProjectInputDto(title = "T", type = "1", plannedStart = "2026-10-01", plannedEnd = "2027-03-31"),
-                status = "1",
+                details = ProjectInputDto(title = "T", type = "scientific", plannedStart = "2026-10-01", plannedEnd = "2027-03-31"),
+                status = "recruiting",
             ),
         )
 
@@ -126,26 +126,26 @@ class ProjectMappingTest {
     }
 
     @Test
-    fun theOtherCodesAreReadToo() {
-        val project = project(dto(details = ProjectInputDto(type = " 2 "), status = "2 "))
+    fun theOtherTextsAreReadToo() {
+        val project = project(dto(details = ProjectInputDto(type = " practical "), status = "unpublished "))
 
         assertEquals(ProjectType.Practical, project.type)
         assertEquals(ProjectStatus.Unpublished, project.status)
     }
 
     @Test
-    fun valuesTheAppHasNoCodeForAreUnknownAndDoNotHideTheProject() {
+    fun valuesTheAppHasNoTextForAreUnknownAndDoNotHideTheProject() {
         val project = project(
             dto(
                 id = "p-7",
                 details = ProjectInputDto(
                     title = "T",
-                    type = "scientific",
+                    type = "1",
                     field = "99",
                     plannedStart = "soon",
                     plannedEnd = "later",
                 ),
-                status = "published",
+                status = "3",
             ),
         )
 
@@ -168,8 +168,8 @@ class ProjectMappingTest {
     }
 
     @Test
-    fun codesWithAZeroOrADecimalPointAreUnknown() {
-        val project = project(dto(details = ProjectInputDto(type = "01"), status = "1.0"))
+    fun oldNumericCodesAndWrongCaseAreUnknown() {
+        val project = project(dto(details = ProjectInputDto(type = "Scientific"), status = "RECRUITING"))
 
         assertNull(project.type)
         assertNull(project.status)

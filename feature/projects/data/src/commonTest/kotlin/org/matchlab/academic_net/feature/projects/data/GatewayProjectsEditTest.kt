@@ -67,20 +67,20 @@ class GatewayProjectsEditTest {
     @Test
     fun eachActionSendsItsCodeAndTheCachedRevision() = runTest {
         cached(revision = 4)
-        api.onTransition = { pid, input -> projectDto(pid, revision = input.expectedRevision + 1, status = "3") }
+        api.onTransition = { pid, input -> projectDto(pid, revision = input.expectedRevision + 1, status = "started") }
 
         source.changeLifecycle(id, ProjectLifecycleAction.Start)
         source.changeLifecycle(id, ProjectLifecycleAction.Complete)
         source.changeLifecycle(id, ProjectLifecycleAction.Cancel)
 
-        assertEquals(listOf("3", "4", "5"), api.transitions.map { it.second.action })
+        assertEquals(listOf("start", "complete", "cancel"), api.transitions.map { it.second.action })
         assertEquals(listOf(4, 5, 6), api.transitions.map { it.second.expectedRevision })
     }
 
     @Test
     fun theMovedProjectIsInTheCacheWithItsNewStatus() = runTest {
         cached()
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "4") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "finished") }
 
         val project = source.changeLifecycle(id, ProjectLifecycleAction.Complete)
 
@@ -102,7 +102,7 @@ class GatewayProjectsEditTest {
     fun aRefusedMoveIsReadAgainAndIsAConflictWithoutARetry() = runTest {
         cached()
         api.onTransition = { _, _ -> throw RemoteFailure.Http(409) }
-        api.onGet = { projectDto(it, revision = 9, status = "5", title = "Свежий") }
+        api.onGet = { projectDto(it, revision = 9, status = "cancelled", title = "Свежий") }
 
         assertFailsWith<ProjectConflictException> { source.changeLifecycle(id, ProjectLifecycleAction.Start) }
 
@@ -125,7 +125,7 @@ class GatewayProjectsEditTest {
     @Test
     fun aMoveOfAProjectNotInTheCacheReadsItFirstAndOfOneNotThereSendsNothing() = runTest {
         api.onGet = { projectDto(it, revision = 8) }
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 9, status = "3") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 9, status = "started") }
         source.changeLifecycle(id, ProjectLifecycleAction.Start)
         assertEquals(8, api.transitions.single().second.expectedRevision)
 
@@ -147,7 +147,7 @@ class GatewayProjectsEditTest {
         val (pid, body) = api.updates.single()
         assertEquals("p1", pid)
         assertEquals("Новое название", body.title)
-        assertEquals("2", body.type)
+        assertEquals("practical", body.type)
         assertEquals(Spheres.all[2].id, body.field)
         assertEquals("Новая проблема", body.problem)
         assertEquals("Новая цель", body.goal)
@@ -173,7 +173,7 @@ class GatewayProjectsEditTest {
     fun theNextWriteAfterAnUpdateBuildsOnItsRevision() = runTest {
         cached(revision = 4)
         api.onUpdate = { pid, _ -> projectDto(pid, revision = 5) }
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 6, status = "3") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 6, status = "started") }
 
         source.updateProject(id, info)
         source.changeLifecycle(id, ProjectLifecycleAction.Start)
@@ -505,7 +505,7 @@ class GatewayProjectsEditTest {
             gate.await()
             projectDto(pid, revision = 5)
         }
-        api.onTransition = { pid, input -> projectDto(pid, revision = input.expectedRevision + 1, status = "3") }
+        api.onTransition = { pid, input -> projectDto(pid, revision = input.expectedRevision + 1, status = "started") }
 
         val removal = async { source.removeMember(id, UserId("u1")) }
         val move = async { source.changeLifecycle(id, ProjectLifecycleAction.Start) }
@@ -526,9 +526,9 @@ class GatewayProjectsEditTest {
         val gate = CompletableDeferred<Unit>()
         api.onTransition = { pid, _ ->
             gate.await()
-            projectDto(pid, revision = 5, status = "3", roles = listOf(roleDto("r1")))
+            projectDto(pid, revision = 5, status = "started", roles = listOf(roleDto("r1")))
         }
-        api.onUpdateRole = { pid, _, _ -> projectDto(pid, revision = 6, status = "3", roles = listOf(roleDto("r1"))) }
+        api.onUpdateRole = { pid, _, _ -> projectDto(pid, revision = 6, status = "started", roles = listOf(roleDto("r1"))) }
 
         val move = async { source.changeLifecycle(id, ProjectLifecycleAction.Start) }
         val edit = async { source.updateRole(id, RoleId("r1"), RoleDraft("Новая")) }
@@ -696,7 +696,7 @@ class GatewayProjectsEditTest {
         team.onRead = teamOf("u1" to "Анна")
         source.loadProject(id)
         catalog.onList = { _, _ ->
-            ProjectListDto(listOf(withMembers(revision = 4, owner = TestViewer.value).copy(status = "2")), total = 1)
+            ProjectListDto(listOf(withMembers(revision = 4, owner = TestViewer.value).copy(status = "unpublished")), total = 1)
         }
 
         val mine = source.observeMyProjects().first()

@@ -7,9 +7,9 @@ import kotlin.test.assertEquals
 class ProjectDurationTest {
     @Test
     fun theCodesAreTheOnesOfTheContract() {
-        assertEquals("1", ProjectDuration.UpTo3Months.code)
-        assertEquals("2", ProjectDuration.From3To6Months.code)
-        assertEquals("3", ProjectDuration.Over6Months.code)
+        assertEquals("up_to_3_months", ProjectDuration.UpTo3Months.code)
+        assertEquals("from_3_to_6_months", ProjectDuration.From3To6Months.code)
+        assertEquals("over_6_months", ProjectDuration.Over6Months.code)
     }
 
     @Test

@@ -102,16 +102,16 @@ class GatewayProjectSearchDataSourceTest {
     }
 
     @Test
-    fun theSphereGoesAsItsCodeAndABlankCodeIsNotSent() = runTest {
+    fun theSphereGoesAsItsNameAndABlankIdIsNotSent() = runTest {
         source.search(ProjectQuery(filters = ProjectFilters(sphere = Spheres.all[0])), PageRequest.First)
         source.search(ProjectQuery(filters = ProjectFilters(sphere = Spheres.all[11])), PageRequest.First)
-        source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere(" 3 ", "Инженерия"))), PageRequest.First)
+        source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere(" Инженерия ", "Инженерия"))), PageRequest.First)
         source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere("  ", "Пустая"))), PageRequest.First)
         source.search(ProjectQuery(filters = ProjectFilters(sphere = null)), PageRequest.First)
 
-        assertEquals("1", api.searches[0].first.field)
-        assertEquals("12", api.searches[1].first.field)
-        assertEquals("3", api.searches[2].first.field)
+        assertEquals("Computer Science", api.searches[0].first.field)
+        assertEquals("Дизайн", api.searches[1].first.field)
+        assertEquals("Инженерия", api.searches[2].first.field)
         assertNull(api.searches[3].first.field)
         assertNull(api.searches[4].first.field)
     }
@@ -124,12 +124,12 @@ class GatewayProjectSearchDataSourceTest {
     }
 
     @Test
-    fun oneChosenTypeGoesAsItsCode() = runTest {
+    fun oneChosenTypeGoesAsItsText() = runTest {
         source.search(ProjectQuery(filters = ProjectFilters(types = setOf(ProjectType.Scientific))), PageRequest.First)
         source.search(ProjectQuery(filters = ProjectFilters(types = setOf(ProjectType.Practical))), PageRequest.First)
 
-        assertEquals("1", api.searches[0].first.type)
-        assertEquals("2", api.searches[1].first.type)
+        assertEquals("scientific", api.searches[0].first.type)
+        assertEquals("practical", api.searches[1].first.type)
     }
 
     @Test
@@ -142,12 +142,12 @@ class GatewayProjectSearchDataSourceTest {
     }
 
     @Test
-    fun oneChosenDurationGoesAsItsCode() = runTest {
+    fun oneChosenDurationGoesAsItsText() = runTest {
         for (duration in ProjectDuration.entries) {
             source.search(ProjectQuery(filters = ProjectFilters(durations = setOf(duration))), PageRequest.First)
         }
 
-        assertEquals(listOf("1", "2", "3"), api.searches.map { it.first.duration })
+        assertEquals(listOf("up_to_3_months", "from_3_to_6_months", "over_6_months"), api.searches.map { it.first.duration })
     }
 
     @Test
@@ -174,7 +174,7 @@ class GatewayProjectSearchDataSourceTest {
         source.search(ProjectQuery(text = "робот", filters = filters), PageRequest(20, 20))
 
         assertEquals(
-            ProjectSearchParams(q = "робот", type = "2", field = "5", duration = "2", tags = listOf("ROS")),
+            ProjectSearchParams(q = "робот", type = "practical", field = "Физика", duration = "from_3_to_6_months", tags = listOf("ROS")),
             api.searches.single().first,
         )
     }

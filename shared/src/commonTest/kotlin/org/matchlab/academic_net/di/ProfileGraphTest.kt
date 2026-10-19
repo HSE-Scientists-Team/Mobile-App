@@ -129,13 +129,13 @@ class ProfileGraphTest {
     }
 
     @Test
-    fun theProjectTypesOfTheProfileAreReadAndWrittenAsCodesAndTheUnknownEntriesStay() = runTest {
+    fun theProjectTypesOfTheProfileAreReadAndWrittenAsTextsAndTheUnknownEntriesStay() = runTest {
         var saved: String? = null
         val server = FakeServer().apply {
             onOther = { arrival ->
                 when (arrival.call) {
                     "GET /api/v1/users/me/profile" ->
-                        json("""{"user_id":"$me","details":${saved ?: """{"display_name":"Я","project_types":["1","from-another-client"]}"""}}""")
+                        json("""{"user_id":"$me","details":${saved ?: """{"display_name":"Я","project_types":["scientific","from-another-client"]}"""}}""")
                     "PUT /api/v1/users/me/profile" -> {
                         saved = arrival.body
                         json("""{"user_id":"$me","details":${arrival.body}}""")
@@ -151,7 +151,7 @@ class ProfileGraphTest {
         val mine = assertIs<SubmitResult.Success<MyProfile>>(result).value
         assertEquals(setOf(ProjectType.Practical), mine.profile.interests.projectTypes)
         val body = assertNotNull(saved)
-        assertTrue("\"project_types\":[\"from-another-client\",\"2\"]" in body, body)
+        assertTrue("\"project_types\":[\"from-another-client\",\"practical\"]" in body, body)
         assertTrue(dependencies.profile.capabilities.interestTypes)
         assertFalse(dependencies.profile.capabilities.verificationStatuses)
     }

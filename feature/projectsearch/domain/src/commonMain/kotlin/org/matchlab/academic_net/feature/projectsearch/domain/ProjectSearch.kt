@@ -14,13 +14,13 @@ import org.matchlab.academic_net.common.model.Sphere
  * [ProjectSearchCapabilities.durationFilter]. The parameter holds one value, so a code is sent only when exactly one
  * chip is chosen.
  *
- * @property code the string of digits sent as `duration`: the one place where the table of codes lives; a code is never
- *  reused or renumbered.
+ * @property code the text sent to the server as `duration`: the one place where the table of values lives; a value is
+ *  never reused or renamed.
  */
 enum class ProjectDuration(val code: String) {
-    UpTo3Months("1"),
-    From3To6Months("2"),
-    Over6Months("3"),
+    UpTo3Months("up_to_3_months"),
+    From3To6Months("from_3_to_6_months"),
+    Over6Months("over_6_months"),
 }
 
 /**
@@ -35,7 +35,7 @@ data class ProjectFilters(
      */
     val types: Set<ProjectType> = emptySet(),
     /**
-     * The sphere of the project; `null` means any. The server is sent [Sphere.id], the code of the sphere, as `field`
+     * The sphere of the project; `null` means any. The server is sent [Sphere.id], the name of the sphere, as `field`
      * (`docs/api-values.md`).
      */
     val sphere: Sphere? = null,

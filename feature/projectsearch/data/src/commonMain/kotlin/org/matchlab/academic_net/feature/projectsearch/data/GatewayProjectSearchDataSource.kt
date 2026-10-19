@@ -24,7 +24,7 @@ import org.matchlab.academic_net.gateway.mapping.pageOf
  * (API-GAP G53: the API does not describe what the search includes, its order, or the stability of `offset` between two
  * pages).
  *
- * What it sends: `q`, the sphere as its code in `field`, the keywords as `tag`, and the type and the duration as their
+ * What it sends: `q`, the sphere as its name in `field`, the keywords as `tag`, and the type and the duration as their
  * codes in `type` and `duration`, each only when exactly one chip of its group is chosen (the parameters hold one value:
  * none or several chips send nothing). The codes are the app's own (`docs/api-values.md`, [capabilities] has both filters
  * on). It never sends `status`, `mine` and `profile_user_id`.
@@ -48,7 +48,7 @@ class GatewayProjectSearchDataSource(
 
 /**
  * What the query asks for, as the parameters of the project search; a value that restricts nothing is left out.
- * API-GAP G53: `q` goes as typed (only the outer spaces are cut), commas and all. The sphere goes as its code in `field`,
+ * API-GAP G53: `q` goes as typed (only the outer spaces are cut), commas and all. The sphere goes as its name in `field`,
  * the keywords as `tag`. The type and the duration go as their codes only when exactly one is chosen: `type` and
  * `duration` hold one value, so two chips of a group (and none) send nothing, and the server answers for any value
  * (`docs/api-values.md`, §3).

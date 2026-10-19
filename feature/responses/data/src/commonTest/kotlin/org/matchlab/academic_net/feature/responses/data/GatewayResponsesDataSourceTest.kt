@@ -43,8 +43,8 @@ internal fun joinDto(
     project: String = "p1",
     role: String = "r1",
     candidate: String = "u1",
-    type: String = "1",
-    status: String = "1",
+    type: String = "application",
+    status: String = "pending",
     message: String = "",
     created: Long = 0,
 ) = ProjectJoinDto(
@@ -266,7 +266,7 @@ class GatewayResponsesDataSourceTest {
 
     @Test
     fun unknownCodesAreKeptAsUnknownNotDropped() = runTest {
-        api.onListMine = { _, _ -> listDto(2, joinDto("a", type = "9", status = "zzz"), joinDto("b", type = " 2 ", status = " 3 ")) }
+        api.onListMine = { _, _ -> listDto(3, joinDto("a", type = "9", status = "zzz"), joinDto("b", type = " invitation ", status = " declined "), joinDto("c", type = "1", status = "2")) }
 
         val joins = source().refreshMyJoins()
 
@@ -274,6 +274,8 @@ class GatewayResponsesDataSourceTest {
         assertNull(joins[0].status)
         assertEquals(ProjectJoinType.Invitation, joins[1].type)
         assertEquals(ProjectJoinStatus.Declined, joins[1].status)
+        assertNull(joins[2].type, "the old numeric codes are not read")
+        assertNull(joins[2].status)
     }
 
     @Test
@@ -374,7 +376,7 @@ class GatewayResponsesDataSourceTest {
         val source = source()
         api.onListMine = { _, _ -> listDto(2, joinDto("a"), joinDto("b")) }
         source.refreshMyJoins()
-        api.onApply = { _, _ -> joinDto("b", status = "1", message = "новый") }
+        api.onApply = { _, _ -> joinDto("b", status = "pending", message = "новый") }
 
         source.apply(project, RoleId("r1"), null)
 
@@ -458,7 +460,7 @@ class GatewayResponsesDataSourceTest {
 
     @Test
     fun aKnownStatusInTheAnswerIsKeptAsTheServerSaid() = runTest {
-        api.onDecide = { _, _ -> joinDto("j", status = "3") }
+        api.onDecide = { _, _ -> joinDto("j", status = "declined") }
 
         assertEquals(ProjectJoinStatus.Declined, source().decide(ProjectJoinId("j"), accept = true).status)
     }
@@ -471,7 +473,7 @@ class GatewayResponsesDataSourceTest {
         api.onListForProject = { _, _, _ -> listDto(2, joinDto("j"), joinDto("k", candidate = "u2")) }
         source.refreshMyJoins()
         source.refreshProjectResponses(project)
-        api.onDecide = { _, _ -> joinDto("j", status = "2") }
+        api.onDecide = { _, _ -> joinDto("j", status = "accepted") }
 
         source.decide(ProjectJoinId("j"), accept = true)
 
@@ -487,7 +489,7 @@ class GatewayResponsesDataSourceTest {
     @Test
     fun aDecisionBeforeAnyReadTouchesNoCache() = runTest {
         val source = source()
-        api.onDecide = { _, _ -> joinDto("j", status = "2") }
+        api.onDecide = { _, _ -> joinDto("j", status = "accepted") }
 
         source.decide(ProjectJoinId("j"), true)
 
@@ -500,7 +502,7 @@ class GatewayResponsesDataSourceTest {
         val source = source()
         api.onListMine = { _, _ -> listDto(1, joinDto("j")) }
         source.refreshMyJoins()
-        api.onWithdraw = { joinDto("j", status = "4") }
+        api.onWithdraw = { joinDto("j", status = "withdrawn") }
 
         source.withdraw(ProjectJoinId("j/1"))
 
@@ -515,7 +517,7 @@ class GatewayResponsesDataSourceTest {
         val source = source()
         api.onListForProject = { _, _, _ -> listDto(0) }
         source.refreshProjectResponses(project)
-        api.onInvite = { _, _ -> joinDto("inv", type = "2") }
+        api.onInvite = { _, _ -> joinDto("inv", type = "invitation") }
 
         val join = source.invite(project, RoleId("r7"), UserId("u9"), "Присоединяйся")
 
@@ -643,11 +645,11 @@ class GatewayResponsesDataSourceTest {
         val source = source()
         val gate = CompletableDeferred<Unit>()
         api.onListMine = { _, _ ->
-            val old = listDto(1, joinDto("j", status = "1"))
+            val old = listDto(1, joinDto("j", status = "pending"))
             gate.await()
             old
         }
-        api.onDecide = { _, _ -> joinDto("j", status = "3") }
+        api.onDecide = { _, _ -> joinDto("j", status = "declined") }
 
         val read = async { source.refreshMyJoins() }
         runCurrent()
@@ -671,7 +673,7 @@ class GatewayResponsesDataSourceTest {
             gate.await()
             joinDto("a")
         }
-        api.onWithdraw = { joinDto("b", status = "4") }
+        api.onWithdraw = { joinDto("b", status = "withdrawn") }
 
         val first = async { source.apply(project, RoleId("r1"), null) }
         runCurrent()
@@ -707,7 +709,7 @@ class GatewayResponsesDataSourceTest {
         val repository = ResponsesRepositoryImpl(source())
         api.onListMine = { _, _ -> listDto(1, joinDto("j")) }
         api.onListForProject = { _, _, _ -> listDto(1, joinDto("j", candidate = "")) }
-        api.onDecide = { _, _ -> joinDto("j", status = "2") }
+        api.onDecide = { _, _ -> joinDto("j", status = "accepted") }
 
         repository.refreshMyJoins()
         repository.refreshProjectResponses(project)

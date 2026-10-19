@@ -27,8 +27,8 @@ class ProjectEditApiTest {
 
     private fun update(tags: List<String> = listOf("ML")) = ProjectUpdateDto(
         title = "AI-навигация",
-        type = "1",
-        field = "3",
+        type = "scientific",
+        field = "Инженерия",
         problem = "GPS не работает",
         goal = "Маршруты",
         tags = tags,
@@ -75,9 +75,9 @@ class ProjectEditApiTest {
         )
         assertFalse("roles" in body)
         assertFalse("id" in body)
-        assertEquals("1", body.getValue("type").jsonPrimitive.content)
+        assertEquals("scientific", body.getValue("type").jsonPrimitive.content)
         assertTrue(body.getValue("type").jsonPrimitive.isString)
-        assertEquals("3", body.getValue("field").jsonPrimitive.content)
+        assertEquals("Инженерия", body.getValue("field").jsonPrimitive.content)
         assertEquals("2026-10-01", body.getValue("planned_start").jsonPrimitive.content)
         assertEquals("2027-03-31", body.getValue("planned_end").jsonPrimitive.content)
         assertEquals(7, body.getValue("expected_revision").jsonPrimitive.int)
@@ -283,10 +283,10 @@ class ProjectEditApiTest {
 
     @Test
     @OptIn(UnverifiedContract::class)
-    fun theLifecycleActionsAreTheCodesOfTheContract() {
-        assertEquals("3", ProjectActions.START)
-        assertEquals("4", ProjectActions.COMPLETE)
-        assertEquals("5", ProjectActions.CANCEL)
+    fun theLifecycleActionsAreTheTextsOfTheContract() {
+        assertEquals("start", ProjectActions.START)
+        assertEquals("complete", ProjectActions.COMPLETE)
+        assertEquals("cancel", ProjectActions.CANCEL)
         assertEquals(
             5,
             setOf(

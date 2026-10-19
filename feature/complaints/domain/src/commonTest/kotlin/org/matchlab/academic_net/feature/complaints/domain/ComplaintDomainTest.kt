@@ -22,11 +22,11 @@ private val ProjectTarget = ComplaintTarget.Project(ProjectId("p1"))
 
 class ComplaintReasonsTest {
     @Test
-    fun aPersonHasSixReasonsWithCodesOneToSixInTheOrderOfTheFrame() {
+    fun aPersonHasSixReasonsWithTextCodesInTheOrderOfTheFrame() {
         val reasons = complaintReasonsFor(UserTarget)
 
         assertEquals(UserComplaintReason.entries, reasons)
-        assertEquals(listOf("1", "2", "3", "4", "5", "6"), reasons.map { it.code })
+        assertEquals(listOf("spam", "insults", "portfolio_fraud", "fake_account", "scam", "other"), reasons.map { it.code })
         assertEquals(
             listOf("Spam", "Insults", "PortfolioFraud", "FakeAccount", "Scam", "Other"),
             UserComplaintReason.entries.map { it.name },
@@ -34,11 +34,11 @@ class ComplaintReasonsTest {
     }
 
     @Test
-    fun aProjectHasFourReasonsWithCodesOneToFour() {
+    fun aProjectHasFourReasonsWithTextCodes() {
         val reasons = complaintReasonsFor(ProjectTarget)
 
         assertEquals(ProjectComplaintReason.entries, reasons)
-        assertEquals(listOf("1", "2", "3", "4"), reasons.map { it.code })
+        assertEquals(listOf("spam", "false_information", "scam", "other"), reasons.map { it.code })
         assertEquals(
             listOf("Spam", "FalseInformation", "Scam", "Other"),
             ProjectComplaintReason.entries.map { it.name },

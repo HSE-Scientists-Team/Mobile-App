@@ -33,9 +33,9 @@ internal fun projectDto(
     revision: Int = 1,
     roles: List<ProjectRoleDto> = emptyList(),
     title: String = "Проект $id",
-    status: String = "1",
-    type: String = "1",
-    field: String = "7",
+    status: String = "recruiting",
+    type: String = "scientific",
+    field: String = "Биология",
     members: List<ProjectMemberDto> = emptyList(),
 ) = ProjectDto(
     id = id,

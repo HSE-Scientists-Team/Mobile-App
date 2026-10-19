@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 /** The six calls of applications and invitations (`ProjectJoinsApi`, block 0) over a mock engine. */
 class ProjectJoinsApiTest {
     private val joinJson =
-        """{"id":"j-1","project_id":"p-1","role_id":"r-1","candidate_user_id":"u-1","type":"1","status":"1","message":"Привет","created_at_unix":"1760000000"}"""
+        """{"id":"j-1","project_id":"p-1","role_id":"r-1","candidate_user_id":"u-1","type":"application","status":"pending","message":"Привет","created_at_unix":"1760000000"}"""
 
     private fun server(body: String = joinJson, status: HttpStatusCode = HttpStatusCode.OK) =
         ProjectSessionFixture { json(body, status) }
@@ -86,11 +86,11 @@ class ProjectJoinsApiTest {
     fun theFiltersGoWhenTheyAreFilled() = runTest {
         val server = server("""{"items":[]}""")
 
-        server.session.projectJoins.listForProject("p-1", ProjectJoinFilter(roleId = "r-1", status = "2"), page)
+        server.session.projectJoins.listForProject("p-1", ProjectJoinFilter(roleId = "r-1", status = "accepted"), page)
 
         val parameters = server.requests.single().url.parameters
         assertEquals("r-1", parameters["role_id"])
-        assertEquals("2", parameters["status"])
+        assertEquals("accepted", parameters["status"])
     }
 
     @Test

@@ -75,7 +75,7 @@ interface ProjectsRepository {
     suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role
 
     /**
-     * Moves the project ([ProjectLifecycleAction] to the action "3", "4", "5") with the cached revision. Only with
+     * Moves the project ([ProjectLifecycleAction] to the action "start", "complete", "cancel") with the cached revision. Only with
      * [ProjectsCapabilities.canChangeLifecycle].
      * @throws ProjectNotFoundException the project is gone (404)
      * @throws ProjectConflictException the server refused (409): stale revision or a move not allowed now; read again

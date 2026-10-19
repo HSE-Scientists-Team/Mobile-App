@@ -110,8 +110,8 @@ class GatewayCollaboratorsDataSourceTest {
         fun typeOf(vararg types: ProjectType) =
             CollaboratorQuery(filters = CollaboratorFilters(workTypes = types.toSet())).toParams().projectType
 
-        assertEquals("1", typeOf(ProjectType.Scientific))
-        assertEquals("2", typeOf(ProjectType.Practical))
+        assertEquals("scientific", typeOf(ProjectType.Scientific))
+        assertEquals("practical", typeOf(ProjectType.Practical))
     }
 
     @Test
@@ -131,7 +131,7 @@ class GatewayCollaboratorsDataSourceTest {
         ).toParams()
 
         assertEquals(
-            PeopleSearchParams(q = "kotlin", university = "МГУ", projectType = "1", verifiedOnly = true),
+            PeopleSearchParams(q = "kotlin", university = "МГУ", projectType = "scientific", verifiedOnly = true),
             params,
         )
     }
@@ -140,7 +140,7 @@ class GatewayCollaboratorsDataSourceTest {
     fun theTypeOfWorksReachesTheApiInTheCall() = runTest {
         source.search(CollaboratorQuery(filters = CollaboratorFilters(workTypes = setOf(ProjectType.Practical))), PageRequest.First)
 
-        assertEquals("2", api.calls.single().first.projectType)
+        assertEquals("practical", api.calls.single().first.projectType)
     }
 
     @Test

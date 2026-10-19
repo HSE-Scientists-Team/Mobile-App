@@ -103,7 +103,7 @@ internal interface DataSourcesModule {
         team: ProjectTeamReader,
     ): ProjectDetailsDataSource = GatewayProjectDetailsDataSource(gateway.projectCatalog, gateway.projects, assembler, team)
 
-    /** The project search: `q`, `field` (the code of the sphere), `tag`, and `type` and `duration` when one chip is chosen. */
+    /** The project search: `q`, `field` (the name of the sphere), `tag`, and `type` and `duration` when one chip is chosen. */
     @Provides
     @SessionScope
     fun projectSearchDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ProjectSearchDataSource =

@@ -15,7 +15,7 @@ data class ProjectInputDto(
     val title: String = "",
     /** The code of the project's type (docs/api-values.md); read by the mapping. */
     val type: String = "",
-    /** The code of the project's sphere (docs/api-values.md); read by the mapping. */
+    /** The name of the project's sphere (docs/api-values.md); read by the mapping. */
     val field: String = "",
     val problem: String = "",
     val goal: String = "",
@@ -86,7 +86,7 @@ data class ProjectRoleInputDto(
  * [tags] is required by the API.
  *
  * @property type the code of the project's type, the `ProjectType.code` (docs/api-values.md).
- * @property field the code of the sphere, the `Sphere.id` (docs/api-values.md).
+ * @property field the name of the sphere, the `Sphere.id` (docs/api-values.md).
  * @property plannedStart the first day of the month the project starts in, `YYYY-MM-DD` (docs/api-values.md).
  * @property plannedEnd the last day of the month the project ends in, `YYYY-MM-DD` (docs/api-values.md).
  * @property roles the roles the project starts with.

@@ -6,14 +6,14 @@ import kotlin.time.Instant
  * What a [ProjectJoin] is: the server writes `type` itself and the API names no values, so these are the codes the app
  * reads it by. **Not confirmed by the backend** (`docs/api-values.md`); a code the app has none for is "unknown" (`null`).
  *
- * @property code the string of digits the app takes the type from.
+ * @property code the text the app takes the type from (`application`, `invitation`).
  */
 enum class ProjectJoinType(val code: String) {
     /** "Отклик": the candidate asked for the role. */
-    Application("1"),
+    Application("application"),
 
     /** "Приглашение": the initiator asked the candidate to take the role. */
-    Invitation("2"),
+    Invitation("invitation"),
     ;
 
     companion object {
@@ -29,20 +29,20 @@ enum class ProjectJoinType(val code: String) {
  * Where a [ProjectJoin] is. The server writes `status` itself; these are the codes the app reads it by. **Not confirmed by
  * the backend** (`docs/api-values.md`); an unknown code is `null` and the record is shown all the same.
  *
- * @property code the string of digits the app takes the status from.
+ * @property code the text the app takes the status from (`pending`, `accepted`, `declined`, `withdrawn`).
  */
 enum class ProjectJoinStatus(val code: String) {
     /** Waiting for the other side's decision. */
-    Pending("1"),
+    Pending("pending"),
 
     /** Accepted: the candidate is on the team. */
-    Accepted("2"),
+    Accepted("accepted"),
 
     /** Declined by the side that decides. */
-    Declined("3"),
+    Declined("declined"),
 
     /** Taken back by the side that sent it. */
-    Withdrawn("4"),
+    Withdrawn("withdrawn"),
     ;
 
     companion object {

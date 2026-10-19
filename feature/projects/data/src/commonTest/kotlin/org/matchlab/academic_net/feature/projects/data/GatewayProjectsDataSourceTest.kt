@@ -694,8 +694,8 @@ class GatewayProjectsDataSourceTest {
 
         val body = api.creates.single()
         assertEquals("T", body.title)
-        assertEquals("2", body.type)
-        assertEquals("12", body.field)
+        assertEquals("practical", body.type)
+        assertEquals("Дизайн", body.field)
         assertEquals("P", body.problem)
         assertEquals("G", body.goal)
         assertEquals(listOf("ML", "Robotics"), body.tags)
@@ -736,7 +736,7 @@ class GatewayProjectsDataSourceTest {
     @Test
     fun theCreatedProjectIsKeptAtTheRevisionOfTheAnswer() = runTest {
         api.onCreate = { viewerOwned(revision = 3) }
-        api.onTransition = { pid, _ -> viewerOwned(pid, revision = 4).copy(status = "2") }
+        api.onTransition = { pid, _ -> viewerOwned(pid, revision = 4).copy(status = "unpublished") }
         val created = source.createProject(newProject)
 
         source.unpublishProject(created.id)
@@ -888,12 +888,12 @@ class GatewayProjectsDataSourceTest {
     fun aProjectIsTakenOffWithThePauseActionAndTheCachedRevision() = runTest {
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "2") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "unpublished") }
 
         source.unpublishProject(id)
 
         assertEquals(listOf("p1"), api.transitions.map { it.first })
-        assertEquals("2", api.transitions.single().second.action)
+        assertEquals("pause", api.transitions.single().second.action)
         assertEquals(4, api.transitions.single().second.expectedRevision)
         assertEquals(listOf("p1"), api.gets, "the cache had the project: no extra read")
     }
@@ -902,7 +902,7 @@ class GatewayProjectsDataSourceTest {
     fun theUnpublishedProjectReplacesTheCachedOneAndIsReturned() = runTest {
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "2") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "unpublished") }
 
         val project = source.unpublishProject(id)
 
@@ -914,8 +914,8 @@ class GatewayProjectsDataSourceTest {
     fun theNextWriteBuildsOnTheRevisionOfTheTransition() = runTest {
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "2") }
-        api.onAddRole = { pid, _ -> projectDto(pid, revision = 6, status = "2", roles = listOf(roleDto("r1", "Роль"))) }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "unpublished") }
+        api.onAddRole = { pid, _ -> projectDto(pid, revision = 6, status = "unpublished", roles = listOf(roleDto("r1", "Роль"))) }
 
         source.unpublishProject(id)
         source.addRole(id, RoleDraft("Роль"))
@@ -926,7 +926,7 @@ class GatewayProjectsDataSourceTest {
     @Test
     fun aProjectNotInTheCacheIsReadFirst() = runTest {
         api.onGet = { projectDto(it, revision = 9) }
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 10, status = "2") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 10, status = "unpublished") }
 
         source.unpublishProject(id)
 
@@ -1012,7 +1012,7 @@ class GatewayProjectsDataSourceTest {
         val source = GatewayProjectsDataSource(api, catalog, assembler, team, TestViewer)
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "2") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "unpublished") }
         assembler.failure = RemoteFailure.Timeout()
 
         val project = source.unpublishProject(id)
@@ -1031,7 +1031,7 @@ class GatewayProjectsDataSourceTest {
             gate.await()
             projectDto(pid, revision = 5, roles = listOf(roleDto("r1", "Роль")))
         }
-        api.onTransition = { pid, _ -> projectDto(pid, revision = 6, status = "2") }
+        api.onTransition = { pid, _ -> projectDto(pid, revision = 6, status = "unpublished") }
 
         val role = async { source.addRole(id, RoleDraft("Роль")) }
         val transition = async { source.unpublishProject(id) }
@@ -1090,7 +1090,7 @@ class GatewayProjectsDataSourceTest {
     fun aProjectOfAnUnknownStatusTypeOrSphereStaysInTheList() = runTest {
         catalog.onList = { _, _ ->
             page(
-                projectDto("a", owner = TestViewer.value, status = "published", type = "scientific", field = "Biology"),
+                projectDto("a", owner = TestViewer.value, status = "published", type = "1", field = "Biology"),
                 projectDto("b", owner = TestViewer.value, status = ""),
             )
         }
@@ -1290,7 +1290,7 @@ class GatewayProjectsDataSourceTest {
     @Test
     fun aProjectTakenOffPublicationStaysInTheListWithItsNewStatus() = runTest {
         catalog.onList = { _, _ -> page(projectDto("a", owner = TestViewer.value, revision = 2)) }
-        api.onTransition = { pid, _ -> projectDto(pid, owner = TestViewer.value, revision = 3, status = "2") }
+        api.onTransition = { pid, _ -> projectDto(pid, owner = TestViewer.value, revision = 3, status = "unpublished") }
         val seen = mutableListOf<List<Project>>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { source.observeMyProjects().toList(seen) }
         assertEquals(listOf(ProjectStatus.Recruiting), seen.last().map { it.status })

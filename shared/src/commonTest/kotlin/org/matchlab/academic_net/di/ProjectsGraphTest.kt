@@ -1,6 +1,7 @@
 package org.matchlab.academic_net.di
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.decodeURLQueryComponent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.ProjectsRoleRequirementProvider
@@ -49,7 +50,7 @@ class ProjectsGraphTest {
     private val session = Session(UserId(viewer), StudentEmail, AccessToken("token-1"))
 
     private fun project(id: String, owner: String, revision: Int = 3, roles: String = "[]", title: String = "Проект $id") =
-        """{"id":"$id","owner_user_id":"$owner","details":{"title":"$title","type":"1","field":"7","problem":"Проблема","goal":"Цель","tags":["ML"],"planned_start":"2026-10-01","planned_end":"2027-03-31"},"status":"1","revision":$revision,"roles":$roles}"""
+        """{"id":"$id","owner_user_id":"$owner","details":{"title":"$title","type":"scientific","field":"Биология","problem":"Проблема","goal":"Цель","tags":["ML"],"planned_start":"2026-10-01","planned_end":"2027-03-31"},"status":"recruiting","revision":$revision,"roles":$roles}"""
 
     private fun profile(id: String, university: String) =
         """{"user_id":"$id","details":{"display_name":"Имя $id","university":"$university"},"verified":true,"rating":4.5,"review_count":2,"completed_project_count":7}"""
@@ -68,7 +69,7 @@ class ProjectsGraphTest {
                 "GET /api/v1/projects" ->
                     json("""{"items":[${project("p-1", "owner-a")},${project("m-1", viewer)},${project("p-2", "owner-b")},${project("m-2", viewer)}],"total":"4"}""")
                 "POST /api/v1/projects" -> json(project("m-new", viewer, revision = 1), HttpStatusCode.Created)
-                "POST /api/v1/projects/m-1/transitions" -> json(project("m-1", viewer, revision = 4).replace("\"status\":\"1\"", "\"status\":\"2\""))
+                "POST /api/v1/projects/m-1/transitions" -> json(project("m-1", viewer, revision = 4).replace("\"status\":\"recruiting\"", "\"status\":\"unpublished\""))
                 "GET /api/v1/projects/p-1" -> json(project("p-1", "owner-a", revision, roles))
                 "POST /api/v1/projects/p-1/roles" -> {
                     revision += 1
@@ -111,7 +112,7 @@ class ProjectsGraphTest {
     // ---- creating, "Я инициатор", unpublishing ----
 
     @Test
-    fun creatingAProjectPostsTheCodesAndTheMonthsAndReturnsTheProject() = runTest {
+    fun creatingAProjectPostsTheTextsAndTheMonthsAndReturnsTheProject() = runTest {
         val server = serverWithProjects()
         val draft = ProjectDraft(
             title = "T", type = ProjectType.Practical, sphere = Spheres.all[11],
@@ -128,7 +129,7 @@ class ProjectsGraphTest {
         val post = server.requests("POST /api/v1/projects").single()
         assertEquals(listOf("Bearer token-1"), post.authorization)
         for (part in listOf(
-            "\"title\":\"T\"", "\"type\":\"2\"", "\"field\":\"12\"", "\"planned_start\":\"2026-10-01\"",
+            "\"title\":\"T\"", "\"type\":\"practical\"", "\"field\":\"Дизайн\"", "\"planned_start\":\"2026-10-01\"",
             "\"planned_end\":\"2028-02-29\"", "\"slots\":1", "\"tags\":[\"ML\"]",
         )) {
             assertTrue(part in post.body, "$part in ${post.body}")
@@ -222,7 +223,7 @@ class ProjectsGraphTest {
         val unpublished = assertIs<UnpublishProjectResult.Unpublished>(result).project
         assertEquals(ProjectStatus.Unpublished, unpublished.status)
         val post = server.requests("POST /api/v1/projects/m-1/transitions").single()
-        assertTrue("\"action\":\"2\"" in post.body, post.body)
+        assertTrue("\"action\":\"pause\"" in post.body, post.body)
         assertTrue("\"expected_revision\":3" in post.body, post.body)
         assertEquals(
             listOf(ProjectStatus.Unpublished, ProjectStatus.Recruiting),
@@ -266,7 +267,7 @@ class ProjectsGraphTest {
     }
 
     @Test
-    fun aSearchSendsTheCodesOfOneChosenTypeDurationAndTheSphere() = runTest {
+    fun aSearchSendsTheTextsOfOneChosenTypeDurationAndTheSphere() = runTest {
         val server = serverWithProjects()
         val filters = ProjectFilters(
             types = setOf(ProjectType.Scientific),
@@ -281,9 +282,9 @@ class ProjectsGraphTest {
         assertEquals(listOf("20"), request.queryValues("limit"))
         assertEquals(listOf("20"), request.queryValues("offset"))
         assertEquals(listOf("ml"), request.queryValues("q"))
-        assertEquals(listOf("1"), request.queryValues("type"))
-        assertEquals(listOf("3"), request.queryValues("field"))
-        assertEquals(listOf("1"), request.queryValues("duration"))
+        assertEquals(listOf("scientific"), request.queryValues("type"))
+        assertEquals(listOf("Инженерия"), request.queryValues("field").map { it.decodeURLQueryComponent() })
+        assertEquals(listOf("up_to_3_months"), request.queryValues("duration"))
     }
 
     @Test
@@ -306,7 +307,7 @@ class ProjectsGraphTest {
             val inner = onOther
             onOther = { arrival ->
                 if (arrival.call == "GET /api/v1/search/projects") {
-                    json("""{"items":[{"id":"x-1","owner_user_id":"owner-a","details":{"title":"Чужой","type":"scientific","field":"Biology"},"status":"published","revision":1}],"total":"1"}""")
+                    json("""{"items":[{"id":"x-1","owner_user_id":"owner-a","details":{"title":"Чужой","type":"1","field":"Biology"},"status":"published","revision":1}],"total":"1"}""")
                 } else {
                     inner(arrival)
                 }
@@ -424,7 +425,7 @@ class ProjectsGraphTest {
     // ---- sprint 2: the lifecycle, the editing and the team ----
 
     private fun projectWithTeam(id: String = "t-1", revision: Int = 5) =
-        """{"id":"$id","owner_user_id":"owner-a","details":{"title":"Команда","type":"1","field":"7","problem":"П","goal":"Ц","planned_start":"2026-10-01","planned_end":"2027-03-31"},"status":"1","revision":$revision,"roles":[{"id":"r-1","title":"Dev","slots":2,"occupied":2}],"members":[{"user_id":"u-1","role_id":"r-1"},{"user_id":"u-2","role_id":"r-1"},{"user_id":"owner-a","role_id":"r-1"}]}"""
+        """{"id":"$id","owner_user_id":"owner-a","details":{"title":"Команда","type":"scientific","field":"Биология","problem":"П","goal":"Ц","planned_start":"2026-10-01","planned_end":"2027-03-31"},"status":"recruiting","revision":$revision,"roles":[{"id":"r-1","title":"Dev","slots":2,"occupied":2}],"members":[{"user_id":"u-1","role_id":"r-1"},{"user_id":"u-2","role_id":"r-1"},{"user_id":"owner-a","role_id":"r-1"}]}"""
 
     private fun serverWithTeam() = serverWithProjects().apply {
         val inner = onOther
@@ -439,12 +440,12 @@ class ProjectsGraphTest {
     }
 
     @Test
-    fun theLifecycleMovesPostTheCodesWithTheRevisionOfTheList() = runTest {
+    fun theLifecycleMovesPostTheTextsWithTheRevisionOfTheList() = runTest {
         val server = serverWithProjects().apply {
             val inner = onOther
             onOther = { arrival ->
                 if (arrival.call == "POST /api/v1/projects/m-1/transitions") {
-                    json(project("m-1", viewer, revision = 4).replace("\"status\":\"1\"", "\"status\":\"3\""))
+                    json(project("m-1", viewer, revision = 4).replace("\"status\":\"recruiting\"", "\"status\":\"started\""))
                 } else {
                     inner(arrival)
                 }
@@ -458,7 +459,7 @@ class ProjectsGraphTest {
         val changed = assertIs<org.matchlab.academic_net.feature.projects.domain.usecase.ChangeLifecycleResult.Changed>(result)
         assertEquals(ProjectStatus.Started, changed.project.status)
         val post = server.requests("POST /api/v1/projects/m-1/transitions").single()
-        assertTrue("\"action\":\"3\"" in post.body, post.body)
+        assertTrue("\"action\":\"start\"" in post.body, post.body)
         assertTrue("\"expected_revision\":3" in post.body, post.body)
     }
 
@@ -511,7 +512,7 @@ class ProjectsGraphTest {
         val put = server.requests("PUT /api/v1/projects/m-1").single()
         assertEquals(listOf("Bearer token-1"), put.authorization)
         assertTrue("\"expected_revision\":3" in put.body, put.body)
-        assertTrue("\"type\":\"2\"" in put.body && "\"field\":\"3\"" in put.body, put.body)
+        assertTrue("\"type\":\"practical\"" in put.body && "\"field\":\"Инженерия\"" in put.body, put.body)
         assertTrue("\"planned_end\":\"2027-03-31\"" in put.body, put.body)
         assertTrue("roles" !in put.body, "G63: the roles are never sent: ${put.body}")
         val delete = server.requests("DELETE /api/v1/projects/m-1/roles/r-1").single()

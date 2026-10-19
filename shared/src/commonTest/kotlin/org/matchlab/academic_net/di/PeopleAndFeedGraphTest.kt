@@ -113,7 +113,7 @@ class PeopleAndFeedGraphTest {
     }
 
     @Test
-    fun oneChosenTypeOfWorksReachesTheServerAsItsCode() = runTest {
+    fun oneChosenTypeOfWorksReachesTheServerAsItsText() = runTest {
         val graph = graphAnswering("""{"items":[],"total":"0"}""")
 
         graph.component.dependencies.collaborators.searchCollaborators(
@@ -121,7 +121,7 @@ class PeopleAndFeedGraphTest {
             PageRequest(0, 20),
         ).getOrThrow()
 
-        assertEquals("2", graph.requests.single().url.parameters["project_type"])
+        assertEquals("practical", graph.requests.single().url.parameters["project_type"])
     }
 
     @Test

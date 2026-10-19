@@ -95,34 +95,34 @@ class GatewayComplaintsDataSourceTest {
     // ---- send ----
 
     @Test
-    fun aComplaintAboutAPersonSendsTheCodeAndOnlyTheUserTarget() = runTest {
+    fun aComplaintAboutAPersonSendsTheReasonTextAndOnlyTheUserTarget() = runTest {
         source().send(Complaint(ComplaintTarget.User(UserId("u1")), UserComplaintReason.PortfolioFraud, "Текст"))
 
         assertEquals(
-            listOf(CreateComplaintDto(subject = "3", description = "Текст", targetUserId = "u1", targetProjectId = null)),
+            listOf(CreateComplaintDto(subject = "portfolio_fraud", description = "Текст", targetUserId = "u1", targetProjectId = null)),
             api.created,
         )
         assertTrue(api.created.single().fileIds.isEmpty())
     }
 
     @Test
-    fun aComplaintAboutAProjectSendsTheCodeAndOnlyTheProjectTarget() = runTest {
+    fun aComplaintAboutAProjectSendsTheReasonTextAndOnlyTheProjectTarget() = runTest {
         source().send(Complaint(ComplaintTarget.Project(ProjectId("p1")), ProjectComplaintReason.Other, "Текст"))
 
         assertEquals(
-            listOf(CreateComplaintDto(subject = "4", description = "Текст", targetUserId = null, targetProjectId = "p1")),
+            listOf(CreateComplaintDto(subject = "other", description = "Текст", targetUserId = null, targetProjectId = "p1")),
             api.created,
         )
     }
 
     @Test
-    fun everyReasonGoesWithItsOwnCode() = runTest {
+    fun everyReasonGoesWithItsOwnText() = runTest {
         val source = source()
         for (reason in UserComplaintReason.entries) {
             source.send(Complaint(ComplaintTarget.User(UserId("u")), reason, "x"))
         }
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6"), api.created.map { it.subject })
+        assertEquals(listOf("spam", "insults", "portfolio_fraud", "fake_account", "scam", "other"), api.created.map { it.subject })
     }
 
     @Test

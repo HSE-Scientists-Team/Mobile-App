@@ -32,7 +32,7 @@ interface ProjectCatalogApi {
  *
  * @property q the search text as the user typed it (API-GAP G53: what the server matches it against is not described).
  * @property type the code of a project type, the `ProjectType.code` (docs/api-values.md); the parameter holds one value.
- * @property field the code of a sphere, the `Sphere.id` (docs/api-values.md).
+ * @property field the name of a sphere, the `Sphere.id` (docs/api-values.md).
  * @property duration the code of a duration, the `ProjectDuration.code` (docs/api-values.md); the parameter holds one
  *  value.
  * @property tags `tag=…&tag=…`, in this order (API-GAP G53: "all of them" or "any of them" is not described).

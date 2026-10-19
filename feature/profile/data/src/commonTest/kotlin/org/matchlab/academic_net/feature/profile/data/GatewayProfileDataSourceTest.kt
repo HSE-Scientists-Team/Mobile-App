@@ -73,20 +73,20 @@ class GatewayProfileDataSourceTest {
     }
 
     @Test
-    fun savingTheChosenTypesWritesTheirCodesNextToTheUnknownEntriesOfTheServer() = runTest {
+    fun savingTheChosenTypesWritesTheirTextsNextToTheUnknownEntriesOfTheServer() = runTest {
         val rig = rig()
-        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Старое", projectTypes = listOf("unknown-value", "1"))
+        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Старое", projectTypes = listOf("unknown-value", "scientific"))
 
         val record = rig.source.updateMyProfile(ProfileDraft(name = "Новое", interestTypes = setOf(ProjectType.Practical)))
 
-        assertEquals(listOf("unknown-value", "2"), rig.profiles.updates.single().projectTypes)
+        assertEquals(listOf("unknown-value", "practical"), rig.profiles.updates.single().projectTypes)
         assertEquals(setOf(ProjectType.Practical), record.interests.projectTypes)
     }
 
     @Test
-    fun myProfileShowsTheTypesWhoseCodesTheServerHolds() = runTest {
+    fun myProfileShowsTheTypesWhoseTextsTheServerHolds() = runTest {
         val rig = rig()
-        rig.profiles.onMyProfile = { profileDto(userId = ViewerRaw, name = "Я", projectTypes = listOf("2", "unknown-value")) }
+        rig.profiles.onMyProfile = { profileDto(userId = ViewerRaw, name = "Я", projectTypes = listOf("practical", "unknown-value")) }
 
         assertEquals(setOf(ProjectType.Practical), rig.source.getMyProfile()?.interests?.projectTypes)
     }

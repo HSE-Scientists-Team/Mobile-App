@@ -20,7 +20,7 @@ data class ProjectsCapabilities(
     val canUnpublish: Boolean,
     /**
      * 07c offers "Начать проект", "Завершить проект", "Отменить проект": `POST /projects/{id}/transitions` with the actions
-     * "3", "4", "5" (`docs/api-values.md`, not confirmed by the backend). When `false` there are none of them, and
+     * "start", "complete", "cancel" (`docs/api-values.md`, not confirmed by the backend). When `false` there are none of them, and
      * [ProjectsRepository.changeLifecycle] throws `FeatureUnavailableException`.
      */
     val canChangeLifecycle: Boolean = false,

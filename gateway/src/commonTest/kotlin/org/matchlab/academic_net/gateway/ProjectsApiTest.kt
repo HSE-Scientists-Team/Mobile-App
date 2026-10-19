@@ -72,15 +72,15 @@ class ProjectsApiTest {
                 ownerUserId = ProjectSpec.OwnerId,
                 details = ProjectInputDto(
                     title = "AI-навигация",
-                    type = "1",
-                    field = "1",
+                    type = "scientific",
+                    field = "Computer Science",
                     problem = "GPS не работает",
                     goal = "Маршруты внутри",
                     tags = listOf("ML", "Robotics"),
                     plannedStart = "2026-10-01",
                     plannedEnd = "2027-03-31",
                 ),
-                status = "1",
+                status = "recruiting",
                 revision = 7,
                 roles = listOf(ProjectRoleDto("r-1", "ML Engineer", skills = listOf("Python", "PyTorch"), slots = 2, occupied = 1)),
             ),
@@ -243,8 +243,8 @@ class ProjectsApiTest {
         tags: List<String> = listOf("ML", "Robotics"),
     ) = ProjectCreateDto(
         title = "AI-навигация",
-        type = "1",
-        field = "1",
+        type = "scientific",
+        field = "Computer Science",
         problem = "GPS не работает",
         goal = "Маршруты внутри",
         tags = tags,
@@ -279,8 +279,8 @@ class ProjectsApiTest {
             body.keys,
         )
         assertEquals("AI-навигация", body.getValue("title").jsonPrimitive.content)
-        assertEquals("1", body.getValue("type").jsonPrimitive.content)
-        assertEquals("1", body.getValue("field").jsonPrimitive.content)
+        assertEquals("scientific", body.getValue("type").jsonPrimitive.content)
+        assertEquals("Computer Science", body.getValue("field").jsonPrimitive.content)
         assertEquals("GPS не работает", body.getValue("problem").jsonPrimitive.content)
         assertEquals("Маршруты внутри", body.getValue("goal").jsonPrimitive.content)
         assertEquals(JsonArray(listOf(JsonPrimitive("ML"), JsonPrimitive("Robotics"))), body.getValue("tags"))
@@ -386,7 +386,7 @@ class ProjectsApiTest {
     fun aTransitionIsAPostOfTheTransitionsPathWithAJsonBodyAndTheBearerToken() = runTest {
         val server = server()
 
-        server.session.projects.transition("p-1", ProjectTransitionDto(action = "2", expectedRevision = 7))
+        server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 7))
 
         val request = server.requests.single()
         assertEquals(HttpMethod.Post, request.method)
@@ -400,11 +400,11 @@ class ProjectsApiTest {
     fun theTransitionBodyIsTheActionAsAStringAndTheRevisionAsANumber() = runTest {
         val server = server()
 
-        server.session.projects.transition("p-1", ProjectTransitionDto(action = "2", expectedRevision = 7))
+        server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 7))
 
         val body: JsonObject = server.requests.single().bodyObject()
         assertEquals(setOf("action", "expected_revision"), body.keys)
-        assertEquals("2", body.getValue("action").jsonPrimitive.content)
+        assertEquals("pause", body.getValue("action").jsonPrimitive.content)
         assertTrue(body.getValue("action").jsonPrimitive.isString)
         assertEquals(7, body.getValue("expected_revision").jsonPrimitive.int)
         assertFalse(body.getValue("expected_revision").jsonPrimitive.isString)
@@ -414,7 +414,7 @@ class ProjectsApiTest {
     fun theRevisionZeroOfATransitionIsSentAndNotLeftOut() = runTest {
         val server = server()
 
-        server.session.projects.transition("p-1", ProjectTransitionDto(action = "2", expectedRevision = 0))
+        server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 0))
 
         assertEquals(0, server.requests.single().bodyObject().getValue("expected_revision").jsonPrimitive.int)
     }
@@ -423,14 +423,14 @@ class ProjectsApiTest {
     fun theIdOfTheTransitionedProjectIsEscaped() = runTest {
         val server = server()
 
-        server.session.projects.transition("a/b?c", ProjectTransitionDto(action = "2", expectedRevision = 1))
+        server.session.projects.transition("a/b?c", ProjectTransitionDto(action = "pause", expectedRevision = 1))
 
         assertEquals("/api/v1/projects/a%2Fb%3Fc/transitions", server.requests.single().url.encodedPath)
     }
 
     @Test
     fun theAnswerOfATransitionIsTheWholeProject() = runTest {
-        val project = server().session.projects.transition("p-1", ProjectTransitionDto(action = "2", expectedRevision = 7))
+        val project = server().session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 7))
 
         assertEquals("p-1", project.id)
         assertEquals(7, project.revision)
@@ -442,7 +442,7 @@ class ProjectsApiTest {
             val server = ProjectSessionFixture { jsonError(HttpStatusCode.fromValue(status), "причина") }
 
             val failure = failureOf<RemoteFailure.Http> {
-                server.session.projects.transition("p-1", ProjectTransitionDto(action = "2", expectedRevision = 1))
+                server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 1))
             }
 
             assertEquals(status, failure.status)
@@ -452,8 +452,8 @@ class ProjectsApiTest {
 
     @Test
     @OptIn(UnverifiedContract::class)
-    fun theActionOfTheAppIsTheCodeOfTheContract() {
-        assertEquals("1", ProjectActions.PUBLISH)
-        assertEquals("2", ProjectActions.PAUSE)
+    fun theActionOfTheAppIsTheTextOfTheContract() {
+        assertEquals("publish", ProjectActions.PUBLISH)
+        assertEquals("pause", ProjectActions.PAUSE)
     }
 }

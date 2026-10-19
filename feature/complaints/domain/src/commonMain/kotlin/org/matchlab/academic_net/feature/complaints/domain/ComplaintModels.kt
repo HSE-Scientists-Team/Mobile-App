@@ -15,7 +15,7 @@ sealed interface ComplaintTarget {
 
 /**
  * A reason of a complaint: [code] goes as `subject` (`docs/api-values.md`; API-GAP G68: the API names no values, so the
- * codes are the app's own). The table of codes lives in [UserComplaintReason] and [ProjectComplaintReason].
+ * text is the app's own, e.g. `spam`). The table of values lives in [UserComplaintReason] and [ProjectComplaintReason].
  */
 sealed interface ComplaintReason {
     val code: String
@@ -24,37 +24,37 @@ sealed interface ComplaintReason {
 /** The reasons of a complaint about a person (17), in the order of the frame. */
 enum class UserComplaintReason(override val code: String) : ComplaintReason {
     /** "Спам или реклама" */
-    Spam("1"),
+    Spam("spam"),
 
     /** "Оскорбления" */
-    Insults("2"),
+    Insults("insults"),
 
     /** "Фальсификация в портфолио" */
-    PortfolioFraud("3"),
+    PortfolioFraud("portfolio_fraud"),
 
     /** "Фейковый аккаунт" */
-    FakeAccount("4"),
+    FakeAccount("fake_account"),
 
     /** "Мошенничество" */
-    Scam("5"),
+    Scam("scam"),
 
     /** "Другое" */
-    Other("6"),
+    Other("other"),
 }
 
 /** The reasons of a complaint about a project (17b), in the order of the frame. */
 enum class ProjectComplaintReason(override val code: String) : ComplaintReason {
     /** "Спам или реклама" */
-    Spam("1"),
+    Spam("spam"),
 
     /** "Недостоверная информация" */
-    FalseInformation("2"),
+    FalseInformation("false_information"),
 
     /** "Мошенничество" */
-    Scam("3"),
+    Scam("scam"),
 
     /** "Другое" */
-    Other("4"),
+    Other("other"),
 }
 
 /** The reasons offered for [target]: [UserComplaintReason] or [ProjectComplaintReason] entries, in the order of the frame. */

@@ -5,11 +5,11 @@ import kotlinx.datetime.YearMonth
 /**
  * Field of science or practice a project belongs to ("Computer Science", "Биология", ...).
  *
- * The API has no list of fields (`field` is a plain string), so the app defines it and sends the number
+ * The API has no list of fields (`field` is a plain string), so the app defines it and sends the name as text
  * (`docs/api-values.md`, decision of 2026-10-19): the spheres are listed in [Spheres], and a sphere read from the server
- * is the one whose code the server's `field` holds.
+ * is the one whose name the server's `field` holds.
  *
- * @property id the code of the sphere, a string of digits ("1".."12"): what the server stores in `field` and what is
+ * @property id the name of the sphere as text, the same as [name]: what the server stores in `field` and what is
  *  sent as `field` when creating a project and searching.
  * @property name the label the screens show.
  */
@@ -23,21 +23,21 @@ data class Sphere(
  * decision of 2026-10-19) and sends them as `type` of a project, as the `type` filter of the project search, as the
  * `project_type` filter of the people search and in the `project_types` of a profile.
  *
- * @property code the string of digits the server stores: the one place where the table of codes lives; a code is never
- *  reused or renumbered.
+ * @property code the text sent to the server (`scientific`, `practical`): the one place where the table of values lives; a value is never
+ *  reused or renamed.
  */
 enum class ProjectType(val code: String) {
     /** "Научный": research, ends with a publication. */
-    Scientific("1"),
+    Scientific("scientific"),
 
     /** "Проектный": practical work, ends with a product. */
-    Practical("2"),
+    Practical("practical"),
     ;
 
     companion object {
         /**
-         * The type whose [code] is [raw]: an exact match once the outer spaces are cut (" 1 " is [Scientific]). Anything
-         * else is "unknown", `null`: `null`, blank, another number, "01", "1.0".
+         * The type whose [code] is [raw]: an exact match once the outer spaces are cut (" scientific " is [Scientific]); the
+         * case is not changed. Anything else is "unknown", `null`: `null`, blank, "Scientific", "научный", "1".
          */
         fun fromCode(raw: String?): ProjectType? {
             val code = raw?.trim() ?: return null
@@ -54,29 +54,29 @@ enum class ProjectType(val code: String) {
  * **Not confirmed by the backend:** the server writes the status itself, so these codes are the app's reading of it until
  * the backend says otherwise; a status the app has no code for is "unknown" (`null` in `Project.status`).
  *
- * @property code the string of digits the app takes the status from; the one place where the table of codes lives.
+ * @property code the text the app takes the status from (`recruiting`, `unpublished`, `started`, `finished`, `cancelled`); the one place where the table of values lives.
  */
 enum class ProjectStatus(val code: String) {
     /** Published and looking for people for its vacant roles. */
-    Recruiting("1"),
+    Recruiting("recruiting"),
 
     /** Taken off publication by the initiator: hidden from search, responses are paused. */
-    Unpublished("2"),
+    Unpublished("unpublished"),
 
-    /** "В работе": the initiator started the project (transition action "3"); the team works on it. */
-    Started("3"),
+    /** "В работе": the initiator started the project (transition action "start"); the team works on it. */
+    Started("started"),
 
-    /** "Завершён": the initiator finished the project (transition action "4"). */
-    Finished("4"),
+    /** "Завершён": the initiator finished the project (transition action "complete"). */
+    Finished("finished"),
 
-    /** "Отменён": the initiator cancelled the project (transition action "5"). */
-    Cancelled("5"),
+    /** "Отменён": the initiator cancelled the project (transition action "cancel"). */
+    Cancelled("cancelled"),
     ;
 
     companion object {
         /**
          * The status whose [code] is [raw]: an exact match once the outer spaces are cut. Anything else (`null`, blank,
-         * a number the app has no status for) is "unknown", `null`: the project is shown all the same.
+         * a text the app has no status for) is "unknown", `null`: the project is shown all the same.
          */
         fun fromCode(raw: String?): ProjectStatus? {
             val code = raw?.trim() ?: return null

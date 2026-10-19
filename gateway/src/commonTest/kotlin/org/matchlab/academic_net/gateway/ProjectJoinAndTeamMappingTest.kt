@@ -59,8 +59,8 @@ class ProjectJoinMappingTest {
         projectId: String = "p-1",
         roleId: String = "r-1",
         candidate: String = "u-1",
-        type: String = "1",
-        status: String = "1",
+        type: String = "application",
+        status: String = "pending",
         message: String = " Привет ",
         createdAt: Long = 1_760_000_000L,
     ) = ProjectJoinDto(id, projectId, roleId, candidate, type, status, message, createdAt)
@@ -89,7 +89,7 @@ class ProjectJoinMappingTest {
 
     @Test
     fun unknownCodesAndMissingFieldsDoNotHideTheRecord() {
-        val join = assertNotNull(dto(type = "9", status = "pending", candidate = "", createdAt = 0).toProjectJoin())
+        val join = assertNotNull(dto(type = "9", status = "1", candidate = "", createdAt = 0).toProjectJoin())
 
         assertNull(join.type)
         assertNull(join.status)
@@ -99,10 +99,10 @@ class ProjectJoinMappingTest {
 
     @Test
     fun everyCodeOfTheContractIsRead() {
-        assertEquals(ProjectJoinType.Invitation, dto(type = "2").toProjectJoin()?.type)
+        assertEquals(ProjectJoinType.Invitation, dto(type = "invitation").toProjectJoin()?.type)
         assertEquals(
             listOf(ProjectJoinStatus.Pending, ProjectJoinStatus.Accepted, ProjectJoinStatus.Declined, ProjectJoinStatus.Withdrawn),
-            listOf("1", "2", "3", "4").map { dto(status = it).toProjectJoin()?.status },
+            listOf("pending", "accepted", "declined", "withdrawn").map { dto(status = it).toProjectJoin()?.status },
         )
     }
 
@@ -277,7 +277,7 @@ class ProjectTeamMappingTest {
             id = ProjectId("p"),
             title = "T",
             type = ProjectType.Scientific,
-            sphere = Sphere("1", "CS"),
+            sphere = Sphere("Computer Science", "Computer Science"),
             problem = "",
             goal = "",
             tags = emptyList(),

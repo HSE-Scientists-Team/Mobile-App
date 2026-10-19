@@ -31,7 +31,7 @@ class ResponsesGraphTest {
     private val viewer = ServerUserId
     private val session = Session(UserId(viewer), StudentEmail, AccessToken("token-1"))
 
-    private fun joinJson(id: String, project: String = "p-1", role: String = "r-1", type: String = "1", status: String = "1", created: Long = 1_760_000_000) =
+    private fun joinJson(id: String, project: String = "p-1", role: String = "r-1", type: String = "application", status: String = "pending", created: Long = 1_760_000_000) =
         """{"id":"$id","project_id":"$project","role_id":"$role","candidate_user_id":"$viewer","type":"$type","status":"$status","message":"","created_at_unix":"$created"}"""
 
     private fun projectJson(id: String, owner: String, memberIsViewer: Boolean = false) =
@@ -48,8 +48,8 @@ class ResponsesGraphTest {
                 "GET /api/v1/project-joins" -> json("""{"items":[$joins],"total":"1"}""")
                 "GET /api/v1/projects/p-1" -> json(projectJson("p-1", "owner-a", memberIsViewer = true))
                 "GET /api/v1/users/owner-a/profile" -> json(ownerProfile)
-                "POST /api/v1/project-joins/j-1/decision" -> json(joinJson("j-1", status = "2"))
-                "POST /api/v1/complaints" -> json("""{"id":"c-1","status":"1"}""", HttpStatusCode.Created)
+                "POST /api/v1/project-joins/j-1/decision" -> json(joinJson("j-1", status = "accepted"))
+                "POST /api/v1/complaints" -> json("""{"id":"c-1","status":"pending"}""", HttpStatusCode.Created)
                 else -> jsonError(HttpStatusCode.NotFound, "not found")
             }
         }
@@ -81,7 +81,7 @@ class ResponsesGraphTest {
 
     @Test
     fun oneRepositoryOfTheSessionServesTheScreenTheBadgeTheProjectPageAndTheTab() = runTest {
-        val server = server(joinJson("j-1") + "," + joinJson("j-2", role = "r-2", type = "2"))
+        val server = server(joinJson("j-1") + "," + joinJson("j-2", role = "r-2", type = "invitation"))
         val dependencies = graph(server).dependencies
 
         dependencies.responses.refreshMyResponses().getOrThrow()
@@ -97,7 +97,7 @@ class ResponsesGraphTest {
 
     @Test
     fun theMemberTabReadsTheListAfreshAndTheProjectsOfTheAcceptedRecords() = runTest {
-        val server = server(joinJson("j-1", status = "2"))
+        val server = server(joinJson("j-1", status = "accepted"))
         val dependencies = graph(server).dependencies
 
         val result = dependencies.projects.getParticipatingProjects()
@@ -109,7 +109,7 @@ class ResponsesGraphTest {
 
     @Test
     fun aDecisionOfTheViewerGoesToTheServerAndThenReadsTheProjectAgain() = runTest {
-        val server = server(joinJson("j-1", type = "2"))
+        val server = server(joinJson("j-1", type = "invitation"))
         val dependencies = graph(server).dependencies
         dependencies.responses.refreshMyResponses().getOrThrow()
         val invitation = dependencies.responses.observeMyResponses().first()!!.single().join
@@ -140,7 +140,7 @@ class ResponsesGraphTest {
         assertEquals(SubmitResult.Success(Unit), result)
         val post = server.requests("POST /api/v1/complaints").single()
         assertEquals(listOf("Bearer token-1"), post.authorization)
-        for (part in listOf("\"subject\":\"5\"", "\"description\":\"Просит деньги\"", "\"target_user_id\":\"u-9\"", "\"file_ids\":[]")) {
+        for (part in listOf("\"subject\":\"scam\"", "\"description\":\"Просит деньги\"", "\"target_user_id\":\"u-9\"", "\"file_ids\":[]")) {
             assertTrue(part in post.body, "$part in ${post.body}")
         }
         assertTrue("target_project_id" !in post.body, post.body)
@@ -155,7 +155,7 @@ class ResponsesGraphTest {
         )
 
         val body = server.requests("POST /api/v1/complaints").single().body
-        assertTrue("\"subject\":\"4\"" in body && "\"target_project_id\":\"p-1\"" in body, body)
+        assertTrue("\"subject\":\"other\"" in body && "\"target_project_id\":\"p-1\"" in body, body)
     }
 
     @Test

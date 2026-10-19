@@ -55,37 +55,37 @@ class GatewayProfileMappingTest {
     }
 
     @Test
-    fun theProjectTypesOfAProfileAreReadByTheirCodes() {
-        assertEquals(setOf(ProjectType.Scientific), profileDto(projectTypes = listOf("1")).toRecord().interests.projectTypes)
-        assertEquals(setOf(ProjectType.Practical), profileDto(projectTypes = listOf("2")).toRecord().interests.projectTypes)
+    fun theProjectTypesOfAProfileAreReadByTheirTexts() {
+        assertEquals(setOf(ProjectType.Scientific), profileDto(projectTypes = listOf("scientific")).toRecord().interests.projectTypes)
+        assertEquals(setOf(ProjectType.Practical), profileDto(projectTypes = listOf("practical")).toRecord().interests.projectTypes)
         assertEquals(
             setOf(ProjectType.Scientific, ProjectType.Practical),
-            profileDto(projectTypes = listOf("2", "1")).toRecord().interests.projectTypes,
+            profileDto(projectTypes = listOf("practical", "scientific")).toRecord().interests.projectTypes,
         )
     }
 
     @Test
-    fun theCodesOfProjectTypesAreReadAfterTheOuterSpacesAreCut() {
-        assertEquals(setOf(ProjectType.Practical), profileDto(projectTypes = listOf(" 2 ")).toRecord().interests.projectTypes)
+    fun theTextsOfProjectTypesAreReadAfterTheOuterSpacesAreCut() {
+        assertEquals(setOf(ProjectType.Practical), profileDto(projectTypes = listOf(" practical ")).toRecord().interests.projectTypes)
     }
 
     @Test
     fun theProjectTypesTheAppDoesNotKnowAreNotInTheModel() {
-        val record = profileDto(projectTypes = listOf("scientific", "3", "01", "1.0", "", "  ", "whatever")).toRecord()
+        val record = profileDto(projectTypes = listOf("1", "3", "01", "1.0", "", "  ", "whatever", "Scientific")).toRecord()
 
         assertEquals(emptySet(), record.interests.projectTypes)
     }
 
     @Test
     fun aKnownTypeStaysWhenUnknownOnesComeWithIt() {
-        val record = profileDto(projectTypes = listOf("whatever", "2", "9")).toRecord()
+        val record = profileDto(projectTypes = listOf("whatever", "practical", "9")).toRecord()
 
         assertEquals(setOf(ProjectType.Practical), record.interests.projectTypes)
     }
 
     @Test
-    fun aRepeatedCodeIsOneType() {
-        assertEquals(setOf(ProjectType.Scientific), profileDto(projectTypes = listOf("1", "1", " 1")).toRecord().interests.projectTypes)
+    fun aRepeatedTextIsOneType() {
+        assertEquals(setOf(ProjectType.Scientific), profileDto(projectTypes = listOf("scientific", "scientific", " scientific")).toRecord().interests.projectTypes)
     }
 
     @Test
@@ -170,15 +170,15 @@ class GatewayProfileMappingTest {
     }
 
     @Test
-    fun theProjectTypesOfTheFormAreWrittenAsCodesAndTheUnknownEntriesOfTheServerStay() {
+    fun theProjectTypesOfTheFormAreWrittenAsTextsAndTheUnknownEntriesOfTheServerStay() {
         val saved = serverDetails.withDraft(ProfileDraft(name = "Имя", interestTypes = setOf(ProjectType.Scientific)))
 
-        assertEquals(listOf("something-the-client-does-not-know", "1"), saved.projectTypes)
+        assertEquals(listOf("something-the-client-does-not-know", "scientific"), saved.projectTypes)
     }
 
     @Test
     fun noChosenTypeKeepsOnlyTheUnknownEntries() {
-        val saved = serverDetails.copy(projectTypes = listOf("1", "2", "other")).withDraft(ProfileDraft(name = "Имя"))
+        val saved = serverDetails.copy(projectTypes = listOf("scientific", "practical", "other")).withDraft(ProfileDraft(name = "Имя"))
 
         assertEquals(listOf("other"), saved.projectTypes)
     }
@@ -188,23 +188,23 @@ class GatewayProfileMappingTest {
         val saved = serverDetails.copy(projectTypes = emptyList())
             .withDraft(ProfileDraft(name = "Имя", interestTypes = setOf(ProjectType.Practical, ProjectType.Scientific)))
 
-        assertEquals(listOf("1", "2"), saved.projectTypes)
+        assertEquals(listOf("scientific", "practical"), saved.projectTypes)
     }
 
     @Test
     fun aTypeTheServerHadAndTheFormDroppedIsGone() {
-        val saved = serverDetails.copy(projectTypes = listOf("1", "2"))
+        val saved = serverDetails.copy(projectTypes = listOf("scientific", "practical"))
             .withDraft(ProfileDraft(name = "Имя", interestTypes = setOf(ProjectType.Practical)))
 
-        assertEquals(listOf("2"), saved.projectTypes)
+        assertEquals(listOf("practical"), saved.projectTypes)
     }
 
     @Test
     fun aChosenTypeTheServerAlreadyHadIsWrittenOnce() {
-        val saved = serverDetails.copy(projectTypes = listOf("1", " 1 ", "1"))
+        val saved = serverDetails.copy(projectTypes = listOf("scientific", " scientific ", "scientific"))
             .withDraft(ProfileDraft(name = "Имя", interestTypes = setOf(ProjectType.Scientific)))
 
-        assertEquals(listOf("1"), saved.projectTypes)
+        assertEquals(listOf("scientific"), saved.projectTypes)
     }
 
     @Test
@@ -212,7 +212,7 @@ class GatewayProfileMappingTest {
         val saved = serverDetails.copy(projectTypes = listOf(" weird ", "weird", "", " weird "))
             .withDraft(ProfileDraft(name = "Имя", interestTypes = setOf(ProjectType.Practical)))
 
-        assertEquals(listOf(" weird ", "weird", "", "2"), saved.projectTypes)
+        assertEquals(listOf(" weird ", "weird", "", "practical"), saved.projectTypes)
     }
 
     @Test

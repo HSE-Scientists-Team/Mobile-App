@@ -11,8 +11,8 @@ class ProjectCodesTest {
 
     @Test
     fun projectTypeCodesAreTheOnesOfTheContract() {
-        assertEquals("1", ProjectType.Scientific.code)
-        assertEquals("2", ProjectType.Practical.code)
+        assertEquals("scientific", ProjectType.Scientific.code)
+        assertEquals("practical", ProjectType.Practical.code)
     }
 
     @Test
@@ -27,13 +27,13 @@ class ProjectCodesTest {
 
     @Test
     fun projectTypeIsReadAfterTheOuterSpacesAreCut() {
-        assertEquals(ProjectType.Scientific, ProjectType.fromCode(" 1 "))
-        assertEquals(ProjectType.Practical, ProjectType.fromCode("\t2\n"))
+        assertEquals(ProjectType.Scientific, ProjectType.fromCode(" scientific "))
+        assertEquals(ProjectType.Practical, ProjectType.fromCode("\tpractical\n"))
     }
 
     @Test
     fun anythingButAnExactProjectTypeCodeIsUnknown() {
-        for (raw in listOf(null, "", "   ", "0", "3", "01", "1.0", "1 2", "-1", "scientific", "Scientific", "Научный")) {
+        for (raw in listOf(null, "", "   ", "0", "1", "2", "01", "1.0", "scientific practical", "Scientific", "PRACTICAL", "Научный")) {
             assertNull(ProjectType.fromCode(raw), "type of '$raw'")
         }
     }
@@ -42,11 +42,11 @@ class ProjectCodesTest {
 
     @Test
     fun projectStatusCodesAreTheOnesOfTheContract() {
-        assertEquals("1", ProjectStatus.Recruiting.code)
-        assertEquals("2", ProjectStatus.Unpublished.code)
-        assertEquals("3", ProjectStatus.Started.code)
-        assertEquals("4", ProjectStatus.Finished.code)
-        assertEquals("5", ProjectStatus.Cancelled.code)
+        assertEquals("recruiting", ProjectStatus.Recruiting.code)
+        assertEquals("unpublished", ProjectStatus.Unpublished.code)
+        assertEquals("started", ProjectStatus.Started.code)
+        assertEquals("finished", ProjectStatus.Finished.code)
+        assertEquals("cancelled", ProjectStatus.Cancelled.code)
     }
 
     @Test
@@ -61,21 +61,21 @@ class ProjectCodesTest {
 
     @Test
     fun projectStatusIsReadAfterTheOuterSpacesAreCut() {
-        assertEquals(ProjectStatus.Recruiting, ProjectStatus.fromCode(" 1"))
-        assertEquals(ProjectStatus.Unpublished, ProjectStatus.fromCode("2 "))
-        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode(" 4 "))
+        assertEquals(ProjectStatus.Recruiting, ProjectStatus.fromCode(" recruiting"))
+        assertEquals(ProjectStatus.Unpublished, ProjectStatus.fromCode("unpublished "))
+        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode(" finished "))
     }
 
     @Test
     fun lifecycleStatusesAreReadFromTheirCodes() {
-        assertEquals(ProjectStatus.Started, ProjectStatus.fromCode("3"))
-        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode("4"))
-        assertEquals(ProjectStatus.Cancelled, ProjectStatus.fromCode("5"))
+        assertEquals(ProjectStatus.Started, ProjectStatus.fromCode("started"))
+        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode("finished"))
+        assertEquals(ProjectStatus.Cancelled, ProjectStatus.fromCode("cancelled"))
     }
 
     @Test
     fun anythingButAnExactProjectStatusCodeIsUnknown() {
-        for (raw in listOf(null, "", " ", "0", "6", "01", "1.0", "published", "draft", "Recruiting")) {
+        for (raw in listOf(null, "", " ", "0", "1", "5", "01", "1.0", "published", "draft", "Recruiting", "CANCELLED", "canceled")) {
             assertNull(ProjectStatus.fromCode(raw), "status of '$raw'")
         }
     }
@@ -84,15 +84,15 @@ class ProjectCodesTest {
 
     @Test
     fun joinTypeCodesAreTheOnesOfTheContractAndReadBack() {
-        assertEquals("1", ProjectJoinType.Application.code)
-        assertEquals("2", ProjectJoinType.Invitation.code)
+        assertEquals("application", ProjectJoinType.Application.code)
+        assertEquals("invitation", ProjectJoinType.Invitation.code)
         for (type in ProjectJoinType.entries) assertEquals(type, ProjectJoinType.fromCode(type.code))
-        assertEquals(ProjectJoinType.Invitation, ProjectJoinType.fromCode(" 2 "))
+        assertEquals(ProjectJoinType.Invitation, ProjectJoinType.fromCode(" invitation "))
     }
 
     @Test
     fun anythingButAnExactJoinTypeCodeIsUnknown() {
-        for (raw in listOf(null, "", " ", "0", "3", "01", "application", "Application")) {
+        for (raw in listOf(null, "", " ", "0", "1", "2", "01", "Application", "INVITATION", "apply")) {
             assertNull(ProjectJoinType.fromCode(raw), "join type of '$raw'")
         }
     }
@@ -100,7 +100,7 @@ class ProjectCodesTest {
     @Test
     fun joinStatusCodesAreTheOnesOfTheContractAndReadBack() {
         assertEquals(
-            listOf("1", "2", "3", "4"),
+            listOf("pending", "accepted", "declined", "withdrawn"),
             listOf(
                 ProjectJoinStatus.Pending,
                 ProjectJoinStatus.Accepted,
@@ -110,12 +110,12 @@ class ProjectCodesTest {
         )
         assertEquals(4, ProjectJoinStatus.entries.size)
         for (status in ProjectJoinStatus.entries) assertEquals(status, ProjectJoinStatus.fromCode(status.code))
-        assertEquals(ProjectJoinStatus.Declined, ProjectJoinStatus.fromCode("\t3\n"))
+        assertEquals(ProjectJoinStatus.Declined, ProjectJoinStatus.fromCode("\tdeclined\n"))
     }
 
     @Test
     fun anythingButAnExactJoinStatusCodeIsUnknown() {
-        for (raw in listOf(null, "", " ", "0", "5", "02", "pending", "Pending")) {
+        for (raw in listOf(null, "", " ", "0", "1", "4", "02", "Pending", "ACCEPTED", "rejected")) {
             assertNull(ProjectJoinStatus.fromCode(raw), "join status of '$raw'")
         }
     }
@@ -123,8 +123,16 @@ class ProjectCodesTest {
     // ---- Spheres ----
 
     @Test
-    fun thereAreTwelveSpheresWithCodesOneToTwelve() {
-        assertEquals((1..12).map { it.toString() }, Spheres.all.map { it.id })
+    fun thereAreTwelveSpheresWhoseIdIsTheirName() {
+        assertEquals(12, Spheres.all.size)
+        assertEquals(Spheres.all.map { it.name }, Spheres.all.map { it.id })
+        assertEquals(
+            listOf(
+                "Computer Science", "Data Science", "Инженерия", "Математика", "Физика", "Химия",
+                "Биология", "Медицина", "Экономика", "Социология", "Лингвистика", "Дизайн",
+            ),
+            Spheres.all.map { it.id },
+        )
     }
 
     @Test
@@ -141,13 +149,13 @@ class ProjectCodesTest {
 
     @Test
     fun aSphereIsFoundAfterTheOuterSpacesAreCut() {
-        assertEquals(Spheres.all[2], Spheres.fromCode(" 3 "))
-        assertEquals(Spheres.all[11], Spheres.fromCode("\t12\n"))
+        assertEquals(Spheres.all[2], Spheres.fromCode(" Инженерия "))
+        assertEquals(Spheres.all[11], Spheres.fromCode("\tДизайн\n"))
     }
 
     @Test
     fun anythingButAnExactSphereCodeIsUnknown() {
-        for (raw in listOf(null, "", "  ", "0", "13", "-1", "03", "1.0", "1 2", "100", "Биология", "Computer Science")) {
+        for (raw in listOf(null, "", "  ", "0", "1", "12", "03", "1.0", "биология", "COMPUTER SCIENCE", "Computer  Science", "Биология и химия")) {
             assertNull(Spheres.fromCode(raw), "sphere of '$raw'")
         }
     }
