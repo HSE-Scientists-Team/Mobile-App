@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
@@ -32,9 +33,19 @@ class ProjectAdaptersTest {
         var spheres: List<Sphere> = emptyList()
         var failure: Throwable? = null
 
-        override fun observeMyProjects(): Flow<List<Project>> = emptyFlow()
-        override fun observeProject(id: ProjectId): Flow<Project?> = emptyFlow()
-        override suspend fun loadProject(id: ProjectId): Project? = throw AssertionError("The adapters read from the cache")
+        val loads = mutableListOf<ProjectId>()
+        var loadFailure: Throwable? = null
+        var mine: Flow<List<Project>> = emptyFlow()
+        var observed: Flow<Project?> = emptyFlow()
+
+        override fun observeMyProjects(): Flow<List<Project>> = mine
+        override fun observeProject(id: ProjectId): Flow<Project?> = observed
+        override suspend fun loadProject(id: ProjectId): Project? {
+            loads += id
+            loadFailure?.let { throw it }
+            return projects[id]
+        }
+        override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project = throw AssertionError()
         override suspend fun getProject(id: ProjectId): Project? {
             asked += id
             failure?.let { throw it }
@@ -133,5 +144,56 @@ class ProjectAdaptersTest {
         repository.failure = failure
 
         assertSame(failure, assertFailsWith<IllegalStateException> { ProjectsSphereProvider(repository).getSpheres() })
+    }
+
+    // ---- ProjectsResponsesProjectSource ----
+
+    @Test
+    fun theResponsesReadProjectsThroughTheCacheOfTheProjectsFeature() = runTest {
+        repository.projects[ProjectId("p1")] = project()
+        val source = ProjectsResponsesProjectSource(repository)
+
+        assertEquals(ProjectId("p1"), source.getProject(ProjectId("p1"))?.id)
+        assertNull(source.getProject(ProjectId("missing")))
+        assertEquals(emptyList(), repository.loads, "getProject does not read again")
+    }
+
+    @Test
+    fun refreshingAProjectReadsItAgainAndNeverThrowsItsFailure() = runTest {
+        val source = ProjectsResponsesProjectSource(repository)
+
+        source.refreshProject(ProjectId("p1"))
+        repository.loadFailure = IllegalStateException("offline")
+        source.refreshProject(ProjectId("p2"))
+
+        assertEquals(listOf(ProjectId("p1"), ProjectId("p2")), repository.loads)
+    }
+
+    @Test
+    fun aCancellationWhileRefreshingAProjectIsNotSwallowed() = runTest {
+        repository.loadFailure = kotlinx.coroutines.CancellationException("cancelled")
+
+        assertFailsWith<kotlinx.coroutines.CancellationException> {
+            ProjectsResponsesProjectSource(repository).refreshProject(ProjectId("p1"))
+        }
+    }
+
+    @Test
+    fun theViewersProjectsAreTheFirstValueOfTheListAndItsFailureIsThrown() = runTest {
+        repository.mine = kotlinx.coroutines.flow.flowOf(listOf(project()))
+        assertEquals(listOf(ProjectId("p1")), ProjectsResponsesProjectSource(repository).getMyProjects().map { it.id })
+
+        val unavailable = org.matchlab.academic_net.common.result.FeatureUnavailableException("G44")
+        repository.mine = kotlinx.coroutines.flow.flow { throw unavailable }
+        assertSame(unavailable, assertFailsWith<org.matchlab.academic_net.common.result.FeatureUnavailableException> {
+            ProjectsResponsesProjectSource(repository).getMyProjects()
+        })
+    }
+
+    @Test
+    fun theProjectIsObservedFromTheProjectsFeature() = runTest {
+        repository.observed = kotlinx.coroutines.flow.flowOf(project())
+
+        assertEquals(ProjectId("p1"), ProjectsResponsesProjectSource(repository).observeProject(ProjectId("p1")).first()?.id)
     }
 }

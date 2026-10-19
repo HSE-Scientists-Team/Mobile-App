@@ -5,7 +5,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
@@ -18,12 +17,13 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick
 
 /**
- * "Card/Participant manage": project member on the management screen, with chat and kick.
+ * "Card/Participant manage": a member of the project on the management screen: the person (a 64dp avatar centered on the
+ * row, as on "Card/Person", with the chat button at its end when [PersonCardUiModel.showChatButton]) and "Выгнать" under it.
  *
- * The person row keeps the layout from before the redesign of "Card/Person" (2026-10-17): a 48dp
- * avatar, and with the chat button the row bottom-aligned. The component in Figma (59523:125) has
- * the same defect and its redesign waits for a decision (docs/sprint-1.md, "Card/Participant
- * manage"); when it is made, drop the two arguments below and the card follows [PersonSummary].
+ * @param onClick the card itself, e.g. the way to the profile of the member; `null` makes it no button (the chat and kick
+ *  buttons work on their own)
+ * @param removing the member is being removed: "Выгнать" shows an arc in the error color instead of its label and takes
+ *  no taps (the design's `showSpinner`)
  */
 @Composable
 fun ParticipantManageCard(
@@ -31,19 +31,17 @@ fun ParticipantManageCard(
     onKickClick: () -> Unit,
     modifier: Modifier = Modifier,
     onChatClick: () -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    removing: Boolean = false,
 ) {
-    AppCard(modifier, spacing = 12.dp) {
-        PersonSummary(
-            model = person,
-            onChatClick = onChatClick,
-            avatarSize = 48.dp,
-            verticalAlignment = if (person.showChatButton) Alignment.Bottom else Alignment.CenterVertically,
-        )
+    AppCard(modifier, onClick = onClick, spacing = 12.dp) {
+        PersonSummary(model = person, onChatClick = onChatClick)
         AppButton(
             text = stringResource(Res.string.projects_kick),
             onClick = onKickClick,
             modifier = Modifier.fillMaxWidth(),
             variant = AppButtonVariant.OutlinedError,
+            loading = removing,
         )
     }
 }

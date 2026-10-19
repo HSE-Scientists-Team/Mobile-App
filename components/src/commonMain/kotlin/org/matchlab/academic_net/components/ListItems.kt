@@ -1,5 +1,7 @@
 package org.matchlab.academic_net.components
 
+import academicnet.components.generated.resources.Res
+import academicnet.components.generated.resources.components_report
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.interaction.onceClickable
 
 /**
@@ -53,6 +56,21 @@ fun ActionListItem(
         TitleWithSubtitle(title, subtitle, color = if (destructive) colors.error else colors.onSurface)
         Chevron()
     }
+}
+
+/**
+ * "Пожаловаться": the row of a menu that leads to a complaint (13b): the flag and the words in the error color, with the
+ * chevron. The label is the shared `components_report`, so every place that reports says the same.
+ */
+@Composable
+fun ReportListItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ActionListItem(
+        title = stringResource(Res.string.components_report),
+        onClick = onClick,
+        modifier = modifier,
+        icon = AppIcons.Flag,
+        destructive = true,
+    )
 }
 
 /** "List item/Setting": setting row that opens another screen. A burst of taps runs [onClick] once. */

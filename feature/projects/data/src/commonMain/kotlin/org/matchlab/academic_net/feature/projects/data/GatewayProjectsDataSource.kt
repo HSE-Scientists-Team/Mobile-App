@@ -21,6 +21,7 @@ import org.matchlab.academic_net.common.model.Spheres
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.common.result.RemoteFailure
+import org.matchlab.academic_net.feature.projects.domain.MemberNotRemovableException
 import org.matchlab.academic_net.feature.projects.domain.NewProject
 import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
 import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
@@ -65,6 +66,7 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * | `updateProject` | `PUT /projects/{id}` with the description, without roles (API-GAP G63), and the cached revision; 404 and 409 as for `unpublishProject` |
  * | `updateRole` | `PUT /projects/{id}/roles/{role_id}` with the new title and skills; `slots` and `description` are those the cache has (the PUT replaces the role); a 409 is [ProjectConflictException] after the project was read again, a 404 reads the project again too: gone is [ProjectNotFoundException], still there (the role is gone) is [ProjectConflictException] |
  * | `removeRole` | `DELETE /projects/{id}/roles/{role_id}?expected_revision=` with the cached revision; a 403 or 409 is [RoleNotRemovableException] after the project was read again (API-GAP G64); a 404 reads the project again: gone is [ProjectNotFoundException], still there counts as deleted and the project is returned |
+ * | `removeMember` | `DELETE /projects/{id}/members/{user_id}` with the lock held; the answer is the project (the team is read after it); a 403 or 409 is [MemberNotRemovableException] after the project was read again (API-GAP G65); a 404 reads the project again: gone is [ProjectNotFoundException], still there counts as removed and the project is returned |
  * | `addRole` | `POST /projects/{id}/roles` with the cached revision (the project is read first if the cache does not have it); a 404 is [ProjectNotFoundException], a 409 is [ProjectConflictException] after the project was read again; the rest is thrown |
  * | `observeMyProjects` | the first collection reads `GET /projects` (see below); a failure of that is thrown to the collector, which asks again by collecting again |
  * | `getSpheres` | `Spheres.all`, no request |
@@ -80,7 +82,7 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * gave, in the server's order. So the list follows every change of a cached project (a project taken off publication, a
  * role added, a project that is gone) without a request.
  *
- * **Writes** (`createProject`, `unpublishProject`, `changeLifecycle`, `updateProject`, `updateRole`, `removeRole`, `addRole`) run one after another, so that the second does not send the
+ * **Writes** (`createProject`, `unpublishProject`, `changeLifecycle`, `updateProject`, `updateRole`, `removeRole`, `removeMember`, `addRole`) run one after another, so that the second does not send the
  * revision the first has just made stale. The answer to a write is in the cache as soon as the API has given it; the owner
  * and the team are read after that, outside the lock, and replace it. There is no automatic retry after a failure: API-GAP G48, the API has no
  * idempotency keys, and a retry after an answer that got lost could add the role, or the project, twice. After a 409 the
@@ -246,6 +248,29 @@ class GatewayProjectsDataSource(
                     val reread = suspendRunCatching { read(projectId) }
                     if (reread.isSuccess && reread.getOrNull() == null) throw ProjectNotFoundException(projectId)
                     throw RoleNotRemovableException(projectId, roleId)
+                }
+                else -> throw failure
+            }
+        }
+        keep(projectId, answer, known.project)
+    }
+
+    override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project = write {
+        val known = cache.value[projectId] ?: read(projectId) ?: throw ProjectNotFoundException(projectId)
+        val answer = try {
+            api.removeMember(projectId.value, userId.value)
+        } catch (failure: RemoteFailure.Http) {
+            when (failure.status) {
+                NOT_FOUND -> {
+                    // The project read again is the answer: gone is not found, still there counts as removed.
+                    val reread = read(projectId)?.project ?: throw ProjectNotFoundException(projectId)
+                    return@write Written(projectId, reread, answer = null)
+                }
+                FORBIDDEN, CONFLICT -> {
+                    // API-GAP G65: the server's reason is not described; the project is read again for what it has.
+                    val reread = suspendRunCatching { read(projectId) }
+                    if (reread.isSuccess && reread.getOrNull() == null) throw ProjectNotFoundException(projectId)
+                    throw MemberNotRemovableException(projectId, userId)
                 }
                 else -> throw failure
             }

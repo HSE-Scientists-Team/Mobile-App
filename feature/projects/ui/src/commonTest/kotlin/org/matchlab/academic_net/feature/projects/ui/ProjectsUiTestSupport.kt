@@ -267,6 +267,21 @@ internal class FakeProjectsRepository(
         return updated
     }
 
+    // ---- removing a member ----
+    val removedMembers = mutableListOf<Pair<ProjectId, UserId>>()
+    var removeMemberFailure: Throwable? = null
+    var removeMemberGate: Gate? = null
+
+    override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project {
+        removedMembers += projectId to userId
+        removeMemberGate?.await()
+        removeMemberFailure?.let { throw it }
+        val current = cache.value[projectId] ?: throw ProjectNotFoundException(projectId)
+        val updated = current.copy(members = current.members.filterNot { it.userId == userId })
+        cache.update { it + (projectId to updated) }
+        return updated
+    }
+
     override suspend fun getSpheres(): List<Sphere> {
         spheresCalls++
         spheresGate?.await()

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -35,10 +36,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.interaction.onceClickable
@@ -199,6 +203,97 @@ fun AppTextField(
             }
         }
     }
+}
+
+/**
+ * "Text field/Multiline": the text field of [AppTextField] for a longer text (the message of an application or an
+ * invitation, "Что произошло" of a complaint). The box is at least 96dp tall and the text starts at its top; a longer
+ * text grows the box up to [maxLines] lines and then scrolls inside it. The caret survives configuration changes (see
+ * [AppBasicTextField]).
+ *
+ * Under the box stands one line of `labelSmall`: the [errorText] in `error` at the start and, when [counterText] is
+ * given, the counter ("61 / 500") in `onSurfaceVariant` at the end.
+ *
+ * @param label the caption above the box
+ * @param required the field has to be filled: a red asterisk follows the label ("Что произошло *")
+ * @param placeholder what the empty box says
+ * @param counterText the counter at the end of the line under the box, e.g. "0 / 500"; `null` for none
+ * @param errorText the reason the text is not accepted (the outline turns `error`), or `null`
+ * @param enabled `false` while the form that holds the field is busy: the input takes no text, the look is unchanged
+ * @param maxLines how many lines the box grows to before the text scrolls
+ */
+@Composable
+fun AppMultilineField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    required: Boolean = false,
+    placeholder: String = "",
+    counterText: String? = null,
+    errorText: String? = null,
+    enabled: Boolean = true,
+    maxLines: Int = 6,
+) {
+    val colors = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (required) {
+            Text(
+                text = buildAnnotatedString {
+                    append(label)
+                    append(" ")
+                    withStyle(SpanStyle(color = colors.error)) { append("*") }
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.onSurfaceVariant,
+            )
+        } else {
+            FieldLabel(label)
+        }
+        AppBasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { if (errorText != null) error(errorText) },
+            enabled = enabled,
+            maxLines = maxLines,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+            cursorBrush = SolidColor(colors.primary),
+            interactionSource = interactionSource,
+            decorationBox = { innerTextField ->
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = MultilineMinHeight)
+                        .fieldBox(focused, isError = errorText != null)
+                        .padding(horizontal = 17.dp, vertical = 15.dp),
+                ) {
+                    if (value.isEmpty()) MultilinePlaceholder(placeholder)
+                    innerTextField()
+                }
+            },
+        )
+        if (errorText != null || counterText != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) { if (errorText != null) FieldError(errorText) }
+                if (counterText != null) {
+                    Text(counterText, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+/** The height of the box of "Text field/Multiline": 96dp with its outline (the 94dp inside it and 1dp on each side). */
+private val MultilineMinHeight = 96.dp
+
+@Composable
+private fun MultilinePlaceholder(text: String) {
+    // The empty box is as tall as the text it may hold, so the hint wraps instead of being cut to one line.
+    Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /**

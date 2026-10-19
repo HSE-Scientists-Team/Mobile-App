@@ -6,6 +6,8 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.UserId
+import org.matchlab.academic_net.feature.projects.domain.MemberNotRemovableException
 import org.matchlab.academic_net.feature.projects.domain.NewProject
 import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
 import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
@@ -84,6 +86,13 @@ interface ProjectsDataSource {
      * @throws RoleNotRemovableException 403 or 409 (API-GAP G64); the project has been read again
      */
     suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project
+
+    /**
+     * Removes the member and returns the project; a 404 reads the project again: gone is [ProjectNotFoundException], still
+     * there counts as removed (that project is returned).
+     * @throws MemberNotRemovableException 403 or 409 (API-GAP G65); the project has been read again
+     */
+    suspend fun removeMember(projectId: ProjectId, userId: UserId): Project
 
     /** The spheres a project can belong to: the app's own list, `Spheres.all`. */
     suspend fun getSpheres(): List<Sphere>

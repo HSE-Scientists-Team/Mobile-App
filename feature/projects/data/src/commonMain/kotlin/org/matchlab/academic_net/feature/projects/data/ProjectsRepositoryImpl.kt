@@ -6,6 +6,7 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.feature.projects.domain.NewProject
 import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
 import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
@@ -44,6 +45,9 @@ class ProjectsRepositoryImpl(
 
     override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project =
         dataSource.removeRole(projectId, roleId)
+
+    override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project =
+        dataSource.removeMember(projectId, userId)
 
     override suspend fun getSpheres(): List<Sphere> = dataSource.getSpheres()
 }

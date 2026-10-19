@@ -10,6 +10,18 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
+import org.matchlab.academic_net.common.result.RemoteFailure
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveNotAllowedException
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveProjectUseCase
+import org.matchlab.academic_net.feature.projectdetails.domain.ObserveAppliedRolesUseCase
+import org.matchlab.academic_net.feature.projectdetails.domain.ProjectGoneException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -42,7 +54,13 @@ class ProjectDetailsViewModelTest {
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
     @AfterTest
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() {
+        collectors.cancel()
+        Dispatchers.resetMain()
+    }
+
+    /** Keeps the state of every view model of a test collected, the way a screen does (the state is `WhileSubscribed`). */
+    private val collectors = CoroutineScope(UnconfinedTestDispatcher() + SupervisorJob())
 
     private class FakeRepository : ProjectDetailsRepository {
         var answer: ProjectDetails? = null
@@ -63,6 +81,19 @@ class ProjectDetailsViewModelTest {
             return team
         }
 
+        /** The calls of [leaveProject]; [leaveFailure] fails it, [leaveGate] holds it back, [onLeave] changes the server. */
+        val left = mutableListOf<ProjectId>()
+        var leaveFailure: Throwable? = null
+        var leaveGate: CompletableDeferred<Unit>? = null
+        var onLeave: () -> Unit = {}
+
+        override suspend fun leaveProject(id: ProjectId) {
+            left += id
+            leaveGate?.await()
+            leaveFailure?.let { throw it }
+            onLeave()
+        }
+
         override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? {
             asked += id
             gate?.await()
@@ -74,8 +105,21 @@ class ProjectDetailsViewModelTest {
     private val repository = FakeRepository()
     private val cause = IllegalStateException("offline")
 
-    private fun viewModel() =
-        ProjectDetailsViewModel(ProjectId("p1"), GetProjectDetailsUseCase(repository), GetProjectTeamUseCase(repository))
+    /** The roles the viewer has applied to, as the data layer's list of records tells. */
+    private val appliedRoles = MutableStateFlow<Set<RoleId>>(emptySet())
+    private var appliedSource: (ProjectId) -> Flow<Set<RoleId>> = { appliedRoles }
+
+    private fun viewModel(): ProjectDetailsViewModel {
+        val viewModel = ProjectDetailsViewModel(
+            ProjectId("p1"),
+            GetProjectDetailsUseCase(repository),
+            GetProjectTeamUseCase(repository),
+            ObserveAppliedRolesUseCase { appliedSource(it) },
+            LeaveProjectUseCase(repository),
+        )
+        collectors.launch { viewModel.uiState.collect {} }
+        return viewModel
+    }
 
     private fun details(
         viewerIsInitiator: Boolean = false,
@@ -488,5 +532,272 @@ class ProjectDetailsViewModelTest {
         viewModel()
 
         assertEquals(emptyList(), repository.teamAsked)
+    }
+
+    // ---- "Откликнуться" and "Вы откликнулись" ----
+
+    private val ProjectDetailsViewModel.contentState get() = assertIs<ProjectDetailsUiState.Content>(uiState.value)
+
+    @Test
+    fun applyingIsOfferedToAnOutsiderOfARecruitingOrUnknownStatusProject() {
+        for (status in listOf(ProjectStatus.Recruiting, null)) {
+            repository.answer = details(status = status)
+            assertTrue(viewModel().content.canApply, "status $status")
+        }
+    }
+
+    @Test
+    fun applyingIsNotOfferedForAnyOtherStatus() {
+        for (status in listOf(ProjectStatus.Unpublished, ProjectStatus.Started, ProjectStatus.Finished, ProjectStatus.Cancelled)) {
+            repository.answer = details(status = status)
+            assertFalse(viewModel().content.canApply, "status $status")
+        }
+    }
+
+    @Test
+    fun applyingIsNotOfferedToTheInitiatorOrToAMember() {
+        repository.answer = details(viewerIsInitiator = true, status = ProjectStatus.Recruiting)
+        assertFalse(viewModel().content.canApply)
+
+        repository.answer = details(status = ProjectStatus.Recruiting, members = listOf(member("me", viewer = true)))
+        assertFalse(viewModel().content.canApply)
+
+        repository.answer = details(status = ProjectStatus.Recruiting, members = listOf(member("other")))
+        assertTrue(viewModel().content.canApply, "somebody else on the team does not matter")
+    }
+
+    @Test
+    fun theAppliedRolesComeFromTheListOfRecordsAndFollowIt() {
+        repository.answer = details(roles = listOf(role("r1"), role("r2")))
+        val viewModel = viewModel()
+        assertEquals(emptySet(), viewModel.content.appliedRoles)
+
+        appliedRoles.value = setOf(RoleId("r2"))
+        assertEquals(setOf(RoleId("r2")), viewModel.content.appliedRoles)
+
+        appliedRoles.value = emptySet()
+        assertEquals(emptySet(), viewModel.content.appliedRoles)
+    }
+
+    @Test
+    fun anAppliedRoleBeforeThePageArrivesIsThereWhenItDoes() {
+        appliedRoles.value = setOf(RoleId("r1"))
+        repository.gate = CompletableDeferred()
+        repository.answer = details(roles = listOf(role("r1")))
+        val viewModel = viewModel()
+        assertEquals(ProjectDetailsUiState.Loading, viewModel.uiState.value)
+
+        repository.gate!!.complete(Unit)
+
+        assertEquals(setOf(RoleId("r1")), viewModel.content.appliedRoles)
+    }
+
+    @Test
+    fun aFailureOfTheAppliedRolesNeverFailsThePage() {
+        appliedSource = { flow { throw RemoteFailure.NoConnection() } }
+        repository.answer = details()
+
+        val viewModel = viewModel()
+
+        assertEquals(emptySet(), viewModel.content.appliedRoles)
+    }
+
+    @Test
+    fun theFlagToReportIsOfferedToEveryoneButTheInitiator() {
+        repository.answer = details(viewerIsInitiator = false)
+        assertTrue(viewModel().content.canReport)
+
+        repository.answer = details(viewerIsInitiator = true)
+        assertFalse(viewModel().content.canReport)
+    }
+
+    // ---- "Покинуть проект" ----
+
+    private fun asMember() {
+        repository.answer = details(members = listOf(member("me", viewer = true), member("u2")))
+        repository.team = listOf(teamMember("me", viewer = true), teamMember("u2"))
+    }
+
+    @Test
+    fun leavingIsOfferedToAMemberWhoIsNotTheInitiator() {
+        asMember()
+        assertTrue(viewModel().content.canLeave)
+
+        repository.answer = details(viewerIsInitiator = true, members = listOf(member("me", viewer = true)))
+        assertFalse(viewModel().content.canLeave)
+
+        repository.answer = details(members = listOf(member("u2")))
+        assertFalse(viewModel().content.canLeave)
+    }
+
+    @Test
+    fun leavingWhenNotOfferedOpensNoDialog() {
+        repository.answer = details()
+        val viewModel = viewModel()
+
+        viewModel.onLeaveClick()
+        viewModel.onLeaveConfirm()
+
+        assertFalse(viewModel.contentState.isLeaveConfirmVisible)
+        assertEquals(emptyList(), repository.left)
+    }
+
+    @Test
+    fun theDialogOpensAndClosesWithoutLeaving() {
+        asMember()
+        val viewModel = viewModel()
+
+        viewModel.onLeaveClick()
+        assertTrue(viewModel.contentState.isLeaveConfirmVisible)
+        viewModel.onLeaveDismiss()
+
+        assertFalse(viewModel.contentState.isLeaveConfirmVisible)
+        assertEquals(emptyList(), repository.left)
+    }
+
+    @Test
+    fun confirmingWithoutTheDialogDoesNothing() {
+        asMember()
+        val viewModel = viewModel()
+
+        viewModel.onLeaveConfirm()
+
+        assertEquals(emptyList(), repository.left)
+        assertFalse(viewModel.contentState.isLeaving)
+    }
+
+    @Test
+    fun leavingReadsThePageAgainAndShowsTheBanner() {
+        asMember()
+        repository.onLeave = { repository.answer = details(members = listOf(member("u2"))) }
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+
+        viewModel.onLeaveConfirm()
+
+        assertEquals(listOf(ProjectId("p1")), repository.left)
+        assertEquals(2, repository.asked.size, "the page is read again")
+        with(viewModel.contentState) {
+            assertTrue(hasLeft)
+            assertFalse(isLeaving)
+            assertFalse(isLeaveConfirmVisible)
+            assertNull(leaveFailure)
+            assertFalse(project.canLeave, "the viewer is not on the team now")
+        }
+    }
+
+    @Test
+    fun leavingIsGuardedWhileItRunsAndAfterIt() {
+        asMember()
+        repository.leaveGate = CompletableDeferred()
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+
+        viewModel.onLeaveConfirm()
+        assertTrue(viewModel.contentState.isLeaving)
+        viewModel.onLeaveConfirm()
+        viewModel.onLeaveClick()
+        assertFalse(viewModel.contentState.isLeaveConfirmVisible, "no new dialog while leaving")
+        repository.leaveGate!!.complete(Unit)
+        viewModel.onLeaveClick()
+        viewModel.onLeaveConfirm()
+
+        assertEquals(1, repository.left.size)
+        assertFalse(viewModel.contentState.isLeaveConfirmVisible, "no dialog after the viewer has left")
+    }
+
+    @Test
+    fun theGuardHoldsWhileThePageIsReadAgain() {
+        asMember()
+        val reread = CompletableDeferred<Unit>()
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+        repository.onLeave = { repository.gate = reread }
+
+        viewModel.onLeaveConfirm()
+
+        with(viewModel.contentState) {
+            assertTrue(hasLeft)
+            assertTrue(isLeaving, "the arc stays until the page is read")
+        }
+        reread.complete(Unit)
+        assertFalse(viewModel.contentState.isLeaving)
+    }
+
+    @Test
+    fun aRefusalIsNotAllowedAndTheNextTryClearsIt() {
+        asMember()
+        repository.leaveFailure = LeaveNotAllowedException(ProjectId("p1"))
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+
+        viewModel.onLeaveConfirm()
+
+        with(viewModel.contentState) {
+            assertEquals(LeaveFailure.NotAllowed, leaveFailure)
+            assertFalse(isLeaving)
+            assertFalse(hasLeft)
+        }
+        assertEquals(1, repository.asked.size, "a refusal does not read the page again")
+        viewModel.onLeaveClick()
+        assertNull(viewModel.contentState.leaveFailure)
+        assertTrue(viewModel.contentState.isLeaveConfirmVisible)
+    }
+
+    @Test
+    fun aGoneProjectIsNotFound() {
+        asMember()
+        repository.leaveFailure = ProjectGoneException(ProjectId("p1"))
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+
+        viewModel.onLeaveConfirm()
+
+        assertEquals(ProjectDetailsUiState.NotFound, viewModel.uiState.value)
+    }
+
+    @Test
+    fun anyOtherFailureKeepsItsCauseAndTheUserMayTryAgain() {
+        asMember()
+        repository.leaveFailure = cause
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+
+        viewModel.onLeaveConfirm()
+
+        assertSame(cause, assertIs<LeaveFailure.Failed>(viewModel.contentState.leaveFailure).cause)
+        assertFalse(viewModel.contentState.isLeaving)
+        repository.leaveFailure = null
+        viewModel.onLeaveClick()
+        viewModel.onLeaveConfirm()
+        assertEquals(2, repository.left.size)
+        assertTrue(viewModel.contentState.hasLeft)
+    }
+
+    @Test
+    fun aFailureOfTheRereadAfterLeavingKeepsTheScreenAndTheBanner() {
+        asMember()
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+        repository.onLeave = { repository.failure = cause }
+
+        viewModel.onLeaveConfirm()
+
+        with(viewModel.contentState) {
+            assertTrue(hasLeft)
+            assertFalse(isLeaving)
+        }
+    }
+
+    @Test
+    fun aProjectThatIsGoneWhenReadAgainAfterLeavingIsNotFound() {
+        asMember()
+        val viewModel = viewModel()
+        viewModel.onLeaveClick()
+        repository.onLeave = { repository.answer = null }
+
+        viewModel.onLeaveConfirm()
+
+        assertEquals(ProjectDetailsUiState.NotFound, viewModel.uiState.value)
     }
 }

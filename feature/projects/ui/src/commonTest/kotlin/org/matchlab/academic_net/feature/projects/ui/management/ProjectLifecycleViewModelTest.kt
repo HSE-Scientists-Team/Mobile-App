@@ -21,6 +21,7 @@ import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveMemberUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectUseCase
 import org.matchlab.academic_net.feature.projects.ui.FakeProjectsRepository
 import org.matchlab.academic_net.feature.projects.ui.Gate
@@ -54,6 +55,7 @@ class ProjectLifecycleViewModelTest {
             unpublishProject = UnpublishProjectUseCase(repository),
             addRole = AddRoleUseCase(repository),
             changeLifecycle = ChangeProjectLifecycleUseCase(repository),
+            removeMember = RemoveMemberUseCase(repository),
             capabilities = capabilities,
         )
         keepCollecting(viewModel.uiState)

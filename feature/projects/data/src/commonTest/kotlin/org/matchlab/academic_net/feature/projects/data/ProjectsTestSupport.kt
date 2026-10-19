@@ -155,8 +155,16 @@ internal class ScriptedProjectsApi : ProjectsApi {
         return onDeleteRole(id, roleId, expectedRevision)
     }
 
-    override suspend fun removeMember(id: String, userId: String): ProjectDto =
-        throw AssertionError("The projects never remove a member")
+    var onRemoveMember: suspend (String, String) -> ProjectDto =
+        { id, user -> throw AssertionError("Unexpected DELETE of the member $user of $id") }
+
+    /** The members that were removed: project id, user id. */
+    val memberRemovals = mutableListOf<Pair<String, String>>()
+
+    override suspend fun removeMember(id: String, userId: String): ProjectDto {
+        memberRemovals += id to userId
+        return onRemoveMember(id, userId)
+    }
 
     override suspend fun leave(id: String): ProjectDto = throw AssertionError("The projects never leave")
 }

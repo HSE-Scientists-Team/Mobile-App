@@ -13,4 +13,13 @@
     <string name="projectdetails_team">Команда</string>
     <!-- 1: the name of the team member -->
     <string name="projectdetails_message_member">Написать: %1$s</string>
+
+    <!-- 04y, 04g–04i: leaving the project. 1: the title of the project -->
+    <string name="projectdetails_leave">Покинуть проект</string>
+    <string name="projectdetails_leave_dialog_title">Покинуть проект?</string>
+    <string name="projectdetails_leave_dialog_text">Вы перестанете быть участником проекта «%1$s».</string>
+    <string name="projectdetails_leave_confirm">Покинуть</string>
+    <string name="projectdetails_cancel">Отмена</string>
+    <string name="projectdetails_leave_not_allowed">Действие недоступно в текущем состоянии проекта</string>
+    <string name="projectdetails_left_banner">Вы покинули проект</string>
 </resources>

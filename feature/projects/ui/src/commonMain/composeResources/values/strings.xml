@@ -119,4 +119,14 @@
     <string name="projects_role_not_removable">The role cannot be deleted</string>
     <string name="projects_role_locked_hint">The role cannot be deleted: it already has people</string>
     <string name="projects_role_slots_locked">The number of places cannot be changed after the role is created</string>
+
+    <!-- 07 / 07b / 07c: the way to the applications; 07i, 07v: removing a member -->
+    <string name="projects_responses">Applications</string>
+    <string name="projects_responses_count">Applications · %1$d</string>
+    <string name="projects_responses_hint">Candidates for the vacant roles</string>
+    <string name="projects_kick_dialog_title">Remove the member?</string>
+    <!-- 1: the name of the member -->
+    <string name="projects_kick_dialog_text">%1$s will be removed from the project.</string>
+    <string name="projects_kick_failed">Couldn't remove the member. Please try again</string>
+    <string name="projects_member_not_allowed">This action is not available</string>
 </resources>

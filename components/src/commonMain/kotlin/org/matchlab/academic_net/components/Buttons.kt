@@ -41,6 +41,9 @@ import org.matchlab.academic_net.components.interaction.rememberOnceClick
 
 enum class AppButtonVariant {
     Filled,
+
+    /** [Filled] in the error color, e.g. "Пожаловаться" of the confirmation of a complaint. */
+    FilledError,
     Tonal,
     Outlined,
 
@@ -87,19 +90,23 @@ fun AppButton(
     val canClick = enabled && !loading
     val label: @Composable RowScope.() -> Unit = { ButtonLabel(text, loading) }
     when (variant) {
-        AppButtonVariant.Filled -> Button(
-            onClick = onceClick,
-            modifier = modifier,
-            enabled = canClick,
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.primary,
-                contentColor = colors.onPrimary,
-                disabledContainerColor = colors.primary.keptWhile(loading),
-                disabledContentColor = colors.onPrimary.keptWhile(loading),
-            ),
-            content = label,
-        )
+        AppButtonVariant.Filled, AppButtonVariant.FilledError -> {
+            val container = if (variant == AppButtonVariant.FilledError) colors.error else colors.primary
+            val content = if (variant == AppButtonVariant.FilledError) colors.onError else colors.onPrimary
+            Button(
+                onClick = onceClick,
+                modifier = modifier,
+                enabled = canClick,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = container,
+                    contentColor = content,
+                    disabledContainerColor = container.keptWhile(loading),
+                    disabledContentColor = content.keptWhile(loading),
+                ),
+                content = label,
+            )
+        }
         AppButtonVariant.Tonal -> FilledTonalButton(
             onClick = onceClick,
             modifier = modifier,

@@ -13,4 +13,6 @@ class ProjectDetailsRepositoryImpl(
     override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? = dataSource.getProjectDetails(id)
 
     override suspend fun getTeam(project: Project): List<TeamMember> = dataSource.getTeam(project)
+
+    override suspend fun leaveProject(id: ProjectId) = dataSource.leaveProject(id)
 }

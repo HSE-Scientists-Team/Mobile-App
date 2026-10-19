@@ -119,4 +119,14 @@
     <string name="projects_role_not_removable">Роль нельзя удалить</string>
     <string name="projects_role_locked_hint">Роль нельзя удалить: в ней уже есть участники</string>
     <string name="projects_role_slots_locked">Количество мест нельзя изменить после создания роли</string>
+
+    <!-- 07 / 07b / 07c: the way to the applications; 07i, 07v: removing a member -->
+    <string name="projects_responses">Отклики</string>
+    <string name="projects_responses_count">Отклики · %1$d</string>
+    <string name="projects_responses_hint">Кандидаты на вакантные роли</string>
+    <string name="projects_kick_dialog_title">Выгнать участника?</string>
+    <!-- 1: the name of the member -->
+    <string name="projects_kick_dialog_text">%1$s будет исключён из проекта.</string>
+    <string name="projects_kick_failed">Не удалось выгнать участника. Попробуйте ещё раз</string>
+    <string name="projects_member_not_allowed">Действие недоступно</string>
 </resources>

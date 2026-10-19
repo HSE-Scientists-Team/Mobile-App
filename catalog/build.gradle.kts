@@ -33,6 +33,7 @@ kotlin {
             implementation(project(":feature:profile:ui"))
             implementation(project(":feature:chats:ui"))
             implementation(project(":feature:responses:ui"))
+            implementation(project(":feature:complaints:ui"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

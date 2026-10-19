@@ -4,11 +4,13 @@ import me.tatarka.inject.annotations.Inject
 import org.matchlab.academic_net.di.SessionScope
 import org.matchlab.academic_net.feature.chats.ui.ChatsUiDependencies
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorsUiDependencies
+import org.matchlab.academic_net.feature.complaints.ui.ComplaintsUiDependencies
 import org.matchlab.academic_net.feature.feed.ui.FeedUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.projectdetails.ui.ProjectDetailsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projectsearch.ui.ProjectSearchUiDependencies
+import org.matchlab.academic_net.feature.responses.ui.ResponsesUiDependencies
 import org.matchlab.academic_net.feature.settings.ui.SettingsUiDependencies
 
 /**
@@ -30,4 +32,6 @@ internal class SessionDependencies(
     val projectDetails: ProjectDetailsUiDependencies,
     val profile: ProfileUiDependencies,
     val settings: SettingsUiDependencies,
+    val responses: ResponsesUiDependencies,
+    val complaints: ComplaintsUiDependencies,
 )

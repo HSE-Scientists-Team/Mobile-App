@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -20,9 +21,11 @@ import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppAvatars
+import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
+import org.matchlab.academic_net.components.ReportIconButton
 import org.matchlab.academic_net.components.format.failureText
 import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.components.person.subtitleText
@@ -34,6 +37,7 @@ import org.matchlab.academic_net.feature.profile.ui.ProfileSections
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiModel
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_invite
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_load_error
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_found_text
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_found_title
@@ -43,9 +47,9 @@ import org.matchlab.academic_net.feature.profile.ui.openableLink
 import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
 
 /**
- * "09 Профиль коллаборатора": the profile of another person, read-only. The actions of the
- * design that belong to later stories (invite, open to collaboration, report, block) are not
- * shown; the chat icon in the header stands for the invite and the chat.
+ * "09 Профиль коллаборатора": the profile of another person. The flag of the app bar reports them (09c), "Пригласить в
+ * проект" under the header invites them to a project (09k), the chat icon of the header starts a chat. None of the three
+ * is on the viewer's own page. Blocking is a later sprint and is not shown.
  *
  * A work with a web link opens the link (API-GAP G56: a link of another kind is not opened); a document is not a
  * button. A review card opens the review in full, its author row opens the profile of the author, its chat icon starts
@@ -58,6 +62,9 @@ import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
  * @param onReviewClick a review card: the person whose page this is, and the review
  * @param onAuthorClick the author row of a review card
  * @param onAuthorChatClick the chat icon of a review card
+ * @param onInviteClick "Пригласить в проект": the host opens the sheet 09k
+ * @param onReportClick the flag of the app bar: the host opens the sheet 09c
+ * @param topBanner drawn above the header, e.g. "Приглашение отправлено" (09q); `null` for none
  */
 @Composable
 fun UserProfileRoute(
@@ -70,6 +77,9 @@ fun UserProfileRoute(
     onReviewClick: (UserId, ReviewId) -> Unit,
     onAuthorClick: (UserId) -> Unit,
     onAuthorChatClick: (UserSummary) -> Unit,
+    onInviteClick: () -> Unit,
+    onReportClick: () -> Unit,
+    topBanner: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel(key = "user-profile-${userId.value}") {
@@ -90,8 +100,11 @@ fun UserProfileRoute(
         onReviewClick = { reviewId -> onReviewClick(userId, reviewId) },
         onAuthorClick = onAuthorClick,
         onAuthorChatClick = onAuthorChatClick,
+        onInviteClick = onInviteClick,
+        onReportClick = onReportClick,
         onRetry = viewModel::onRetry,
         modifier = modifier,
+        topBanner = topBanner,
     )
 }
 
@@ -106,11 +119,23 @@ internal fun UserProfileScreen(
     onReviewClick: (ReviewId) -> Unit,
     onAuthorClick: (UserId) -> Unit,
     onAuthorChatClick: (UserSummary) -> Unit,
+    onInviteClick: () -> Unit,
+    onReportClick: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    topBanner: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLow)) {
-        AppTopBar(title = stringResource(Res.string.profile_title), onNavigateBack = onNavigateBack)
+        AppTopBar(
+            title = stringResource(Res.string.profile_title),
+            onNavigateBack = onNavigateBack,
+            actions = {
+                // Nobody reports themselves (09c).
+                if ((state as? UserProfileUiState.Content)?.profile?.canReport == true) {
+                    ReportIconButton(onClick = onReportClick)
+                }
+            },
+        )
         when (state) {
             UserProfileUiState.Loading -> LoadingState()
             UserProfileUiState.NotFound -> MessageState(
@@ -132,6 +157,8 @@ internal fun UserProfileScreen(
                 onReviewClick = onReviewClick,
                 onAuthorClick = onAuthorClick,
                 onAuthorChatClick = onAuthorChatClick,
+                onInviteClick = onInviteClick,
+                topBanner = topBanner,
             )
         }
     }
@@ -147,6 +174,8 @@ private fun ColumnScope.ProfileContent(
     onReviewClick: (ReviewId) -> Unit,
     onAuthorClick: (UserId) -> Unit,
     onAuthorChatClick: (UserSummary) -> Unit,
+    onInviteClick: () -> Unit,
+    topBanner: (@Composable () -> Unit)?,
 ) {
     Column(
         Modifier
@@ -156,6 +185,7 @@ private fun ColumnScope.ProfileContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        topBanner?.invoke()
         ProfileHeaderCard(
             model = ProfileHeaderCardUiModel(
                 name = nameOrPlaceholder(profile.user.name),
@@ -167,6 +197,13 @@ private fun ColumnScope.ProfileContent(
             ),
             onChatClick = onMessageClick,
         )
+        if (profile.canInvite) {
+            AppButton(
+                text = stringResource(Res.string.profile_invite),
+                onClick = onInviteClick,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         ProfileSections(
             profile = profile,
             isOwn = false,

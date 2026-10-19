@@ -38,6 +38,7 @@
     <string name="components_project_block_tags">Tags</string>
     <!-- 1: places filled, 2: places in total (a role can be for several people) -->
     <string name="components_project_roles_occupied">%1$d of %2$d filled</string>
+    <string name="components_role_applied">You applied</string>
     <string name="components_role_apply">Apply</string>
     <!-- 1: places of a role that are taken, 2: places of the role; the form follows the second number -->
     <plurals name="components_role_places">

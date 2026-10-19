@@ -22,8 +22,10 @@ import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Spheres
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.common.result.RemoteFailure
+import org.matchlab.academic_net.feature.projects.domain.MemberNotRemovableException
 import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
 import org.matchlab.academic_net.feature.projects.domain.ProjectInfo
 import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
@@ -391,6 +393,129 @@ class GatewayProjectsEditTest {
 
         assertFailsWith<ProjectNotFoundException> { source.removeRole(id, RoleId("r1")) }
         assertEquals(emptyList(), api.roleDeletes)
+    }
+
+    // ---- removeMember ----
+
+    private fun withMembers(vararg users: String) = users.map { memberDto(it, role = "r1", title = "Роль") }
+
+    @Test
+    fun aMemberIsRemovedAndTheAnswerOfTheServerIsTheNewProject() = runTest {
+        cached(revision = 4, roles = listOf(roleDto("r1", slots = 2, occupied = 2)))
+        api.onRemoveMember = { pid, _ ->
+            projectDto(pid, revision = 5, roles = listOf(roleDto("r1", slots = 2, occupied = 1)), members = withMembers("u2"))
+        }
+
+        val project = source.removeMember(id, UserId("u1"))
+
+        assertEquals(listOf("p1" to "u1"), api.memberRemovals)
+        assertEquals(listOf(UserId("u2")), project.members.map { it.userId })
+        assertEquals(1, project.roles.single().occupied)
+        assertEquals(project, source.observeProject(id).first())
+    }
+
+    @Test
+    fun theRevisionOfTheAnswerIsTheOneTheNextWriteSends() = runTest {
+        cached(revision = 4, roles = listOf(roleDto("r1")))
+        api.onRemoveMember = { pid, _ -> projectDto(pid, revision = 9, roles = listOf(roleDto("r1"))) }
+        api.onUpdate = { pid, _ -> projectDto(pid, revision = 10) }
+
+        source.removeMember(id, UserId("u1"))
+        source.updateProject(id, info)
+
+        assertEquals(9, api.updates.single().second.expectedRevision)
+    }
+
+    @Test
+    fun aRefusedRemovalIsReadAgainAndIsNotRemovable() = runTest {
+        for (status in listOf(403, 409)) {
+            cached(roles = listOf(roleDto("r1")))
+            api.onRemoveMember = { _, _ -> throw RemoteFailure.Http(status) }
+            api.onGet = { projectDto(it, revision = 8, title = "Свежий $status", roles = listOf(roleDto("r1"))) }
+
+            val failure = assertFailsWith<MemberNotRemovableException> { source.removeMember(id, UserId("u1")) }
+
+            assertEquals(UserId("u1"), failure.userId)
+            assertEquals(id, failure.projectId)
+            assertEquals("Свежий $status", source.observeProject(id).first()?.title, "$status")
+        }
+    }
+
+    @Test
+    fun aRefusedRemovalStaysNotRemovableWhenTheReadAgainFailsButIsNotFoundWhenTheProjectIsGone() = runTest {
+        cached(roles = listOf(roleDto("r1")))
+        api.onRemoveMember = { _, _ -> throw RemoteFailure.Http(403) }
+        api.onGet = { throw RemoteFailure.Timeout() }
+        assertFailsWith<MemberNotRemovableException> { source.removeMember(id, UserId("u1")) }
+
+        api.onGet = { throw RemoteFailure.Http(404) }
+        assertFailsWith<ProjectNotFoundException> { source.removeMember(id, UserId("u1")) }
+        assertNull(source.observeProject(id).first())
+    }
+
+    @Test
+    fun aRemovalAnswering404ReturnsTheProjectReadAgainOrIsNotFound() = runTest {
+        cached(roles = listOf(roleDto("r1")))
+        api.onRemoveMember = { _, _ -> throw RemoteFailure.Http(404) }
+        api.onGet = { projectDto(it, revision = 8, title = "Ещё есть", members = emptyList()) }
+
+        val project = source.removeMember(id, UserId("u1"))
+
+        assertEquals("Ещё есть", project.title)
+        assertEquals(project, source.observeProject(id).first())
+
+        cached(roles = listOf(roleDto("r1")))
+        api.onGet = { throw RemoteFailure.Http(404) }
+        assertFailsWith<ProjectNotFoundException> { source.removeMember(id, UserId("u1")) }
+        assertNull(source.observeProject(id).first())
+    }
+
+    @Test
+    fun anotherFailureOfARemovalIsThrownAsItIsWithoutReadingAgain() = runTest {
+        cached(roles = listOf(roleDto("r1")))
+        val failure = RemoteFailure.Http(500)
+        api.onRemoveMember = { _, _ -> throw failure }
+
+        assertSame(failure, assertFailsWith<RemoteFailure> { source.removeMember(id, UserId("u1")) })
+        assertEquals(1, api.gets.size)
+        assertEquals(1, api.memberRemovals.size, "no automatic retry")
+    }
+
+    @Test
+    fun aRemovalFromAProjectNotThereSendsNothing() = runTest {
+        api.onGet = { throw RemoteFailure.Http(404) }
+
+        assertFailsWith<ProjectNotFoundException> { source.removeMember(id, UserId("u1")) }
+        assertEquals(emptyList(), api.memberRemovals)
+    }
+
+    @Test
+    fun anUnreadableAnswerOfARemovalIsMalformed() = runTest {
+        cached(roles = listOf(roleDto("r1")))
+        api.onRemoveMember = { _, _ -> projectDto("").copy(ownerUserId = "") }
+
+        assertFailsWith<RemoteFailure.Malformed> { source.removeMember(id, UserId("u1")) }
+    }
+
+    @Test
+    fun aRemovalAndALifecycleMoveGoOneByOne() = runTest {
+        cached(revision = 4, roles = listOf(roleDto("r1")))
+        val gate = CompletableDeferred<Unit>()
+        api.onRemoveMember = { pid, _ ->
+            gate.await()
+            projectDto(pid, revision = 5)
+        }
+        api.onTransition = { pid, input -> projectDto(pid, revision = input.expectedRevision + 1, status = "3") }
+
+        val removal = async { source.removeMember(id, UserId("u1")) }
+        val move = async { source.changeLifecycle(id, ProjectLifecycleAction.Start) }
+        runCurrent()
+        assertEquals(emptyList(), api.transitions, "the move waits for the removal")
+        gate.complete(Unit)
+        removal.await()
+        move.await()
+
+        assertEquals(5, api.transitions.single().second.expectedRevision)
     }
 
     // ---- writes one by one ----

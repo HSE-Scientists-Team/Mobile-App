@@ -6,6 +6,8 @@ import org.matchlab.academic_net.feature.chats.data.ChatsDataSource
 import org.matchlab.academic_net.feature.chats.data.mock.MockChatsDataSource
 import org.matchlab.academic_net.feature.collaborators.data.CollaboratorsDataSource
 import org.matchlab.academic_net.feature.collaborators.data.GatewayCollaboratorsDataSource
+import org.matchlab.academic_net.feature.complaints.data.ComplaintsDataSource
+import org.matchlab.academic_net.feature.complaints.data.GatewayComplaintsDataSource
 import org.matchlab.academic_net.feature.feed.data.FeedDataSource
 import org.matchlab.academic_net.feature.feed.data.GatewayFeedDataSource
 import org.matchlab.academic_net.feature.profile.data.GatewayProfileDataSource
@@ -16,6 +18,8 @@ import org.matchlab.academic_net.feature.projects.data.GatewayProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
 import org.matchlab.academic_net.feature.projectsearch.data.GatewayProjectSearchDataSource
 import org.matchlab.academic_net.feature.projectsearch.data.ProjectSearchDataSource
+import org.matchlab.academic_net.feature.responses.data.GatewayResponsesDataSource
+import org.matchlab.academic_net.feature.responses.data.ResponsesDataSource
 import org.matchlab.academic_net.feature.settings.data.GatewaySettingsDataSource
 import org.matchlab.academic_net.feature.settings.data.SettingsDataSource
 import org.matchlab.academic_net.gateway.GatewaySession
@@ -32,7 +36,7 @@ import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
  * account never sees the caches, the drafts and the local chats of the previous one.
  *
  * **Sources.** The profiles, the settings, the people search, the feed and the projects (their list, the search and the
- * page of a project) are the Gateway's and have no mock: their sources are made over the [GatewaySession] of the
+ * page of a project), the responses and the complaints are the Gateway's and have no mock: their sources are made over the [GatewaySession] of the
  * session. Only the chats run on their local mock (API-GAP G50: the API has none). The Gateway sources take
  * `session.userId`. The values the API leaves open (types, spheres, durations, statuses, months, actions) are the codes
  * the app defines (`docs/api-values.md`), so the capabilities of these sources are on, except the states of works and
@@ -89,7 +93,7 @@ internal interface DataSourcesModule {
 
     /**
      * The page of a project (04): type, sphere, status and months are read from the app's codes (`docs/api-values.md`);
-     * its team is read by [ProjectTeamReader].
+     * its team is read by [ProjectTeamReader]; "Покинуть проект" goes through the viewer's own projects' calls.
      */
     @Provides
     @SessionScope
@@ -97,7 +101,7 @@ internal interface DataSourcesModule {
         gateway: GatewaySession,
         assembler: ProjectAssembler,
         team: ProjectTeamReader,
-    ): ProjectDetailsDataSource = GatewayProjectDetailsDataSource(gateway.projectCatalog, assembler, team)
+    ): ProjectDetailsDataSource = GatewayProjectDetailsDataSource(gateway.projectCatalog, gateway.projects, assembler, team)
 
     /** The project search: `q`, `field` (the code of the sphere), `tag`, and `type` and `duration` when one chip is chosen. */
     @Provides
@@ -119,4 +123,19 @@ internal interface DataSourcesModule {
     @SessionScope
     fun collaboratorsDataSource(gateway: GatewaySession): CollaboratorsDataSource =
         GatewayCollaboratorsDataSource(gateway.peopleSearch)
+
+    /**
+     * The viewer's applications and the invitations they got (15), and the applications to the viewer's projects (07d),
+     * with the invitations the viewer sends (09k). One source serves both sides (API-GAP G66: the lists are read whole).
+     */
+    @Provides
+    @SessionScope
+    fun responsesDataSource(gateway: GatewaySession): ResponsesDataSource =
+        GatewayResponsesDataSource(gateway.projectJoins, gateway.users)
+
+    /** Complaints about a person or a project (17, 17b); the card of the target is read from the profile or the project. */
+    @Provides
+    @SessionScope
+    fun complaintsDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ComplaintsDataSource =
+        GatewayComplaintsDataSource(gateway.complaints, gateway.users, gateway.projectCatalog, assembler)
 }

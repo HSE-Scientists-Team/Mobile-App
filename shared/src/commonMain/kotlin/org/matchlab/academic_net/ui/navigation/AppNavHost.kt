@@ -4,9 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +35,9 @@ import org.matchlab.academic_net.feature.chats.ui.chat.ChatRoute
 import org.matchlab.academic_net.feature.chats.ui.list.ChatsRoute
 import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.CollaboratorSearchRoute
+import org.matchlab.academic_net.feature.complaints.domain.ComplaintTarget
+import org.matchlab.academic_net.feature.complaints.ui.ComplaintEntrySheet
+import org.matchlab.academic_net.feature.complaints.ui.ComplaintRoute
 import org.matchlab.academic_net.feature.feed.ui.FeedRoute
 import org.matchlab.academic_net.feature.profile.domain.DocumentId
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
@@ -52,6 +59,13 @@ import org.matchlab.academic_net.feature.projects.ui.edit.EditProjectRoute
 import org.matchlab.academic_net.feature.projects.ui.list.MyProjectsRoute
 import org.matchlab.academic_net.feature.projects.ui.management.ProjectManagementRoute
 import org.matchlab.academic_net.feature.projectsearch.ui.ProjectSearchRoute
+import org.matchlab.academic_net.feature.responses.ui.ApplyToRoleSheet
+import org.matchlab.academic_net.feature.responses.ui.InvitationSentBanner
+import org.matchlab.academic_net.feature.responses.ui.InvitePreselection
+import org.matchlab.academic_net.feature.responses.ui.InviteToProjectSheet
+import org.matchlab.academic_net.feature.responses.ui.ProjectResponsesRoute
+import org.matchlab.academic_net.feature.responses.ui.ResponsesRoute
+import org.matchlab.academic_net.feature.responses.ui.responsesTabHasBadge
 import org.matchlab.academic_net.feature.settings.ui.SettingsRoute
 
 private object Routes {
@@ -66,14 +80,22 @@ private object Routes {
     const val WorkArgument = "workId"
     const val DocumentArgument = "documentId"
 
+    // The profile opened from the search for a role (08 with a role): the role to invite to, both or none.
+    const val InviteProjectArgument = "inviteProjectId"
+    const val InviteRoleArgument = "inviteRoleId"
+
     const val Project = "project/{$ProjectArgument}"
+    const val ProjectResponses = "project/{$ProjectArgument}/responses"
+    const val UserComplaint = "complaint/user/{$UserArgument}"
+    const val ProjectComplaint = "complaint/project/{$ProjectArgument}"
     const val ProjectDetails = "project_details/{$ProjectArgument}"
     const val EditProject = "edit_project/{$ProjectArgument}"
     const val Collaborators = "collaborators/{$ProjectArgument}/{$RoleArgument}"
     const val Chat = "chat/{$ConversationArgument}"
     const val PeopleSearch = "people_search"
     const val ProjectSearch = "project_search"
-    const val Profile = "profile/{$UserArgument}"
+    const val Profile =
+        "profile/{$UserArgument}?$InviteProjectArgument={$InviteProjectArgument}&$InviteRoleArgument={$InviteRoleArgument}"
     const val ProfileWorks = "profile/{$UserArgument}/works"
     const val ProfileReviews = "profile/{$UserArgument}/reviews"
     const val ProfileReview = "profile/{$UserArgument}/reviews/{$ReviewArgument}"
@@ -90,6 +112,11 @@ private object Routes {
     fun collaborators(projectId: ProjectId, roleId: RoleId) = "collaborators/${projectId.value}/${roleId.value}"
     fun chat(id: ConversationId) = "chat/${id.value}"
     fun profile(id: UserId) = "profile/${id.value}"
+    fun profileForRole(id: UserId, projectId: ProjectId, roleId: RoleId) =
+        "profile/${id.value}?$InviteProjectArgument=${projectId.value}&$InviteRoleArgument=${roleId.value}"
+    fun projectResponses(id: ProjectId) = "project/${id.value}/responses"
+    fun userComplaint(id: UserId) = "complaint/user/${id.value}"
+    fun projectComplaint(id: ProjectId) = "complaint/project/${id.value}"
     fun profileWorks(id: UserId) = "profile/${id.value}/works"
     fun profileReviews(id: UserId) = "profile/${id.value}/reviews"
     fun profileReview(userId: UserId, reviewId: ReviewId) = "profile/${userId.value}/reviews/${reviewId.value}"
@@ -98,6 +125,13 @@ private object Routes {
 }
 
 private val StringArgument = NavType.StringType
+
+/** A string argument of a route that may be left out (a query argument, `null` when it is). */
+private fun optionalStringArgument(name: String) = navArgument(name) {
+    type = StringArgument
+    nullable = true
+    defaultValue = null
+}
 
 /**
  * The root of the app. Which graph is on the screen follows the state of the session ([toRootScreen]): the splash while
@@ -197,8 +231,12 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
     ) {
         composable(Routes.Main) { entry ->
             val profileBadge = profileTabHasBadge(dependencies.profile)
+            val responsesBadge = responsesTabHasBadge(dependencies.responses)
             MainScaffold(
-                badges = if (profileBadge) setOf(TopLevelDestination.Profile) else emptySet(),
+                badges = buildSet {
+                    if (profileBadge) add(TopLevelDestination.Profile)
+                    if (responsesBadge) add(TopLevelDestination.Responses)
+                },
             ) { destination, selectTab ->
                 when (destination) {
                     TopLevelDestination.Feed -> FeedRoute(
@@ -212,6 +250,15 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         dependencies = dependencies.projects,
                         onCreateProject = { navController.navigateSingleTop(entry, Routes.CreateProject) },
                         onProjectClick = { id -> navController.navigateOnce(entry, Routes.project(id)) },
+                        // A project the viewer is a member of opens as the page of the project (04 as a member, 04c).
+                        onParticipatingProjectClick = { id ->
+                            navController.navigateOnce(entry, Routes.projectDetails(id))
+                        },
+                    )
+                    TopLevelDestination.Responses -> ResponsesRoute(
+                        dependencies = dependencies.responses,
+                        onProjectClick = { id -> navController.navigateOnce(entry, Routes.projectDetails(id)) },
+                        onContactInitiator = { user -> openChatWith(entry, user) },
                     )
                     TopLevelDestination.Chats -> ChatsRoute(
                         dependencies = dependencies.chats,
@@ -231,7 +278,6 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         onEditWork = { id -> navController.navigateOnce(entry, Routes.editWork(id)) },
                         onEditDocument = { id -> navController.navigateOnce(entry, Routes.editDocument(id)) },
                     )
-                    else -> TabPlaceholder(destination)
                 }
             }
         }
@@ -262,6 +308,25 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     },
                     onEditProject = { projectId -> navController.navigateOnce(entry, Routes.editProject(projectId)) },
                     onMemberClick = { userId -> openProfile(entry, userId) },
+                    onContactMember = { user -> openChatWith(entry, user) },
+                    onResponsesClick = { projectId ->
+                        navController.navigateOnce(entry, Routes.projectResponses(projectId))
+                    },
+                )
+            }
+        }
+        composable(
+            route = Routes.ProjectResponses,
+            arguments = listOf(navArgument(Routes.ProjectArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.ProjectArgument) }
+            if (id != null) {
+                ProjectResponsesRoute(
+                    dependencies = dependencies.responses,
+                    projectId = ProjectId(id),
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onCandidateClick = { userId -> openProfile(entry, userId) },
+                    onContactCandidate = { user -> openChatWith(entry, user) },
                 )
             }
         }
@@ -293,7 +358,15 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     dependencies = dependencies.collaborators,
                     role = RoleReference(ProjectId(projectId), RoleId(roleId)),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
-                    onCollaboratorClick = { user -> openProfile(entry, user.id) },
+                    // The profile opens with the role, so "Пригласить в проект" starts with it chosen.
+                    onCollaboratorClick = { user ->
+                        if (user.id.value.isNotBlank()) {
+                            navController.navigateOnce(
+                                entry,
+                                Routes.profileForRole(user.id, ProjectId(projectId), RoleId(roleId)),
+                            )
+                        }
+                    },
                 )
             }
         }
@@ -323,6 +396,11 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
         ) { entry ->
             val id = entry.arguments?.read { getStringOrNull(Routes.ProjectArgument) }
             if (id != null) {
+                // The role of the open sheet "Откликнуться" and a counter that gives each opening a fresh sheet; the
+                // sheet for a report. Strings and numbers, so they survive the recreation of the activity.
+                var applyRoleId by rememberSaveable { mutableStateOf<String?>(null) }
+                var applyRequest by rememberSaveable { mutableIntStateOf(0) }
+                var report by rememberSaveable { mutableStateOf(false) }
                 ProjectDetailsRoute(
                     dependencies = dependencies.projectDetails,
                     projectId = ProjectId(id),
@@ -331,7 +409,33 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onInitiatorClick = { userId -> openProfile(entry, userId) },
                     onMemberClick = { userId -> openProfile(entry, userId) },
                     onContactMember = { user -> openChatWith(entry, user) },
+                    onApplyClick = { roleId ->
+                        applyRequest += 1
+                        applyRoleId = roleId.value
+                    },
+                    onReportClick = { report = true },
                 )
+                applyRoleId?.let { roleId ->
+                    ApplyToRoleSheet(
+                        dependencies = dependencies.responses,
+                        projectId = ProjectId(id),
+                        roleId = RoleId(roleId),
+                        requestId = applyRequest,
+                        onDismiss = { applyRoleId = null },
+                        // The application is made: the sheet closes, and the page shows "Вы откликнулись".
+                        onApplied = { applyRoleId = null },
+                    )
+                }
+                if (report) {
+                    ComplaintEntrySheet(
+                        target = ComplaintTarget.Project(ProjectId(id)),
+                        onReport = {
+                            report = false
+                            navController.navigateOnce(entry, Routes.projectComplaint(ProjectId(id)))
+                        },
+                        onDismiss = { report = false },
+                    )
+                }
             }
         }
         composable(
@@ -355,15 +459,32 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                             openProfile(entry, userId)
                         }
                     },
+                    onReportPeer = { userId -> navController.navigateOnce(entry, Routes.userComplaint(userId)) },
                 )
             }
         }
         composable(
             route = Routes.Profile,
-            arguments = listOf(navArgument(Routes.UserArgument) { type = StringArgument }),
+            arguments = listOf(
+                navArgument(Routes.UserArgument) { type = StringArgument },
+                optionalStringArgument(Routes.InviteProjectArgument),
+                optionalStringArgument(Routes.InviteRoleArgument),
+            ),
         ) { entry ->
             val id = entry.arguments?.read { getStringOrNull(Routes.UserArgument) }
             if (id != null) {
+                // The role the profile was opened for (08 with a role): the sheet "Пригласить в проект" starts with it.
+                val preselected = entry.arguments?.read {
+                    val projectId = getStringOrNull(Routes.InviteProjectArgument)
+                    val roleId = getStringOrNull(Routes.InviteRoleArgument)
+                    if (projectId != null && roleId != null) InvitePreselection(ProjectId(projectId), RoleId(roleId)) else null
+                }
+                // The open sheet of the invitation (the number of its opening, `null` while closed), the banner 09q
+                // and the sheet of a report: strings and numbers, so they survive the recreation of the activity.
+                var inviteRequest by rememberSaveable { mutableStateOf<Int?>(null) }
+                var inviteRequests by rememberSaveable { mutableIntStateOf(0) }
+                var invited by rememberSaveable { mutableStateOf(false) }
+                var report by rememberSaveable { mutableStateOf(false) }
                 UserProfileRoute(
                     dependencies = dependencies.profile,
                     userId = UserId(id),
@@ -376,7 +497,40 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     },
                     onAuthorClick = { authorId -> openProfile(entry, authorId) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
+                    onInviteClick = {
+                        inviteRequests += 1
+                        inviteRequest = inviteRequests
+                    },
+                    onReportClick = { report = true },
+                    topBanner = if (invited) ({ InvitationSentBanner() }) else null,
                 )
+                inviteRequest?.let { request ->
+                    InviteToProjectSheet(
+                        dependencies = dependencies.responses,
+                        candidateId = UserId(id),
+                        preselected = preselected,
+                        requestId = request,
+                        onDismiss = { inviteRequest = null },
+                        onInvited = {
+                            invited = true
+                            inviteRequest = null
+                        },
+                        onCreateProject = {
+                            inviteRequest = null
+                            navController.navigateSingleTop(entry, Routes.CreateProject)
+                        },
+                    )
+                }
+                if (report) {
+                    ComplaintEntrySheet(
+                        target = ComplaintTarget.User(UserId(id)),
+                        onReport = {
+                            report = false
+                            navController.navigateOnce(entry, Routes.userComplaint(UserId(id)))
+                        },
+                        onDismiss = { report = false },
+                    )
+                }
             }
         }
         composable(
@@ -429,6 +583,34 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onNavigateBack = { navController.popBackStackOnce(entry) },
                     onAuthorClick = { authorId -> openProfile(entry, authorId) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
+                )
+            }
+        }
+        composable(
+            route = Routes.UserComplaint,
+            arguments = listOf(navArgument(Routes.UserArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.UserArgument) }
+            if (id != null) {
+                ComplaintRoute(
+                    dependencies = dependencies.complaints,
+                    target = ComplaintTarget.User(UserId(id)),
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onDone = { navController.popBackStackOnce(entry) },
+                )
+            }
+        }
+        composable(
+            route = Routes.ProjectComplaint,
+            arguments = listOf(navArgument(Routes.ProjectArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.ProjectArgument) }
+            if (id != null) {
+                ComplaintRoute(
+                    dependencies = dependencies.complaints,
+                    target = ComplaintTarget.Project(ProjectId(id)),
+                    onNavigateBack = { navController.popBackStackOnce(entry) },
+                    onDone = { navController.popBackStackOnce(entry) },
                 )
             }
         }

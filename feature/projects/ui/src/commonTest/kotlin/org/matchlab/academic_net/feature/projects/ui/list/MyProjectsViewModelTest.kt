@@ -18,6 +18,7 @@ import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.result.FeatureUnavailableException
+import org.matchlab.academic_net.feature.projects.domain.usecase.GetParticipatingProjectsUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
 import org.matchlab.academic_net.feature.projects.ui.FakeProjectsRepository
 import org.matchlab.academic_net.feature.projects.ui.Gate
@@ -37,9 +38,14 @@ class MyProjectsViewModelTest {
     fun tearDown() = uninstallMainDispatcher()
 
     private val repository = FakeProjectsRepository(caps(canListMine = true))
+    private var joinedIds: List<ProjectId> = emptyList()
 
     private fun TestScope.viewModel(): MyProjectsViewModel {
-        val viewModel = MyProjectsViewModel(ObserveMyProjectsUseCase(repository), repository.capabilities)
+        val viewModel = MyProjectsViewModel(
+            ObserveMyProjectsUseCase(repository),
+            repository.capabilities,
+            GetParticipatingProjectsUseCase({ joinedIds }, repository),
+        )
         keepCollecting(viewModel.uiState)
         return viewModel
     }
@@ -93,6 +99,7 @@ class MyProjectsViewModelTest {
                     rolesCount = 2,
                     period = null,
                     avatarKey = "owner-a",
+                    initiatorName = "Автор",
                 ),
             ),
             state.projects,
@@ -158,6 +165,7 @@ class MyProjectsViewModelTest {
                     rolesCount = 0,
                     period = null,
                     avatarKey = "owner-a",
+                    initiatorName = "Автор",
                 ),
             ),
             state.projects,

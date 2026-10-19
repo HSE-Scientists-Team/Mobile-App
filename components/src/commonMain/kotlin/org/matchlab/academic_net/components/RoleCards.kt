@@ -1,16 +1,27 @@
 package org.matchlab.academic_net.components
 
 import academicnet.components.generated.resources.Res
+import academicnet.components.generated.resources.components_role_applied
 import academicnet.components.generated.resources.components_role_apply
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.project.rolePlacesText
@@ -35,13 +46,21 @@ data class RoleApplyCardUiModel(
  * the role has more than one place, the line of taken places under its name (see [rolePlacesText]).
  * With [onApplyClick] the card ends with a full-width "Откликнуться" button; without it (the
  * default) the card only shows the role, for the pages where applying is not available.
+ *
+ * With [applied] the button is "Вы откликнулись" and cannot be pressed (04x): the viewer's application waits for the
+ * initiator. It is drawn in `surfaceContainer` / `onSurfaceVariant` as the design does, not dimmed like a disabled
+ * button; it needs [onApplyClick] to be drawn at all.
+ *
+ * @param applied the viewer has applied to the role already
  */
 @Composable
 fun RoleApplyCard(
     model: RoleApplyCardUiModel,
     modifier: Modifier = Modifier,
     onApplyClick: (() -> Unit)? = null,
+    applied: Boolean = false,
 ) {
+    val colors = MaterialTheme.colorScheme
     AppCard(modifier, spacing = 12.dp, cornerRadius = 12.dp, verticalPadding = 12.dp) {
         RoleCardTitle(
             text = model.role,
@@ -49,7 +68,20 @@ fun RoleApplyCard(
         )
         // A role may need no skills (the server's list is optional): no empty row, which would still add its 12dp gap.
         if (model.skills.isNotEmpty()) SkillChips(model.skills)
-        if (onApplyClick != null) {
+        if (onApplyClick != null && applied) {
+            FilledTonalButton(
+                onClick = {},
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false,
+                shape = CircleShape,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    disabledContainerColor = colors.surfaceContainer,
+                    disabledContentColor = colors.onSurfaceVariant,
+                ),
+            ) {
+                Text(stringResource(Res.string.components_role_applied), maxLines = 1)
+            }
+        } else if (onApplyClick != null) {
             AppButton(
                 text = stringResource(Res.string.components_role_apply),
                 onClick = onApplyClick,
@@ -95,5 +127,41 @@ fun SkillChips(skills: List<String>, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         skills.forEach { AppTagChip(it) }
+    }
+}
+
+/**
+ * "Card/Role/vacant" that is one choice of a list (the roles of the sheet "Пригласить в проект", 09k): the role and its
+ * skills, no buttons. The chosen card is drawn with a 2dp `primary` outline instead of the 1dp `outlineVariant` one, and
+ * the text does not move when the choice changes. The whole card selects.
+ *
+ * @param selected this role is the chosen one
+ * @param onClick selects the role (a choice, so no debounce, like the other selections)
+ */
+@Composable
+fun RoleSelectCard(
+    role: String,
+    skills: List<String>,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(12.dp)
+    val outline = if (selected) 2.dp else 1.dp
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(colors.surface)
+            .border(outline, if (selected) colors.primary else colors.outlineVariant, shape)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            // 16x12 as in the design plus the 1dp of the outline of the other cards: the padding is counted from the
+            // outer edge, so the thicker outline of the chosen card does not move the text.
+            .padding(horizontal = 17.dp, vertical = 13.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RoleCardTitle(role)
+        if (skills.isNotEmpty()) SkillChips(skills)
     }
 }

@@ -21,6 +21,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,14 +35,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.components.AppAvatars
+import org.matchlab.academic_net.components.AppBottomSheet
+import org.matchlab.academic_net.components.AppIconButton
 import org.matchlab.academic_net.components.AppIcon
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonName
+import org.matchlab.academic_net.components.ReportListItem
 import org.matchlab.academic_net.components.SecurityNote
+import org.matchlab.academic_net.components.SheetHeader
 import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.feature.chats.domain.ChatLimits
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 import org.matchlab.academic_net.feature.chats.ui.ChatBubble
@@ -51,16 +59,19 @@ import org.matchlab.academic_net.feature.chats.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_empty_text
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_empty_title
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_message_too_long
+import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_more
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_not_found
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_security_note
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chat_send_error
 import org.matchlab.academic_net.feature.chats.ui.generated.resources.chats_back
 
 /**
- * "13 Чат с коллаборатором". The "⋮" menu of the design (report, block: "13b") belongs to the
- * second and third sprints and the attach button to sending files, so neither is shown.
+ * "13 Чат с коллаборатором". The "⋮" of the app bar opens the sheet 13b with "Пожаловаться" (blocking is a later sprint
+ * and is not offered); there is no "⋮" for a peer who is not known or has no id. The attach button belongs to sending
+ * files and is not shown.
  *
  * @param onPeerClick the avatar and the name in the app bar, which lead to the profile of the peer
+ * @param onReportPeer "Пожаловаться" of 13b: the complaint about the peer (the host opens the form)
  */
 @Composable
 fun ChatRoute(
@@ -68,6 +79,7 @@ fun ChatRoute(
     conversationId: ConversationId,
     onNavigateBack: () -> Unit,
     onPeerClick: (UserId) -> Unit,
+    onReportPeer: (UserId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel(key = conversationId.value) {
@@ -85,6 +97,7 @@ fun ChatRoute(
         state = state,
         onNavigateBack = onNavigateBack,
         onPeerClick = onPeerClick,
+        onReportPeer = onReportPeer,
         onDraftChange = viewModel::onDraftChange,
         onSendClick = viewModel::onSendClick,
         modifier = modifier,
@@ -96,18 +109,20 @@ internal fun ChatScreen(
     state: ChatUiState,
     onNavigateBack: () -> Unit,
     onPeerClick: (UserId) -> Unit,
+    onReportPeer: (UserId) -> Unit,
     onDraftChange: (String) -> Unit,
     onSendClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier
             .fillMaxSize()
             .background(colors.surfaceContainerLow)
             .imePadding(),
     ) {
-        ChatTopBar(state.peer, onNavigateBack, onPeerClick)
+        ChatTopBar(state.peer, onNavigateBack, onPeerClick, onMoreClick = { menuOpen = true })
         val peer = state.peer
         when {
             peer != null -> {
@@ -141,6 +156,34 @@ internal fun ChatScreen(
             }
             state.isLoading -> LoadingState()
             else -> MessageState(title = stringResource(Res.string.chat_not_found))
+        }
+    }
+    val peerToReport = state.peer?.takeIf { menuOpen && it.canBeReported() }
+    if (peerToReport != null) {
+        PeerMenuSheet(
+            peerName = peerToReport.name,
+            onReport = {
+                menuOpen = false
+                onReportPeer(peerToReport.userId)
+            },
+            onDismiss = { menuOpen = false },
+        )
+    }
+}
+
+/** The peer can be reported: they are known and have an id (a complaint names them by it, API-GAP G55). */
+private fun ChatPeer.canBeReported(): Boolean = userId.value.isNotBlank()
+
+/**
+ * 13b: the sheet of the "⋮" of the chat. It is titled with the name of the peer and has one row, "Пожаловаться"; the
+ * row "Заблокировать" of the design is a later sprint.
+ */
+@Composable
+private fun PeerMenuSheet(peerName: String, onReport: () -> Unit, onDismiss: () -> Unit) {
+    AppBottomSheet(onDismissRequest = onDismiss) {
+        SheetHeader(title = nameOrPlaceholder(peerName))
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)) {
+            ReportListItem(onClick = onReport)
         }
     }
 }
@@ -191,7 +234,12 @@ private fun Messages(messages: List<MessageItem>, modifier: Modifier = Modifier)
  * profile.
  */
 @Composable
-private fun ChatTopBar(peer: ChatPeer?, onNavigateBack: () -> Unit, onPeerClick: (UserId) -> Unit) {
+private fun ChatTopBar(
+    peer: ChatPeer?,
+    onNavigateBack: () -> Unit,
+    onPeerClick: (UserId) -> Unit,
+    onMoreClick: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     Row(
         Modifier
@@ -227,6 +275,14 @@ private fun ChatTopBar(peer: ChatPeer?, onNavigateBack: () -> Unit, onPeerClick:
                     name = peer.name,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
+                )
+            }
+            // The menu is for a peer who can be reported (13b).
+            if (peer.canBeReported()) {
+                AppIconButton(
+                    icon = AppIcons.MoreVertical,
+                    contentDescription = stringResource(Res.string.chat_more),
+                    onClick = onMoreClick,
                 )
             }
         }

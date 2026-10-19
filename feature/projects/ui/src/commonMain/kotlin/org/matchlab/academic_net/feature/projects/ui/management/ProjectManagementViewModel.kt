@@ -30,6 +30,8 @@ import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeLifecycle
 import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveMemberResult
+import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveMemberUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectResult
 import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectUseCase
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorState
@@ -41,6 +43,10 @@ import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorState
  * @property name empty without a profile: the card says "Без имени"
  * @property hasProfile the app could read the person's profile: only then the card has stats and opens the profile; a
  *  person without one is a card with the neutral avatar, no numbers and no tap
+ * @property canKick "Выгнать" is offered: the viewer is the initiator and the person is neither the initiator nor the
+ *  viewer (07b); a person without a profile is kicked all the same (their record stays, G52)
+ * @property canContact the chat button is offered: the profile is known, the id is not empty and the person is not the
+ *  initiator
  */
 @Immutable
 data class RoleMemberItem(
@@ -50,6 +56,8 @@ data class RoleMemberItem(
     val rating: Double?,
     val completedProjects: Int,
     val hasProfile: Boolean = true,
+    val canKick: Boolean = false,
+    val canContact: Boolean = false,
 )
 
 /**
@@ -102,6 +110,9 @@ data class RoleItem(
  *  cancelled
  * @property offersEditAction the row "Редактировать проект" of 07c: the initiator, and the status is unknown, recruiting
  *  or unpublished (07e of the design, a project in progress, has the pencil but no such row)
+ * @property showsResponses the row "Отклики · N" opens 07d: only the initiator has it
+ * @property pendingJoinCount the "N" of that row (API-GAP G61: the server's `pending_join_count`); 0 is a row without a
+ *  number
  */
 @Immutable
 data class ProjectDetails(
@@ -121,6 +132,8 @@ data class ProjectDetails(
     val lifecycleActions: List<ProjectLifecycleAction> = emptyList(),
     val canEdit: Boolean = false,
     val offersEditAction: Boolean = false,
+    val showsResponses: Boolean = false,
+    val pendingJoinCount: Int = 0,
 ) {
     val rolesCount: Int get() = roles.size
 }
@@ -142,6 +155,9 @@ data class ProjectDetails(
  * @property isChangingLifecycle the request of the action is on its way: the screen does not offer another one
  * @property lifecycleFailure why the last move of the project failed; cleared by the next action
  * @property actionFailed unpublishing has failed; cleared by the next action
+ * @property kickDialog the confirmation 07i is open for this member
+ * @property removingMember the member whose removal is on its way: their card shows an arc in "Выгнать" (07u)
+ * @property memberFailure why the last removal failed (07v); cleared by the next one
  */
 @Immutable
 data class ProjectManagementUiState(
@@ -157,7 +173,23 @@ data class ProjectManagementUiState(
     val isSavingRole: Boolean = false,
     val roleFailure: Throwable? = null,
     val actionFailed: Boolean = false,
+    val kickDialog: KickTarget? = null,
+    val removingMember: UserId? = null,
+    val memberFailure: MemberFailure? = null,
 )
+
+/** The member the confirmation 07i is about. */
+@Immutable
+data class KickTarget(val userId: UserId, val name: String)
+
+/** Why "Выгнать" did not remove the member. */
+sealed interface MemberFailure {
+    /** The server refused (403, 409), or the member is the initiator or the viewer: "Действие недоступно". */
+    data object NotAllowed : MemberFailure
+
+    /** The request failed for [cause]: "Не удалось выгнать участника. Попробуйте ещё раз" (07v). */
+    data class Failed(val cause: Throwable) : MemberFailure
+}
 
 /** Why "Начать", "Завершить" or "Отменить проект" did not move the project. */
 sealed interface LifecycleFailure {
@@ -191,6 +223,11 @@ sealed interface LifecycleFailure {
  * server refused is [LifecycleFailure.NotAllowed], a project that is gone is the screen "Проект не найден", another
  * failure is told by its kind. The project's new status arrives through the observed project.
  *
+ * **Team.** "Выгнать" opens the confirmation ([onKickClick]); [onKickConfirm] removes the member under the guard of
+ * [ProjectManagementUiState.removingMember]. The project without the member arrives through the observed project. The
+ * server's refusal (or a member who is the initiator or the viewer) is [MemberFailure.NotAllowed], a project that is gone
+ * is "Проект не найден", another failure is [MemberFailure.Failed].
+ *
  * **Guards.** Unpublishing, moving the project and adding a role cannot start twice: [onUnpublishConfirm] and
  * [onLifecycleConfirm] work only for their open dialog and not while a request of either is on its way, [onRoleSave]
  * only for the open sheet and not while it is saving.
@@ -202,6 +239,7 @@ class ProjectManagementViewModel(
     private val unpublishProject: UnpublishProjectUseCase,
     private val addRole: AddRoleUseCase,
     private val changeLifecycle: ChangeProjectLifecycleUseCase,
+    private val removeMember: RemoveMemberUseCase,
     private val capabilities: ProjectsCapabilities,
 ) : ViewModel() {
     private val local = MutableStateFlow(LocalState())
@@ -229,6 +267,9 @@ class ProjectManagementViewModel(
             isSavingRole = own.isSavingRole,
             roleFailure = own.roleFailure,
             actionFailed = own.actionFailed,
+            kickDialog = own.kickDialog,
+            removingMember = own.removingMember,
+            memberFailure = own.memberFailure,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), ProjectManagementUiState())
 
@@ -294,6 +335,38 @@ class ProjectManagementViewModel(
                 is ChangeLifecycleResult.Failure -> local.update {
                     it.copy(isChangingLifecycle = false, lifecycleFailure = LifecycleFailure.Failed(result.cause))
                 }
+            }
+        }
+    }
+
+    /** "Выгнать" of a member: opens 07i. Only for a member the card offers it for, and not while a removal runs. */
+    fun onKickClick(userId: UserId) {
+        val member = uiState.value.project?.roles?.flatMap { it.members }?.firstOrNull { it.userId == userId }
+        if (member == null || !member.canKick) return
+        local.update {
+            if (it.removingMember != null) it else it.copy(kickDialog = KickTarget(userId, member.name), memberFailure = null)
+        }
+    }
+
+    fun onKickDismiss() = local.update { it.copy(kickDialog = null) }
+
+    /** "Выгнать" of 07i: works once per dialog (the button can be tapped again while the dialog fades out). */
+    fun onKickConfirm() {
+        var target: KickTarget? = null
+        local.update {
+            target = if (it.removingMember == null) it.kickDialog else null
+            if (target != null) it.copy(kickDialog = null, removingMember = target.userId) else it.copy(kickDialog = null)
+        }
+        val kicked = target ?: return
+        viewModelScope.launch {
+            when (val result = removeMember(projectId, kicked.userId)) {
+                // The project without the member arrives through the observed project.
+                is RemoveMemberResult.Removed -> local.update { it.copy(removingMember = null) }
+                RemoveMemberResult.NotAllowed ->
+                    local.update { it.copy(removingMember = null, memberFailure = MemberFailure.NotAllowed) }
+                RemoveMemberResult.NotFound -> local.update { it.copy(removingMember = null, isGone = true) }
+                is RemoveMemberResult.Failure ->
+                    local.update { it.copy(removingMember = null, memberFailure = MemberFailure.Failed(result.cause)) }
             }
         }
     }
@@ -368,6 +441,9 @@ class ProjectManagementViewModel(
         val isSavingRole: Boolean = false,
         val roleFailure: Throwable? = null,
         val actionFailed: Boolean = false,
+        val kickDialog: KickTarget? = null,
+        val removingMember: UserId? = null,
+        val memberFailure: MemberFailure? = null,
     )
 
     private companion object {
@@ -393,6 +469,7 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
             slots = role.slots,
             occupied = minOf(role.occupied, role.slots),
             members = role.members.map { member ->
+                val isInitiator = member.user.id == initiator.id
                 RoleMemberItem(
                     userId = member.user.id,
                     name = member.user.name,
@@ -400,6 +477,9 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
                     rating = member.rating,
                     completedProjects = member.completedProjects,
                     hasProfile = member.hasProfile,
+                    // Only the initiator removes people, and never themselves (the viewer of this screen is the initiator).
+                    canKick = viewerIsInitiator && !isInitiator,
+                    canContact = !isInitiator && member.hasProfile && member.user.id.value.isNotBlank(),
                 )
             },
             // Only the initiator looks for people, and only for a role with a free place.
@@ -419,4 +499,6 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
     canEdit = viewerIsInitiator && status != ProjectStatus.Finished && status != ProjectStatus.Cancelled,
     offersEditAction = viewerIsInitiator &&
         (status == null || status == ProjectStatus.Recruiting || status == ProjectStatus.Unpublished),
+    showsResponses = viewerIsInitiator,
+    pendingJoinCount = pendingJoinCount,
 )

@@ -2,6 +2,7 @@ package org.matchlab.academic_net.feature.projectdetails.data
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.test.runTest
@@ -12,6 +13,7 @@ import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projectdetails.domain.InitiatorInfo
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveNotAllowedException
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetails
 import org.matchlab.academic_net.feature.projectdetails.domain.TeamMember
 
@@ -47,6 +49,8 @@ class ProjectDetailsRepositoryImplTest {
                     teamAsked += project
                     return team
                 }
+
+                override suspend fun leaveProject(id: ProjectId) = Unit
             },
         )
 
@@ -68,11 +72,35 @@ class ProjectDetailsRepositoryImplTest {
                     teamAsked += project
                     return team
                 }
+
+                override suspend fun leaveProject(id: ProjectId) = Unit
             },
         )
 
         assertSame(details, repository.getProjectDetails(ProjectId("p1")))
         assertNull(repository.getProjectDetails(ProjectId("other")))
         assertEquals(listOf(ProjectId("p1"), ProjectId("other")), asked)
+    }
+
+    @Test
+    fun leavingGoesToTheSourceAndItsFailureComesBack() = runTest {
+        val left = mutableListOf<ProjectId>()
+        val repository = ProjectDetailsRepositoryImpl(
+            object : ProjectDetailsDataSource {
+                override suspend fun getProjectDetails(id: ProjectId): ProjectDetails? = null
+
+                override suspend fun getTeam(project: Project): List<TeamMember> = emptyList()
+
+                override suspend fun leaveProject(id: ProjectId) {
+                    left += id
+                    if (id.value == "denied") throw LeaveNotAllowedException(id)
+                }
+            },
+        )
+
+        repository.leaveProject(ProjectId("p1"))
+        assertFailsWith<LeaveNotAllowedException> { repository.leaveProject(ProjectId("denied")) }
+
+        assertEquals(listOf(ProjectId("p1"), ProjectId("denied")), left)
     }
 }

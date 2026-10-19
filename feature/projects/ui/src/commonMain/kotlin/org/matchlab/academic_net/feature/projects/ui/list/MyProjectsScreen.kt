@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.components.project.projectCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
@@ -50,20 +52,35 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 
 /**
  * "06 Мои проекты": the root screen of the "Проекты" tab. The tab "Я инициатор" lists every project of the user, drawing
- * of each what the app knows (see `docs/api-values.md`); a failure to read the list has "Повторить". What the source of
- * the data switches off is not offered: without a list of the user's projects the tab says so, without creating there
- * is no "Создать проект".
+ * of each what the app knows (see `docs/api-values.md`); a card has a badge with the number of the new applications
+ * (06e); a failure to read the list has "Повторить". What the source of the data switches off is not offered: without a
+ * list of the user's projects the tab says so, without creating there is no "Создать проект". The tab "Я участник" (06b)
+ * lists the projects the user takes part in, read when the tab is chosen.
+ *
+ * @param onParticipatingProjectClick a project of the tab "Я участник": opens its page (04, as a member)
  */
 @Composable
 fun MyProjectsRoute(
     dependencies: ProjectsUiDependencies,
     onCreateProject: () -> Unit,
     onProjectClick: (ProjectId) -> Unit,
+    onParticipatingProjectClick: (ProjectId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val viewModel = viewModel { MyProjectsViewModel(dependencies.observeMyProjects, dependencies.capabilities) }
+    val viewModel = viewModel {
+        MyProjectsViewModel(dependencies.observeMyProjects, dependencies.capabilities, dependencies.getParticipatingProjects)
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    MyProjectsScreen(state, onCreateProject, onProjectClick, viewModel::onRetry, modifier)
+    MyProjectsScreen(
+        state = state,
+        onCreateProject = onCreateProject,
+        onProjectClick = onProjectClick,
+        onParticipatingProjectClick = onParticipatingProjectClick,
+        onRetry = viewModel::onRetry,
+        onParticipantTabShown = viewModel::onParticipantTabShown,
+        onParticipantRetry = viewModel::onParticipantRetry,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -71,10 +88,15 @@ internal fun MyProjectsScreen(
     state: MyProjectsUiState,
     onCreateProject: () -> Unit,
     onProjectClick: (ProjectId) -> Unit,
+    onParticipatingProjectClick: (ProjectId) -> Unit,
     onRetry: () -> Unit,
+    onParticipantTabShown: () -> Unit,
+    onParticipantRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(InitiatorTab) }
+    // The projects of "Я участник" are read each time the tab is chosen, also after the screen is restored on it.
+    LaunchedEffect(selectedTab) { if (selectedTab != InitiatorTab) onParticipantTabShown() }
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             AppTopBar(title = stringResource(Res.string.projects_my_title))
@@ -94,10 +116,10 @@ internal fun MyProjectsScreen(
                 )
             }
             when {
-                // Projects the user takes part in come with joining a team (a later sprint).
-                selectedTab != InitiatorTab -> MessageState(
-                    title = stringResource(Res.string.projects_participant_empty_title),
-                    text = stringResource(Res.string.projects_participant_empty_text),
+                selectedTab != InitiatorTab -> ParticipatingContent(
+                    state = state.participating,
+                    onProjectClick = onParticipatingProjectClick,
+                    onRetry = onParticipantRetry,
                 )
                 // The source of the data cannot list the user's projects (and, maybe, cannot create one).
                 state.isListUnavailable -> MessageState(
@@ -129,8 +151,34 @@ internal fun MyProjectsScreen(
     }
 }
 
+/** The tab "Я участник" (06b, 06d): loading, the error with "Повторить", nothing yet, or the projects with their status. */
 @Composable
-private fun ProjectList(projects: List<MyProjectItem>, onProjectClick: (ProjectId) -> Unit) {
+private fun ParticipatingContent(
+    state: ParticipatingState,
+    onProjectClick: (ProjectId) -> Unit,
+    onRetry: () -> Unit,
+) {
+    when (state) {
+        ParticipatingState.Idle, ParticipatingState.Loading -> LoadingState()
+        is ParticipatingState.Failed -> MessageState(
+            title = stringResource(Res.string.projects_load_error),
+            text = failureText(state.cause),
+            actionText = stringResource(Res.string.projects_retry),
+            onAction = onRetry,
+        )
+        is ParticipatingState.Loaded -> if (state.projects.isEmpty()) {
+            MessageState(
+                title = stringResource(Res.string.projects_participant_empty_title),
+                text = stringResource(Res.string.projects_participant_empty_text),
+            )
+        } else {
+            ProjectList(state.projects, onProjectClick, byInitiator = true)
+        }
+    }
+}
+
+@Composable
+private fun ProjectList(projects: List<MyProjectItem>, onProjectClick: (ProjectId) -> Unit, byInitiator: Boolean = false) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // The bottom padding keeps the last card clear of the FAB.
@@ -138,23 +186,24 @@ private fun ProjectList(projects: List<MyProjectItem>, onProjectClick: (ProjectI
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(projects, key = { it.id.value }) { project ->
-            ProjectCard(project.toCardUiModel(), onClick = { onProjectClick(project.id) })
+            ProjectCard(project.toCardUiModel(byInitiator), onClick = { onProjectClick(project.id) })
         }
     }
 }
 
 @Composable
-private fun MyProjectItem.toCardUiModel(): ProjectCardUiModel = projectCardUiModel(
+private fun MyProjectItem.toCardUiModel(byInitiator: Boolean): ProjectCardUiModel = projectCardUiModel(
     title = title,
-    author = stringResource(Res.string.projects_you_initiator),
+    // The viewer's own project says "Вы инициатор"; one the viewer takes part in names its initiator.
+    author = if (byInitiator) nameOrPlaceholder(initiatorName) else stringResource(Res.string.projects_you_initiator),
     avatarKey = avatarKey,
     type = type,
     status = status,
     sphere = sphere,
     rolesCount = rolesCount,
     period = period,
-    // 06c: the status is a chip after the type ("В работе", "Опубликован", "Снят с публикации", "Отменён").
+    // 06c, 06d: the status is a chip after the type ("В работе", "Опубликован", "Снят с публикации", "Отменён").
     statusAsChip = true,
-)
+).copy(badgeCount = if (byInitiator) 0 else pendingJoinCount)
 
 private const val InitiatorTab = 0

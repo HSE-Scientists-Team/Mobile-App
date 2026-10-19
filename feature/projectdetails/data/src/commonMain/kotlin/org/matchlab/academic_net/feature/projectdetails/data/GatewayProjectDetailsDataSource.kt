@@ -4,9 +4,12 @@ import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projectdetails.domain.InitiatorInfo
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveNotAllowedException
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetails
+import org.matchlab.academic_net.feature.projectdetails.domain.ProjectGoneException
 import org.matchlab.academic_net.feature.projectdetails.domain.TeamMember
 import org.matchlab.academic_net.gateway.ProjectCatalogApi
+import org.matchlab.academic_net.gateway.ProjectsApi
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.mapping.ProjectAssembler
 import org.matchlab.academic_net.gateway.mapping.ProjectTeamReader
@@ -32,11 +35,17 @@ import org.matchlab.academic_net.gateway.mapping.toRoleMember
  * so the page does not wait for them. A person whose profile cannot be read is a member without a profile; the team never
  * fails. API-GAP G52: the status of a member is not read.
  *
+ * **Leaving.** [leaveProject] is `DELETE /projects/{id}/membership` ([ProjectsApi.leave]); the answer (the project) is not
+ * assembled: the view model reads the page again, so a failure of the owner's request cannot turn a successful exit into
+ * an error. A 403 or 409 is [LeaveNotAllowedException] (API-GAP G65), a 404 is [ProjectGoneException]; the rest is thrown.
+ *
+ * @param projects the calls of the viewer's own projects: the exit.
  * @param assembler turns the server's project into the app's, with its owner.
  * @param team reads the profiles of the people of a project.
  */
 class GatewayProjectDetailsDataSource(
     private val api: ProjectCatalogApi,
+    private val projects: ProjectsApi,
     private val assembler: ProjectAssembler,
     private val team: ProjectTeamReader,
 ) : ProjectDetailsDataSource {
@@ -52,6 +61,18 @@ class GatewayProjectDetailsDataSource(
 
     override suspend fun getTeam(project: Project): List<TeamMember> =
         team.read(project.members).map { TeamMember(it.toRoleMember(), it.member.roleTitle, it.member.isViewer) }
+
+    override suspend fun leaveProject(id: ProjectId) {
+        try {
+            projects.leave(id.value)
+        } catch (failure: RemoteFailure.Http) {
+            throw when (failure.status) {
+                403, 409 -> LeaveNotAllowedException(id)
+                404 -> ProjectGoneException(id)
+                else -> failure
+            }
+        }
+    }
 
     private companion object {
         /** 400 (not a project id), 403 (not allowed to see it) and 404 (unknown): the project is not there for the viewer. */

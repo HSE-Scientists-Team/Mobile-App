@@ -76,6 +76,7 @@ class FakeProjectsRepository(
 
     override suspend fun loadProject(id: ProjectId): Project? {
         loaded += id
+        loadFailures[id]?.let { throw it }
         failIfNeeded()
         return projects.value.firstOrNull { it.id == id }
     }
@@ -175,6 +176,23 @@ class FakeProjectsRepository(
         projects.value = projects.value.map { if (it.id == projectId) updated else it }
         return updated
     }
+
+    /** The calls of [removeMember], in order; [removeMemberFailure] is thrown by it when set. */
+    val removedMembers = mutableListOf<Pair<ProjectId, UserId>>()
+    var removeMemberFailure: Throwable? = null
+
+    override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project {
+        removedMembers += projectId to userId
+        failIfNeeded()
+        removeMemberFailure?.let { throw it }
+        val current = projects.value.firstOrNull { it.id == projectId } ?: throw ProjectNotFoundException(projectId)
+        val updated = current.copy(members = current.members.filterNot { it.userId == userId })
+        projects.value = projects.value.map { if (it.id == projectId) updated else it }
+        return updated
+    }
+
+    /** Projects [loadProject] fails for, whatever [failure] says. */
+    val loadFailures = mutableMapOf<ProjectId, Throwable>()
 
     override suspend fun getSpheres(): List<Sphere> {
         failIfNeeded()

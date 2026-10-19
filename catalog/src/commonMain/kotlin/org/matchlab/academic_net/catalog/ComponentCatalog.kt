@@ -43,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.Collaborator
+import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
@@ -81,6 +82,7 @@ import org.matchlab.academic_net.components.AppSwitch
 import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.AppTagsField
+import org.matchlab.academic_net.components.AppMultilineField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.Avatar
@@ -101,12 +103,15 @@ import org.matchlab.academic_net.components.PersonListItemUiModel
 import org.matchlab.academic_net.components.PersonName
 import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
+import org.matchlab.academic_net.components.StatusChipUiModel
 import org.matchlab.academic_net.components.RadioListItem
 import org.matchlab.academic_net.components.RatingStars
 import org.matchlab.academic_net.components.RatingStarsSize
 import org.matchlab.academic_net.components.ReportIconButton
+import org.matchlab.academic_net.components.ReportListItem
 import org.matchlab.academic_net.components.RoleApplyCard
 import org.matchlab.academic_net.components.RoleApplyCardUiModel
+import org.matchlab.academic_net.components.RoleSelectCard
 import org.matchlab.academic_net.components.RoleCardTitle
 import org.matchlab.academic_net.components.SearchTopBar
 import org.matchlab.academic_net.components.SecurityNote
@@ -141,6 +146,8 @@ import org.matchlab.academic_net.feature.chats.ui.ChatComposer
 import org.matchlab.academic_net.feature.chats.ui.ChatComposerUiModel
 import org.matchlab.academic_net.feature.chats.ui.ChatListItem
 import org.matchlab.academic_net.feature.chats.ui.ChatListItemUiModel
+import org.matchlab.academic_net.feature.complaints.domain.ComplaintTarget
+import org.matchlab.academic_net.feature.complaints.ui.ComplaintEntrySheet
 import org.matchlab.academic_net.feature.profile.ui.EducationCard
 import org.matchlab.academic_net.feature.profile.ui.EducationCardUiModel
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCard
@@ -151,8 +158,6 @@ import org.matchlab.academic_net.feature.profile.ui.ReviewCardUiModel
 import org.matchlab.academic_net.feature.profile.ui.VerificationMark
 import org.matchlab.academic_net.feature.profile.ui.WorkCard
 import org.matchlab.academic_net.feature.profile.ui.WorkCardUiModel
-import org.matchlab.academic_net.feature.projects.ui.CandidateCard
-import org.matchlab.academic_net.feature.projects.ui.CandidateCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.ParticipantManageCard
 import org.matchlab.academic_net.feature.projects.ui.RoleCard
 import org.matchlab.academic_net.feature.projects.ui.RoleCardUiModel
@@ -162,6 +167,9 @@ import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
 import org.matchlab.academic_net.feature.responses.ui.ApplicationCard
 import org.matchlab.academic_net.feature.responses.ui.ApplicationCardUiModel
+import org.matchlab.academic_net.feature.responses.ui.CandidateCard
+import org.matchlab.academic_net.feature.responses.ui.CandidateCardUiModel
+import org.matchlab.academic_net.feature.responses.ui.InvitationSentBanner
 import org.matchlab.academic_net.theme.AcademicNetTheme
 
 /** Every design system component, grouped by module and filled with the Figma sample data. */
@@ -188,6 +196,7 @@ fun ComponentCatalog() {
             item { ProfileComponents() }
             item { ChatsComponents() }
             item { ResponsesComponents() }
+            item { ComplaintsComponents() }
         }
     }
 }
@@ -213,6 +222,7 @@ private fun BaseComponents() {
             AppButton("Отмена", {}, variant = AppButtonVariant.Text)
             AppButton("Пригласить", {}, variant = AppButtonVariant.Tonal)
             AppButton("Выгнать", {}, variant = AppButtonVariant.OutlinedError)
+            AppButton("Пожаловаться", {}, variant = AppButtonVariant.FilledError)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
             AppFab(onClick = {}, contentDescription = null)
@@ -220,6 +230,8 @@ private fun BaseComponents() {
             AppIconButton(AppIcons.Pencil, null, {}, variant = AppIconButtonVariant.Tonal)
             ReportIconButton(onClick = {})
         }
+        // 13b: the row of the menu that leads to a complaint.
+        ReportListItem(onClick = {})
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppInputChip("Machine Learning", onRemove = {})
             AppTagChip("Machine Learning")
@@ -251,6 +263,23 @@ private fun BaseComponents() {
         var title by remember { mutableStateOf("") }
         AppTextField(title, { title = it }, label = "Название проекта", placeholder = "Введите текст")
         AppTextField("", {}, label = "Цель", placeholder = "Что хотите получить на выходе", errorText = "Заполните поле")
+        // "Text field/Multiline": the message of an application or an invitation, "Что произошло" of a complaint.
+        var message by remember { mutableStateOf("") }
+        AppMultilineField(
+            value = message,
+            onValueChange = { message = it },
+            label = "Сообщение (необязательно)",
+            placeholder = "Расскажите, чем вы можете быть полезны",
+            counterText = "${message.length} / 500",
+        )
+        AppMultilineField(
+            value = "",
+            onValueChange = {},
+            label = "Что произошло",
+            required = true,
+            placeholder = "Опишите ситуацию",
+            errorText = "Опишите, что произошло",
+        )
         AppSelectField(label = "Сфера", value = "Computer Science", placeholder = "Выберите сферу", onClick = {})
         AppSelectField(
             label = "Сфера",
@@ -558,6 +587,55 @@ private fun SharedFeatureComponents() {
                 showInvitationActions = true,
             ),
         )
+        // 06e: the number of the new applications; 15l: the role and the message of an invitation; the decision on it
+        // is on its way (the arc stands in place of accept and decline).
+        ProjectCard(
+            ProjectCardUiModel(
+                title = "AI-навигация по кампусу",
+                author = "Вы инициатор",
+                authorAvatar = Arjun,
+                type = "Научный",
+                footer = "4 роли · окт 2026 — мар 2027",
+                statusChip = StatusChipUiModel("Опубликован", AppStatusChipTone.Success),
+                badgeCount = 3,
+            ),
+        )
+        ProjectCard(
+            ProjectCardUiModel(
+                title = "Обнаружение аномалий в МРТ",
+                author = "Д-р Анна Петрова",
+                authorAvatar = Elena,
+                type = "Научный",
+                footer = "3 роли · ноя 2026 — май 2027",
+                tags = listOf("Медицина"),
+                showInvitationActions = true,
+                invitationRole = "Роль: Data Analyst",
+                invitationMessage = "Ищем аналитика для обработки снимков МРТ. Сможете подключиться с ноября?",
+            ),
+        )
+        ProjectCard(
+            ProjectCardUiModel(
+                title = "Кампусный AR-гид",
+                author = "Иван Орлов",
+                authorAvatar = Arjun,
+                type = "Проектный",
+                footer = "3 роли · янв 2027 — июл 2027",
+                showInvitationActions = true,
+                invitationRole = "Роль: Mobile Developer",
+                invitationDeciding = true,
+            ),
+        )
+        ProjectCard(
+            ProjectCardUiModel(
+                title = "Цифровой двойник лаборатории",
+                author = "Иван Орлов",
+                authorAvatar = Arjun,
+                type = "Проектный",
+                footer = "2 роли",
+                statusChip = StatusChipUiModel("Принято", AppStatusChipTone.Success),
+                invitationRole = "Роль: UX Researcher",
+            ),
+        )
         // Built the way every list of projects does: labels and plurals follow the app language.
         ProjectCard(
             projectCardUiModel(
@@ -808,8 +886,13 @@ private fun ProjectPageComponents() {
         )
         RolesSectionHeader("Вакантные роли", occupiedCount = 2, totalCount = 4)
         RoleApplyCard(RoleApplyCardUiModel("Mobile Developer", listOf("Flutter", "Dart")), onApplyClick = {})
-        // Without the button: applying is not available on the project page yet.
+        // 04x: the viewer has applied: "Вы откликнулись", dimmed to the colors of the design, takes no tap.
+        RoleApplyCard(RoleApplyCardUiModel("UX Researcher", listOf("Figma", "Интервью")), onApplyClick = {}, applied = true)
+        // Without the button: the viewer is the initiator or a member, or the project does not take people.
         RoleApplyCard(RoleApplyCardUiModel("UX Researcher", listOf("Figma", "Интервью")))
+        // 09k: a role of the sheet "Пригласить в проект", chosen and not.
+        RoleSelectCard("Mobile Developer", listOf("Flutter", "Dart"), selected = true, onClick = {})
+        RoleSelectCard("UX Researcher", listOf("Figma", "Интервью"), selected = false, onClick = {})
         // A role of several places says how many are taken; one that needs no skills has no row of chips.
         RoleApplyCard(RoleApplyCardUiModel("Data Analyst", listOf("SQL", "Python"), occupied = 1, slots = 3))
         RoleApplyCard(RoleApplyCardUiModel("Project Manager", emptyList(), occupied = 0, slots = 2))
@@ -915,16 +998,6 @@ private fun SearchComponents() {
 @Composable
 private fun ProjectsComponents() {
     Section(":feature:projects:ui") {
-        CandidateCard(
-            CandidateCardUiModel(
-                name = "Арджун Мехта",
-                subtitle = "Stanford · 3 курс бакалавриата · CS",
-                avatar = Elena,
-                note = "Совпадение 92% · отклик 2 дня назад",
-                tags = listOf("Machine Learning", "Machine Learning"),
-                showActions = true,
-            ),
-        )
         RoleCard(RoleCardUiModel("ML Engineer", "Арджун Мехта", Elena, canManage = true))
         VacantRoleCard(VacantRoleCardUiModel("ML Engineer", listOf("Machine Learning", "Machine Learning"), isEditable = true))
         // 04d: a role with people on it keeps its pencil, the trash is dimmed and does nothing.
@@ -942,8 +1015,9 @@ private fun ProjectsComponents() {
             ),
         )
         VacantRoleCard(VacantRoleCardUiModel("UX Researcher", emptyList(), places = rolePlacesText(occupied = 1, slots = 1)))
-        // Still the layout from before the redesign of "Card/Person" (48dp avatar, bottom-aligned).
-        ParticipantManageCard(Initiator, onKickClick = {})
+        // 07b: the avatar of 64dp centered on the row, the chat button and "Выгнать"; 07u: the member is being removed.
+        ParticipantManageCard(Initiator.copy(showChatButton = true), onKickClick = {})
+        ParticipantManageCard(Initiator.copy(showChatButton = true), onKickClick = {}, removing = true)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatCard(StatCardUiModel("7", "новых откликов"), Modifier.weight(1f))
             StatCard(StatCardUiModel("3", "участника"), Modifier.weight(1f))
@@ -1128,12 +1202,124 @@ private fun ResponsesComponents() {
     Section(":feature:responses:ui") {
         ApplicationCard(
             ApplicationCardUiModel(
-                title = "AI-навигация по кампусу",
-                subtitle = "Роль: ML Engineer · отклик 2 дня назад",
+                title = "Иммунный ответ: анализ данных",
+                subtitle = "Роль: Data Analyst · отклик 2 дня назад",
+                status = StatusChipUiModel("Ожидает", AppStatusChipTone.Pending),
                 actionText = "Отозвать отклик",
                 showChatButton = true,
             ),
         )
+        // The withdrawal is on its way: the button shows an arc.
+        ApplicationCard(
+            ApplicationCardUiModel(
+                title = "Иммунный ответ: анализ данных",
+                subtitle = "Роль: Data Analyst · отклик сегодня",
+                status = StatusChipUiModel("Ожидает", AppStatusChipTone.Pending),
+                actionText = "Отозвать отклик",
+                showChatButton = true,
+                actionLoading = true,
+            ),
+        )
+        // Decided records: the chip and no buttons.
+        ApplicationCard(
+            ApplicationCardUiModel(
+                title = "Кампусный AR-гид",
+                subtitle = "Роль: Mobile Developer · отклик 5 дней назад",
+                status = StatusChipUiModel("Принят", AppStatusChipTone.Success),
+            ),
+        )
+        ApplicationCard(
+            ApplicationCardUiModel(
+                title = "Обзор методов сегментации",
+                subtitle = "Роль: ML Engineer · отклик 14 дней назад",
+                status = StatusChipUiModel("Отклонён", AppStatusChipTone.Cancelled),
+            ),
+        )
+        ApplicationCard(
+            ApplicationCardUiModel(
+                title = "Цифровой двойник лаборатории",
+                subtitle = "Роль: UX Researcher · отклик 21 день назад",
+                status = StatusChipUiModel("Отозван", AppStatusChipTone.Off),
+            ),
+        )
+        // 07d: a candidate who waits (✓ ×), with the decision on its way, and with the role without a free place.
+        CandidateCard(
+            CandidateCardUiModel(
+                name = "Арджун Мехта",
+                subtitle = "Stanford · 3 курс бакалавриата · Computer Science",
+                avatar = Elena,
+                note = "Отклик 2 дня назад",
+                tags = listOf("Python", "TensorFlow"),
+                showActions = true,
+                showChat = true,
+            ),
+        )
+        CandidateCard(
+            CandidateCardUiModel(
+                name = "Мария Соколова",
+                subtitle = "МГУ · аспирантка · биоинформатика",
+                avatar = Arjun,
+                note = "Отклик сегодня",
+                tags = listOf("Python", "Statistics"),
+                showActions = true,
+                showChat = true,
+                deciding = true,
+            ),
+        )
+        CandidateCard(
+            CandidateCardUiModel(
+                name = "Мария Соколова",
+                subtitle = "МГУ · аспирантка · биоинформатика",
+                avatar = Arjun,
+                showActions = true,
+                showChat = true,
+                acceptEnabled = false,
+            ),
+        )
+        // Decided: the chip in place of ✓ ×; a candidate whose profile is unknown has the neutral avatar and no chat.
+        CandidateCard(
+            CandidateCardUiModel(
+                name = "Арджун Мехта",
+                subtitle = "Stanford · 3 курс бакалавриата · Computer Science",
+                avatar = Elena,
+                note = "Отклик 2 дня назад",
+                status = StatusChipUiModel("Принят", AppStatusChipTone.Success),
+                showChat = true,
+            ),
+        )
+        CandidateCard(
+            CandidateCardUiModel(
+                name = "",
+                subtitle = "",
+                avatar = null,
+                status = StatusChipUiModel("Отклонён", AppStatusChipTone.Cancelled),
+            ),
+        )
+        // 09q: the banner over the profile after an invitation.
+        InvitationSentBanner()
+    }
+}
+
+/** The sheet "Подтверждение действия" (09c, 09j) opens from a button here, as it does from the flag of a screen. */
+@Composable
+private fun ComplaintsComponents() {
+    Section(":feature:complaints:ui") {
+        var userSheet by remember { mutableStateOf(false) }
+        var projectSheet by remember { mutableStateOf(false) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            AppButton("Жалоба на человека", { userSheet = true }, variant = AppButtonVariant.Outlined)
+            AppButton("Жалоба на проект", { projectSheet = true }, variant = AppButtonVariant.Outlined)
+        }
+        if (userSheet) {
+            ComplaintEntrySheet(ComplaintTarget.User(UserId("u-anna")), onReport = { userSheet = false }, onDismiss = { userSheet = false })
+        }
+        if (projectSheet) {
+            ComplaintEntrySheet(
+                ComplaintTarget.Project(ProjectId("p-1")),
+                onReport = { projectSheet = false },
+                onDismiss = { projectSheet = false },
+            )
+        }
     }
 }
 

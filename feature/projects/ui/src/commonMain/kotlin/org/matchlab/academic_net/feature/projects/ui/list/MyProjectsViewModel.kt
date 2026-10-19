@@ -4,17 +4,20 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.withIndex
+import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectPeriod
@@ -22,7 +25,9 @@ import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.result.FeatureUnavailableException
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
+import org.matchlab.academic_net.feature.projects.domain.usecase.GetParticipatingProjectsUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.ParticipatingProjectsResult
 
 /**
  * A project in the "Я инициатор" list, with everything its card shows. What the app does not know about a project (a
@@ -34,6 +39,9 @@ import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjec
  * @property sphere the name of the sphere, `null` when unknown: the card has no sphere tag
  * @property period `null` when unknown: the footer of the card has no months
  * @property avatarKey key of the initiator's avatar illustration
+ * @property pendingJoinCount the number of new applications of the project (06e): the card has a badge with it while it is
+ *  more than 0 (API-GAP G61: what exactly the server counts is not described)
+ * @property initiatorName the name of the project's initiator: the author line of a project the viewer takes part in
  */
 @Immutable
 data class MyProjectItem(
@@ -45,7 +53,27 @@ data class MyProjectItem(
     val rolesCount: Int,
     val period: ProjectPeriod?,
     val avatarKey: String,
+    val pendingJoinCount: Int = 0,
+    val initiatorName: String = "",
 )
+
+/**
+ * The tab "Я участник" (06b): the projects the viewer is a member of, loaded when the tab is chosen (API-GAP G67: one
+ * request per project).
+ */
+sealed interface ParticipatingState {
+    /** The tab has not been chosen yet: nothing is read. */
+    data object Idle : ParticipatingState
+
+    /** The projects are being read (06b has no list yet). */
+    data object Loading : ParticipatingState
+
+    /** The projects the viewer takes part in, in the order of their records; may be empty. */
+    data class Loaded(val projects: List<MyProjectItem>) : ParticipatingState
+
+    /** Reading failed for [cause]; the screen says why and offers "Повторить". */
+    data class Failed(val cause: Throwable) : ParticipatingState
+}
 
 /**
  * What "06 Мои проекты" shows on its "Я инициатор" tab. The screen reads it in this order: [isListUnavailable] (the
@@ -57,6 +85,7 @@ data class MyProjectItem(
  *  the flow failed with [FeatureUnavailableException]): nothing is asked and the screen says so, instead of "Не удалось
  *  загрузить"
  * @property canCreate "Создать проект" is offered, i.e. the button of creating and no explanation of its absence
+ * @property participating the tab "Я участник"
  */
 @Immutable
 data class MyProjectsUiState(
@@ -65,6 +94,7 @@ data class MyProjectsUiState(
     val error: Throwable? = null,
     val isListUnavailable: Boolean = false,
     val canCreate: Boolean = false,
+    val participating: ParticipatingState = ParticipatingState.Idle,
 ) {
     /** Reading the list failed. */
     val hasError: Boolean get() = error != null
@@ -85,14 +115,19 @@ data class MyProjectsUiState(
 class MyProjectsViewModel(
     observeMyProjects: ObserveMyProjectsUseCase,
     capabilities: ProjectsCapabilities,
+    private val getParticipatingProjects: GetParticipatingProjectsUseCase,
 ) : ViewModel() {
     private val initial = MyProjectsUiState(canCreate = capabilities.canCreate)
+
+    /** The state of the tab "Я участник"; it is part of [uiState]. */
+    private val participating = MutableStateFlow<ParticipatingState>(ParticipatingState.Idle)
+    private var participatingJob: Job? = null
 
     /** The taps on "Повторить"; each one makes [uiState] read the list again. */
     private val retries = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<MyProjectsUiState> = if (capabilities.canListMine) {
+    private val initiatorState: StateFlow<MyProjectsUiState> = if (capabilities.canListMine) {
         retries
             .onStart { emit(Unit) }
             .withIndex()
@@ -109,6 +144,10 @@ class MyProjectsViewModel(
         MutableStateFlow(initial.copy(isLoading = false, isListUnavailable = true)).asStateFlow()
     }
 
+    val uiState: StateFlow<MyProjectsUiState> = combine(initiatorState, participating) { own, joined ->
+        own.copy(participating = joined)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), initial)
+
     /**
      * "Повторить" of the error: reads the list again. It does nothing while there is no error, so a second tap during
      * the read does not start another one.
@@ -116,6 +155,35 @@ class MyProjectsViewModel(
     fun onRetry() {
         if (!uiState.value.hasError) return
         retries.tryEmit(Unit)
+    }
+
+    /**
+     * The tab "Я участник" was chosen: reads the projects the viewer takes part in. Membership can change between two
+     * visits, so each choice reads again; a list already on the screen stays until the new one arrives, and stays when the
+     * read fails (only a tab without a list shows the error). A read that is running is not doubled.
+     */
+    fun onParticipantTabShown() = loadParticipating()
+
+    /** "Повторить" of the error of the tab "Я участник". */
+    fun onParticipantRetry() {
+        if (participating.value !is ParticipatingState.Failed) return
+        loadParticipating()
+    }
+
+    private fun loadParticipating() {
+        if (participatingJob?.isActive == true) return
+        if (participating.value !is ParticipatingState.Loaded) participating.value = ParticipatingState.Loading
+        participatingJob = viewModelScope.launch {
+            when (val result = getParticipatingProjects()) {
+                is ParticipatingProjectsResult.Loaded ->
+                    participating.value = ParticipatingState.Loaded(result.projects.distinctBy { it.id }.map(Project::toItem))
+                // A failed repeated read leaves the list that is on the screen; only a tab without one shows the error.
+                is ParticipatingProjectsResult.Failure ->
+                    if (participating.value !is ParticipatingState.Loaded) {
+                        participating.value = ParticipatingState.Failed(result.cause)
+                    }
+            }
+        }
     }
 
     private fun failed(cause: Throwable): MyProjectsUiState =
@@ -145,4 +213,6 @@ internal fun Project.toItem() = MyProjectItem(
     rolesCount = roles.size,
     period = period,
     avatarKey = initiator.id.value,
+    pendingJoinCount = pendingJoinCount,
+    initiatorName = initiator.name,
 )

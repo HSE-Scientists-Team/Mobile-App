@@ -4,10 +4,12 @@ import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.GetSpheresUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.GetParticipatingProjectsUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.PublishProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveMemberUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveRoleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.UpdateProjectUseCase
@@ -35,5 +37,7 @@ class ProjectsUiDependencies(
     val updateProject: UpdateProjectUseCase,
     val updateRole: UpdateRoleUseCase,
     val removeRole: RemoveRoleUseCase,
+    val removeMember: RemoveMemberUseCase,
+    val getParticipatingProjects: GetParticipatingProjectsUseCase,
     val capabilities: ProjectsCapabilities,
 )

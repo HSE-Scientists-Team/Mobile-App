@@ -19,6 +19,13 @@ import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projectdetails.domain.InitiatorInfo
 import org.matchlab.academic_net.gateway.ProjectCatalogApi
 import org.matchlab.academic_net.gateway.ProjectSearchParams
+import org.matchlab.academic_net.gateway.ProjectsApi
+import org.matchlab.academic_net.gateway.dto.ProjectCreateDto
+import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
+import org.matchlab.academic_net.gateway.dto.ProjectTransitionDto
+import org.matchlab.academic_net.gateway.dto.ProjectUpdateDto
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveNotAllowedException
+import org.matchlab.academic_net.feature.projectdetails.domain.ProjectGoneException
 import org.matchlab.academic_net.gateway.dto.ProjectDto
 import org.matchlab.academic_net.gateway.dto.ProjectInputDto
 import org.matchlab.academic_net.gateway.dto.ProjectListDto
@@ -46,6 +53,28 @@ class GatewayProjectDetailsDataSourceTest {
 
         override suspend fun list(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
             throw AssertionError("The page of a project never reads the catalog")
+    }
+
+    /** Only [leave] is scripted; the page of a project never calls the rest. */
+    private class ScriptedProjects : ProjectsApi {
+        val left = mutableListOf<String>()
+        var onLeave: suspend (String) -> ProjectDto = { ProjectDto() }
+
+        override suspend fun leave(id: String): ProjectDto {
+            left += id
+            return onLeave(id)
+        }
+
+        override suspend fun get(id: String): ProjectDto = throw AssertionError("get")
+        override suspend fun addRole(id: String, input: ProjectRoleInputDto): ProjectDto = throw AssertionError("addRole")
+        override suspend fun create(input: ProjectCreateDto): ProjectDto = throw AssertionError("create")
+        override suspend fun transition(id: String, input: ProjectTransitionDto): ProjectDto = throw AssertionError("transition")
+        override suspend fun update(id: String, input: ProjectUpdateDto): ProjectDto = throw AssertionError("update")
+        override suspend fun updateRole(id: String, roleId: String, input: ProjectRoleInputDto): ProjectDto =
+            throw AssertionError("updateRole")
+        override suspend fun deleteRole(id: String, roleId: String, expectedRevision: Int): ProjectDto =
+            throw AssertionError("deleteRole")
+        override suspend fun removeMember(id: String, userId: String): ProjectDto = throw AssertionError("removeMember")
     }
 
     private class ScriptedTeam : ProjectTeamReader {
@@ -77,7 +106,8 @@ class GatewayProjectDetailsDataSourceTest {
     private val api = ScriptedCatalog()
     private val assembler = Assembler()
     private val team = ScriptedTeam()
-    private val source = GatewayProjectDetailsDataSource(api, assembler, team)
+    private val projects = ScriptedProjects()
+    private val source = GatewayProjectDetailsDataSource(api, projects, assembler, team)
 
     private fun dto(owner: String = "owner-1", roles: List<ProjectRoleDto> = emptyList()) =
         ProjectDto(id = "p1", ownerUserId = owner, details = ProjectInputDto(title = "AI-навигация", field = "Biology"), roles = roles)
@@ -268,5 +298,42 @@ class GatewayProjectDetailsDataSourceTest {
         team.failure = CancellationException("cancelled")
 
         assertFailsWith<CancellationException> { source.getTeam(projectWithMembers()) }
+    }
+
+    // ---- leaving ----
+
+    @Test
+    fun leavingIsADeleteOfTheMembershipOfTheProjectAndTheAnswerIsNotAssembled() = runTest {
+        assembler.failure = AssertionError("the answer of a leave is not assembled")
+
+        source.leaveProject(ProjectId("p/1"))
+
+        assertEquals(listOf("p/1"), projects.left)
+        assertTrue(api.gets.isEmpty(), "nothing is read after the exit")
+    }
+
+    @Test
+    fun a403Or409IsNotAllowedAndA404IsGone() = runTest {
+        for (status in listOf(403, 409)) {
+            projects.onLeave = { throw RemoteFailure.Http(status) }
+            assertEquals(id, assertFailsWith<LeaveNotAllowedException> { source.leaveProject(id) }.projectId)
+        }
+        projects.onLeave = { throw RemoteFailure.Http(404) }
+        assertEquals(id, assertFailsWith<ProjectGoneException> { source.leaveProject(id) }.projectId)
+    }
+
+    @Test
+    fun otherFailuresOfLeavingPassAsTheyAre() = runTest {
+        for (failure in listOf(RemoteFailure.Http(400), RemoteFailure.Http(401), RemoteFailure.Http(500), RemoteFailure.NoConnection(), RemoteFailure.Timeout())) {
+            projects.onLeave = { throw failure }
+            assertSame(failure, assertFailsWith<RemoteFailure> { source.leaveProject(id) })
+        }
+        assertEquals(5, projects.left.size, "no automatic retry")
+    }
+
+    @Test
+    fun aCancellationWhileLeavingPassesThrough() = runTest {
+        projects.onLeave = { throw CancellationException("c") }
+        assertFailsWith<CancellationException> { source.leaveProject(id) }
     }
 }

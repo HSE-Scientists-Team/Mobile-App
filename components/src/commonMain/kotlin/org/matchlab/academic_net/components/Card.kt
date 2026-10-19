@@ -6,10 +6,12 @@ import academicnet.components.generated.resources.components_decline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,6 +93,11 @@ fun AppCard(
  * the first runs its action, so a candidate is not accepted and declined at once, nor accepted twice.
  * That holds within the window only: the guard of the screen's view model, which refuses an action
  * that is already done or running, is still needed.
+ *
+ * @param loading the decision is on its way: an arc (`primary`, in the place of the two buttons, as tall as they are)
+ *  stands in place of accept and decline (the design's `showSpinner`), and the chat button stays
+ * @param acceptEnabled `false` dims accept to 38% and ignores its taps, e.g. the role has no free place (07r)
+ * @param showChat `false` leaves the chat button out, e.g. for a person whose profile is unknown
  */
 @Composable
 fun AcceptDeclineActions(
@@ -98,6 +105,9 @@ fun AcceptDeclineActions(
     onDeclineClick: () -> Unit,
     onChatClick: () -> Unit,
     modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    acceptEnabled: Boolean = true,
+    showChat: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     val guard = remember { ClickDebouncer() }
@@ -106,24 +116,35 @@ fun AcceptDeclineActions(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CardIconButton(
-            AppIcons.Check,
-            stringResource(Res.string.components_accept),
-            { if (guard.tryAccept()) onAcceptClick() },
-            colors.tertiaryContainer,
-            colors.onTertiaryContainer,
-        )
-        CardIconButton(
-            AppIcons.X,
-            stringResource(Res.string.components_decline),
-            { if (guard.tryAccept()) onDeclineClick() },
-            colors.errorContainer,
-            colors.error,
-        )
+        if (loading) {
+            // The size of the two buttons together keeps the card from changing its height.
+            Box(Modifier.height(DecisionButtonSize), contentAlignment = Alignment.CenterStart) {
+                InlineSpinner(color = colors.primary)
+            }
+        } else {
+            CardIconButton(
+                AppIcons.Check,
+                stringResource(Res.string.components_accept),
+                { if (guard.tryAccept()) onAcceptClick() },
+                colors.tertiaryContainer,
+                colors.onTertiaryContainer,
+                enabled = acceptEnabled,
+            )
+            CardIconButton(
+                AppIcons.X,
+                stringResource(Res.string.components_decline),
+                { if (guard.tryAccept()) onDeclineClick() },
+                colors.errorContainer,
+                colors.error,
+            )
+        }
         Spacer(Modifier.weight(1f))
-        ChatIconButton(onClick = { if (guard.tryAccept()) onChatClick() })
+        if (showChat) ChatIconButton(onClick = { if (guard.tryAccept()) onChatClick() })
     }
 }
+
+/** The side of a round button inside a card: 20dp icon and 8dp around it. */
+private val DecisionButtonSize = 36.dp
 
 /**
  * The name of a person on one line, ellipsized when it does not fit. An empty or blank [name] is shown as

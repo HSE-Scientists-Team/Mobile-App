@@ -53,6 +53,8 @@ private class TeamRepository : ProjectDetailsRepository {
             TeamMember(RoleMember(UserSummary(it.userId, "Name ${it.userId.value}")), it.roleTitle, it.isViewer)
         }
     }
+
+    override suspend fun leaveProject(id: ProjectId) = Unit
 }
 
 class GetProjectTeamUseCaseTest {

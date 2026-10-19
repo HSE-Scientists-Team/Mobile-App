@@ -14,4 +14,5 @@
     <string name="chat_not_found">Chat not found</string>
     <string name="chat_send_error">Could not send the message. Please try again</string>
     <string name="chat_message_too_long">The message is longer than %1$d characters</string>
+    <string name="chat_more">More</string>
 </resources>

@@ -31,6 +31,8 @@ internal abstract class SessionComponent(
     CollaboratorsModule,
     ProjectSearchModule,
     ProjectDetailsModule,
+    ResponsesModule,
+    ComplaintsModule,
     ProfileModule,
     FeedModule,
     SettingsModule {

@@ -64,6 +64,8 @@ class ProjectsRepositoryImplTest {
             this.role.also { calls += "update-role ${projectId.value} ${roleId.value} ${role.title}" }
         override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project =
             project.also { calls += "remove-role ${projectId.value} ${roleId.value}" }
+        override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project =
+            project.also { calls += "remove-member ${projectId.value} ${userId.value}" }
         override suspend fun getSpheres(): List<Sphere> = listOfNotNull(project.sphere).also { calls += "spheres" }
     }
 
@@ -85,13 +87,14 @@ class ProjectsRepositoryImplTest {
         )
         assertSame(source.role, repository.updateRole(id, RoleId("r1"), RoleDraft("Дев")))
         assertSame(project, repository.removeRole(id, RoleId("r1")))
+        assertSame(project, repository.removeMember(id, UserId("u7")))
         assertEquals(listOf(sphere), repository.getSpheres())
         assertEquals(listOf(project), repository.observeMyProjects().first())
         assertEquals(project, repository.observeProject(id).first())
         assertEquals(
             listOf(
                 "load p1", "get p1", "create Новый", "unpublish p1", "role p1 Дизайнер",
-                "lifecycle p1 Complete", "update p1 Новое", "update-role p1 r1 Дев", "remove-role p1 r1", "spheres",
+                "lifecycle p1 Complete", "update p1 Новое", "update-role p1 r1 Дев", "remove-role p1 r1", "remove-member p1 u7", "spheres",
             ),
             source.calls,
         )

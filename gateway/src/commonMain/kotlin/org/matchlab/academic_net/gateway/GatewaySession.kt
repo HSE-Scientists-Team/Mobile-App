@@ -8,6 +8,7 @@ import kotlinx.coroutines.cancel
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.internal.ApiRequests
 import org.matchlab.academic_net.gateway.internal.KtorAchievementsApi
+import org.matchlab.academic_net.gateway.internal.KtorComplaintsApi
 import org.matchlab.academic_net.gateway.internal.KtorPeopleSearchApi
 import org.matchlab.academic_net.gateway.internal.KtorProfilesApi
 import org.matchlab.academic_net.gateway.internal.KtorProjectJoinsApi
@@ -26,7 +27,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * calls of the user's data are the properties: [profiles], [achievements], [reviews] and [users] (the
  * profile blocks); the people are found with [peopleSearch] and recommended by [recommendations]; the projects are
  * [projects] (the viewer's own) and [projectCatalog] (everybody's, for the search and the page of a project); the
- * applications and invitations to their roles are [projectJoins].
+ * applications and invitations to their roles are [projectJoins]; the complaints about a person or a project are [complaints].
  *
  * Every call throws `RemoteFailure` when it fails and lets a `CancellationException` through, like
  * [AccountApi].
@@ -74,6 +75,9 @@ class GatewaySession internal constructor(
 
     /** Applications and invitations: the candidate's and the initiator's side. */
     val projectJoins: ProjectJoinsApi = KtorProjectJoinsApi(requests)
+
+    /** Complaints about a person or a project. */
+    val complaints: ComplaintsApi = KtorComplaintsApi(requests)
 
     /**
      * Cancels the requests of this session that are still running (they end with a `CancellationException`,

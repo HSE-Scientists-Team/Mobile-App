@@ -6,6 +6,7 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.UserId
 
 /** Requested project does not exist (or the user is not allowed to see it). */
 class ProjectNotFoundException(val projectId: ProjectId) :
@@ -22,6 +23,10 @@ class ProjectConflictException(val projectId: ProjectId) :
 /** The server refused to delete the role: it has people on it or is otherwise not free (a 403 or 409; API-GAP G64). */
 class RoleNotRemovableException(val projectId: ProjectId, val roleId: RoleId) :
     IllegalStateException("Role ${roleId.value} of project ${projectId.value} cannot be removed")
+
+/** The server refused to remove the member (403 or 409; API-GAP G65); the project has been read again. */
+class MemberNotRemovableException(val projectId: ProjectId, val userId: UserId) :
+    IllegalStateException("Member ${userId.value} of project ${projectId.value} cannot be removed")
 
 /**
  * Projects of the current user as their initiator. Suspending functions throw on failure (no network, a server
@@ -101,6 +106,13 @@ interface ProjectsRepository {
      * @throws RoleNotRemovableException 403 or 409 (API-GAP G64); the project has been read again
      */
     suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project
+
+    /**
+     * `DELETE /projects/{id}/members/{user_id}` → the project. A 404 reads the project again: gone is
+     * [ProjectNotFoundException], still there counts as removed (the project is returned).
+     * @throws MemberNotRemovableException 403 or 409 (API-GAP G65); the project has been read again
+     */
+    suspend fun removeMember(projectId: ProjectId, userId: UserId): Project
 
     /** The spheres a project can belong to: the app's own list, `Spheres.all` (`docs/api-values.md`). */
     suspend fun getSpheres(): List<Sphere>

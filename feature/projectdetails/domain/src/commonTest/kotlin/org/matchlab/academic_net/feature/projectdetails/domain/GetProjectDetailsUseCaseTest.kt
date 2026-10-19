@@ -47,6 +47,8 @@ private class FakeProjectDetailsRepository(var answer: ProjectDetails? = Details
     }
 
     override suspend fun getTeam(project: Project): List<TeamMember> = emptyList()
+
+    override suspend fun leaveProject(id: ProjectId) = Unit
 }
 
 class GetProjectDetailsUseCaseTest {

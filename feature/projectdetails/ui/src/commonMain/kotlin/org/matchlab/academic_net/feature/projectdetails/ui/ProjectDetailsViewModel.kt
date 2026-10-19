@@ -4,8 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.ProjectId
@@ -16,6 +19,9 @@ import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projectdetails.domain.GetProjectDetailsUseCase
 import org.matchlab.academic_net.feature.projectdetails.domain.GetProjectTeamUseCase
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveProjectResult
+import org.matchlab.academic_net.feature.projectdetails.domain.LeaveProjectUseCase
+import org.matchlab.academic_net.feature.projectdetails.domain.ObserveAppliedRolesUseCase
 import org.matchlab.academic_net.feature.projectdetails.domain.TeamMember
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetails as LoadedProject
 import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetailsResult
@@ -98,6 +104,11 @@ data class VacantRoleUiModel(
  * @property rolesCount how many roles the project has, whether they have free places or not; a project with none has
  *  no section of roles
  * @property team "Команда" under the tags; the page is shown first and the people arrive after it
+ * @property canApply "Откликнуться" is offered on the free roles: the viewer is neither the initiator nor a member, and the
+ *  project is recruiting or its status is unknown
+ * @property appliedRoles the roles the viewer has applied to (waiting records): their button is "Вы откликнулись"
+ * @property canLeave "Покинуть проект" is offered: the viewer is a member and not the initiator
+ * @property canReport the flag in the app bar: anyone but the initiator may report the project
  */
 @Immutable
 data class ProjectDetailsUiModel(
@@ -115,6 +126,10 @@ data class ProjectDetailsUiModel(
     val rolesCount: Int,
     val period: ProjectPeriod?,
     val team: TeamUiState = TeamUiState.Hidden,
+    val canApply: Boolean = false,
+    val appliedRoles: Set<RoleId> = emptySet(),
+    val canLeave: Boolean = false,
+    val canReport: Boolean = false,
 )
 
 /** What the project page shows: the loading, the answer of the server or the failure. */
@@ -128,14 +143,45 @@ sealed interface ProjectDetailsUiState {
     /** The request failed for [cause]; the screen says why (see `failureText`) and "Повторить" asks again. */
     data class Error(val cause: Throwable) : ProjectDetailsUiState
 
-    /** The project was found; [project] is everything the page shows. */
-    data class Content(val project: ProjectDetailsUiModel) : ProjectDetailsUiState
+    /**
+     * The project was found; [project] is everything the page shows.
+     *
+     * @property isLeaveConfirmVisible the confirmation 04y is open
+     * @property isLeaving leaving is on its way (04g), or the page is being read again after it: the button shows an arc
+     *  and a second leave cannot start
+     * @property leaveFailure why leaving failed (04h and the banner of a failure); cleared by the next try
+     * @property hasLeft the viewer has left the project: the banner 04i "Вы покинули проект" is at the top
+     */
+    data class Content(
+        val project: ProjectDetailsUiModel,
+        val isLeaveConfirmVisible: Boolean = false,
+        val isLeaving: Boolean = false,
+        val leaveFailure: LeaveFailure? = null,
+        val hasLeft: Boolean = false,
+    ) : ProjectDetailsUiState
+}
+
+/** Why "Покинуть проект" did not take the viewer out of the project. */
+sealed interface LeaveFailure {
+    /** The server refused (403, 409): "Действие недоступно в текущем состоянии проекта" (04h). */
+    data object NotAllowed : LeaveFailure
+
+    /** The request failed for [cause]; the screen says why (see `failureText`). */
+    data class Failed(val cause: Throwable) : LeaveFailure
 }
 
 /**
  * "04 Проект": the page of a published project, read-only. The viewer's own project can be here too (the search may
  * find it, API-GAP G53): it is shown the same way, without the chat with its initiator. It loads the project once, when
- * it is created, and again on [onRetry], which works only after a failure. Applying to a role belongs to a later story.
+ * it is created, and again on [onRetry], which works only after a failure.
+ *
+ * **Applying.** [ProjectDetailsUiModel.canApply] says whether the free roles have "Откликнуться"; the roles the viewer has
+ * applied to come from [observeAppliedRoles] (the data layer's list of the viewer's records) and are
+ * [ProjectDetailsUiModel.appliedRoles]: "Вы откликнулись" (04x), which follows a new application by itself.
+ *
+ * **Leaving.** A member who is not the initiator can leave: [onLeaveClick] opens 04y, [onLeaveConfirm] sends it under the
+ * guard [ProjectDetailsUiState.Content.isLeaving]. `Left` reads the page again (the viewer is not on the team now) and
+ * shows the banner 04i; `NotAllowed` is 04h; `NotFound` is the screen "Проект не найден"; a failure is told by its kind.
  *
  * **Team.** Once the project is found the page is shown, and "Команда" is [TeamUiState.Loading] when the project has
  * members besides its initiator (else [TeamUiState.Hidden]) while [getProjectTeam] reads their profiles; then
@@ -146,13 +192,83 @@ class ProjectDetailsViewModel(
     private val projectId: ProjectId,
     private val getProjectDetails: GetProjectDetailsUseCase,
     private val getProjectTeam: GetProjectTeamUseCase,
+    observeAppliedRoles: ObserveAppliedRolesUseCase,
+    private val leaveProject: LeaveProjectUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ProjectDetailsUiState>(ProjectDetailsUiState.Loading)
+    private val applied = observeAppliedRoles(projectId)
+        .catch { emit(emptySet()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
-    val uiState: StateFlow<ProjectDetailsUiState> = state.asStateFlow()
+    val uiState: StateFlow<ProjectDetailsUiState> = combine(state, applied) { current, appliedRoles ->
+        if (current is ProjectDetailsUiState.Content) {
+            current.copy(project = current.project.copy(appliedRoles = appliedRoles))
+        } else {
+            current
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), ProjectDetailsUiState.Loading)
 
     init {
         load()
+    }
+
+    /** "Покинуть проект": opens the confirmation 04y. */
+    fun onLeaveClick() = updateContent {
+        if (it.project.canLeave && !it.hasLeft && !it.isLeaving) {
+            it.copy(isLeaveConfirmVisible = true, leaveFailure = null)
+        } else {
+            it
+        }
+    }
+
+    fun onLeaveDismiss() = updateContent { it.copy(isLeaveConfirmVisible = false) }
+
+    /** "Покинуть" of 04y: works once per dialog (the button can be tapped again while the dialog fades out). */
+    fun onLeaveConfirm() {
+        var started = false
+        updateContent {
+            started = it.isLeaveConfirmVisible && !it.isLeaving
+            if (started) it.copy(isLeaveConfirmVisible = false, isLeaving = true, leaveFailure = null) else it
+        }
+        if (!started) return
+        viewModelScope.launch {
+            when (val result = leaveProject(projectId)) {
+                // The viewer is not on the team now: the page is read again, and the banner stays while it does.
+                LeaveProjectResult.Left -> {
+                    updateContent { it.copy(hasLeft = true) }
+                    reload()
+                }
+                LeaveProjectResult.NotAllowed ->
+                    updateContent { it.copy(isLeaving = false, leaveFailure = LeaveFailure.NotAllowed) }
+                LeaveProjectResult.NotFound -> state.value = ProjectDetailsUiState.NotFound
+                is LeaveProjectResult.Failure ->
+                    updateContent { it.copy(isLeaving = false, leaveFailure = LeaveFailure.Failed(result.cause)) }
+            }
+        }
+    }
+
+    private inline fun updateContent(crossinline transform: (ProjectDetailsUiState.Content) -> ProjectDetailsUiState.Content) {
+        state.update { current -> if (current is ProjectDetailsUiState.Content) transform(current) else current }
+    }
+
+    /** Reads the page again after leaving; the banner of leaving and the screen stay, whatever the answer is. */
+    private suspend fun reload() {
+        when (val result = getProjectDetails(projectId)) {
+            is ProjectDetailsResult.Found -> {
+                val details = result.details
+                val hasTeam = details.hasTeam()
+                updateContent {
+                    it.copy(
+                        project = details.toUiModel().copy(team = if (hasTeam) TeamUiState.Loading else TeamUiState.Hidden),
+                        isLeaving = false,
+                    )
+                }
+                if (hasTeam) loadTeam(details)
+            }
+            ProjectDetailsResult.NotFound -> state.value = ProjectDetailsUiState.NotFound
+            // The viewer has left; what the page shows is out of date, but the screen is not taken away from them.
+            is ProjectDetailsResult.Failure -> updateContent { it.copy(isLeaving = false) }
+        }
     }
 
     /** "Повторить" after a failed load; a request that is still running is not doubled. */
@@ -187,7 +303,7 @@ class ProjectDetailsViewModel(
                 current
             } else {
                 val team = if (members.isEmpty()) TeamUiState.Hidden else TeamUiState.Shown(details.teamOf(members))
-                ProjectDetailsUiState.Content(current.project.copy(team = team))
+                current.copy(project = current.project.copy(team = team))
             }
         }
     }
@@ -257,4 +373,10 @@ private fun LoadedProject.toUiModel(): ProjectDetailsUiModel = ProjectDetailsUiM
     totalPlaces = project.totalPlaces,
     rolesCount = project.roles.size,
     period = project.period,
+    canApply = !project.viewerIsInitiator && !project.viewerIsMember &&
+        (project.status == null || project.status == ProjectStatus.Recruiting),
+    canLeave = project.viewerIsMember && !project.viewerIsInitiator,
+    canReport = !project.viewerIsInitiator,
 )
+
+private const val StopTimeoutMillis = 5_000L

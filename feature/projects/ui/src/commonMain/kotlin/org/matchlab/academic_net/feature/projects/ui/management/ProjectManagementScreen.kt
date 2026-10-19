@@ -30,6 +30,7 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
+import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.ActionListItem
 import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
@@ -41,11 +42,13 @@ import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.InfoBanner
+import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonCard
 import org.matchlab.academic_net.components.PersonCardUiModel
 import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.components.person.personStatsText
 import org.matchlab.academic_net.components.project.ProjectDescriptionBlocks
 import org.matchlab.academic_net.components.project.ProjectHeader
@@ -56,6 +59,7 @@ import org.matchlab.academic_net.components.project.rolePlacesText
 import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
 import org.matchlab.academic_net.feature.projects.domain.ProjectLifecycleAction
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
+import org.matchlab.academic_net.feature.projects.ui.ParticipantManageCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
@@ -68,7 +72,15 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_unpublished
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_cancel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_conflict
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick_dialog_text
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick_dialog_title
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick_failed
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_load_project_error
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_member_not_allowed
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_responses
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_responses_count
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_responses_hint
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_empty
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_manage
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_overview
@@ -105,12 +117,14 @@ import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
  * "07 Управление проектом" for the initiator: the overview, the roles with their people, and 07c with the status of the
- * project and its actions (start, unpublish, edit, finish, cancel). The kick button and the chat button of the people
- * of a role belong to a later story. What the app does not know about the project (`docs/api-values.md`) is left out,
- * see [ProjectManagementViewModel].
+ * project and its actions (start, unpublish, edit, finish, cancel). Each tab starts with the row "Отклики · N" (07d). A
+ * person of a role has the chat button and "Выгнать" (07i asks first). What the app does not know about the project
+ * (`docs/api-values.md`) is left out, see [ProjectManagementViewModel].
  *
  * @param onEditProject the pencil of the app bar and the row "Редактировать проект": opens 04d
  * @param onMemberClick a person of a role whose profile is known: opens the profile
+ * @param onContactMember the chat button of a person of a role
+ * @param onResponsesClick the row "Отклики · N": opens 07d, the applications to the roles of the project
  */
 @Composable
 fun ProjectManagementRoute(
@@ -120,6 +134,8 @@ fun ProjectManagementRoute(
     onFindCollaborators: (ProjectId, RoleId) -> Unit,
     onEditProject: (ProjectId) -> Unit,
     onMemberClick: (UserId) -> Unit,
+    onContactMember: (UserSummary) -> Unit,
+    onResponsesClick: (ProjectId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = viewModel(key = projectId.value) {
@@ -130,6 +146,7 @@ fun ProjectManagementRoute(
             unpublishProject = dependencies.unpublishProject,
             addRole = dependencies.addRole,
             changeLifecycle = dependencies.changeLifecycle,
+            removeMember = dependencies.removeMember,
             capabilities = dependencies.capabilities,
         )
     }
@@ -144,9 +161,23 @@ fun ProjectManagementRoute(
         onEditClick = { onEditProject(projectId) },
         onFindPeopleClick = { roleId -> onFindCollaborators(projectId, roleId) },
         onMemberClick = onMemberClick,
+        onContactMember = onContactMember,
+        onResponsesClick = { onResponsesClick(projectId) },
+        onKickClick = viewModel::onKickClick,
         onRetry = viewModel::onRetry,
         modifier = modifier,
     )
+    state.kickDialog?.let { target ->
+        AppConfirmDialog(
+            title = stringResource(Res.string.projects_kick_dialog_title),
+            text = stringResource(Res.string.projects_kick_dialog_text, nameOrPlaceholder(target.name)),
+            confirmText = stringResource(Res.string.projects_kick),
+            dismissText = stringResource(Res.string.projects_cancel),
+            onConfirm = viewModel::onKickConfirm,
+            onDismiss = viewModel::onKickDismiss,
+            destructive = true,
+        )
+    }
 
     if (state.isUnpublishConfirmVisible) {
         AppConfirmDialog(
@@ -185,6 +216,9 @@ internal fun ProjectManagementScreen(
     onEditClick: () -> Unit,
     onFindPeopleClick: (RoleId) -> Unit,
     onMemberClick: (UserId) -> Unit,
+    onContactMember: (UserSummary) -> Unit,
+    onResponsesClick: () -> Unit,
+    onKickClick: (UserId) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -236,14 +270,25 @@ internal fun ProjectManagementScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     when (selectedTab) {
-                        0 -> OverviewTab(project)
-                        1 -> RolesTab(project, onAddRoleClick, onFindPeopleClick, onMemberClick)
+                        0 -> OverviewTab(project, onResponsesClick)
+                        1 -> RolesTab(
+                            project = project,
+                            memberFailure = state.memberFailure,
+                            removingMember = state.removingMember,
+                            onAddRoleClick = onAddRoleClick,
+                            onFindPeopleClick = onFindPeopleClick,
+                            onMemberClick = onMemberClick,
+                            onContactMember = onContactMember,
+                            onKickClick = onKickClick,
+                            onResponsesClick = onResponsesClick,
+                        )
                         else -> ManageTab(
                             project = project,
                             isBusy = state.isUnpublishing || state.isChangingLifecycle,
                             onUnpublishClick = onUnpublishClick,
                             onLifecycleClick = onLifecycleClick,
                             onEditClick = onEditClick,
+                            onResponsesClick = onResponsesClick,
                         )
                     }
                     if (state.actionFailed) {
@@ -276,18 +321,36 @@ internal fun ProjectManagementScreen(
 private fun roleFailureText(cause: Throwable): String =
     if (cause is ProjectConflictException) stringResource(Res.string.projects_conflict) else failureText(cause)
 
+/** The row "Отклики · N" with "Кандидаты на вакантные роли": the way to 07d, first on every tab of the initiator. */
+@Composable
+private fun ResponsesEntry(project: ProjectDetails, onClick: () -> Unit) {
+    if (!project.showsResponses) return
+    ActionListItem(
+        title = if (project.pendingJoinCount > 0) {
+            stringResource(Res.string.projects_responses_count, project.pendingJoinCount)
+        } else {
+            stringResource(Res.string.projects_responses)
+        },
+        subtitle = stringResource(Res.string.projects_responses_hint),
+        icon = AppIcons.Users,
+        onClick = onClick,
+    )
+}
+
 /** "07 … Обзор". The chips of the type, the status and the sphere, and the card of the months, are drawn when known. */
 @Composable
-private fun ColumnScope.OverviewTab(project: ProjectDetails) {
+private fun ColumnScope.OverviewTab(project: ProjectDetails, onResponsesClick: () -> Unit) {
+    ResponsesEntry(project, onResponsesClick)
     ProjectHeader(project.title, project.type, project.status, project.sphere)
     ProjectDescriptionBlocks(project.problem, project.goal, project.tags)
     project.period?.let { ProjectPeriodCard(it) }
 }
 
 /**
- * "07b … Роли". The kick button and the chat button of members need a later story, so members are plain person cards:
- * one whose profile is known opens it, one whose profile could not be read is "Без имени" with the neutral avatar and
- * is not a button. The search button of a role with a free place opens "08 Поиск коллабораторов" for it.
+ * "07b … Роли". Each person of a role is a card with the chat button and "Выгнать" (07i asks first; an arc replaces the
+ * label while the member is removed, 07u); the initiator has no "Выгнать". A person whose profile could not be read is
+ * "Без имени" with the neutral avatar, has no chat and is not a button. The search button of a role with a free place
+ * opens "08 Поиск коллабораторов" for it. The failure of a removal is a banner under the row "Отклики · N" (07v).
  *
  * The counter is of places. Each role shows its people (as many as the server listed, G52), then a card of the role
  * when it has a free place or has places taken by people the app does not know; that card has the line of taken places
@@ -296,11 +359,24 @@ private fun ColumnScope.OverviewTab(project: ProjectDetails) {
 @Composable
 private fun RolesTab(
     project: ProjectDetails,
+    memberFailure: MemberFailure?,
+    removingMember: UserId?,
     onAddRoleClick: () -> Unit,
     onFindPeopleClick: (RoleId) -> Unit,
     onMemberClick: (UserId) -> Unit,
+    onContactMember: (UserSummary) -> Unit,
+    onKickClick: (UserId) -> Unit,
+    onResponsesClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    ResponsesEntry(project, onResponsesClick)
+    when (memberFailure) {
+        null -> Unit
+        MemberFailure.NotAllowed ->
+            InfoBanner(text = stringResource(Res.string.projects_member_not_allowed), tone = InfoBannerTone.Error)
+        is MemberFailure.Failed ->
+            InfoBanner(text = stringResource(Res.string.projects_kick_failed), tone = InfoBannerTone.Error)
+    }
     RolesSectionHeader(
         title = stringResource(Res.string.projects_roles_header),
         occupiedCount = project.occupiedPlaces,
@@ -308,10 +384,20 @@ private fun RolesTab(
     )
     project.roles.forEach { role ->
         role.members.forEach { member ->
-            PersonCard(
-                model = member.toCardUiModel(role.title),
-                onClick = if (member.hasProfile) ({ onMemberClick(member.userId) }) else null,
-            )
+            val card = member.toCardUiModel(role.title).copy(showChatButton = member.canContact)
+            val open = if (member.hasProfile) ({ onMemberClick(member.userId) }) else null
+            val chat = { onContactMember(UserSummary(member.userId, member.name)) }
+            if (member.canKick) {
+                ParticipantManageCard(
+                    person = card,
+                    onKickClick = { onKickClick(member.userId) },
+                    onChatClick = chat,
+                    onClick = open,
+                    removing = removingMember == member.userId,
+                )
+            } else {
+                PersonCard(model = card, onClick = open, onChatClick = chat)
+            }
         }
         if (role.showsCard) {
             // The search for people who could take the role starts from the button of the card, which
@@ -357,6 +443,7 @@ private fun ManageTab(
     onUnpublishClick: () -> Unit,
     onLifecycleClick: (ProjectLifecycleAction) -> Unit,
     onEditClick: () -> Unit,
+    onResponsesClick: () -> Unit,
 ) {
     val status = project.status
     if (status != null) {
@@ -370,8 +457,10 @@ private fun ManageTab(
             val chip = status.chip()
             AppStatusChip(chip.text, chip.tone, showIcon = false)
         }
-        InfoBanner(text = stringResource(status.bannerText()))
     }
+    // After the row of the status and before its banner (07c).
+    ResponsesEntry(project, onResponsesClick)
+    if (status != null) InfoBanner(text = stringResource(status.bannerText()))
     val actions = project.lifecycleActions
     ProjectLifecycleAction.Start.takeIf { it in actions }?.let { LifecycleRow(it, isBusy, onLifecycleClick) }
     if (project.canUnpublish) {
