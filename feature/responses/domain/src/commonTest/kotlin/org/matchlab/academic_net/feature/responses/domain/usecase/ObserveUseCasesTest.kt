@@ -133,14 +133,12 @@ class ObserveHasNewInvitationsUseCaseTest {
 
     @Test
     fun onlyWaitingInvitationsCount() = runTest {
-        for (status in listOf(ProjectJoinStatus.Accepted, ProjectJoinStatus.Declined, ProjectJoinStatus.Withdrawn)) {
+        for (status in listOf(ProjectJoinStatus.Accepted, ProjectJoinStatus.Rejected, ProjectJoinStatus.Cancelled, null)) {
             joins.joins.value = listOf(invitation(status = status))
             assertFalse(has(), "$status")
         }
-        for (status in listOf(ProjectJoinStatus.Pending, null)) {
-            joins.joins.value = listOf(invitation(status = status))
-            assertTrue(has(), "$status")
-        }
+        joins.joins.value = listOf(invitation(status = ProjectJoinStatus.Pending))
+        assertTrue(has())
     }
 
     @Test

@@ -12,6 +12,7 @@ import org.matchlab.academic_net.feature.profile.domain.DocumentKind
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
 import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
+import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
@@ -235,6 +236,28 @@ class GatewayProfileMappingTest {
     fun theKindsOfWorksAreScientificAndProject() {
         assertEquals(ProjectType.Scientific, achievementDto(kind = "scientific").toWork()?.type)
         assertEquals(ProjectType.Practical, achievementDto(kind = "project").toWork()?.type)
+    }
+
+    @Test
+    fun theStatusesOfTheBackendAreReadForWorksAndDocuments() {
+        val expected = listOf(
+            "unverified" to VerificationStatus.Unconfirmed,
+            "pending_review" to VerificationStatus.Pending,
+            "verified" to VerificationStatus.Verified,
+            "needs_evidence" to VerificationStatus.Rejected,
+        )
+        for ((text, status) in expected) {
+            assertEquals(status, achievementDto(kind = "scientific", status = text).toWork()?.status, text)
+            assertEquals(status, achievementDto(kind = "education", status = text).toDocument()?.status, text)
+        }
+        assertEquals(VerificationStatus.Verified, achievementDto(status = " verified ").toWork()?.status)
+    }
+
+    @Test
+    fun aStatusTheBackendDoesNotListIsUnknown() {
+        for (text in listOf("", "approved", "rejected", "pending", "Verified", "NEEDS_EVIDENCE")) {
+            assertNull(achievementDto(status = text).toWork()?.status, text)
+        }
     }
 
     @Test

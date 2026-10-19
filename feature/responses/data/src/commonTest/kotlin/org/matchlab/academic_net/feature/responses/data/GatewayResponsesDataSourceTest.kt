@@ -266,14 +266,14 @@ class GatewayResponsesDataSourceTest {
 
     @Test
     fun unknownCodesAreKeptAsUnknownNotDropped() = runTest {
-        api.onListMine = { _, _ -> listDto(3, joinDto("a", type = "9", status = "zzz"), joinDto("b", type = " invitation ", status = " declined "), joinDto("c", type = "1", status = "2")) }
+        api.onListMine = { _, _ -> listDto(3, joinDto("a", type = "9", status = "zzz"), joinDto("b", type = " invitation ", status = " rejected "), joinDto("c", type = "1", status = "2")) }
 
         val joins = source().refreshMyJoins()
 
         assertNull(joins[0].type)
         assertNull(joins[0].status)
         assertEquals(ProjectJoinType.Invitation, joins[1].type)
-        assertEquals(ProjectJoinStatus.Declined, joins[1].status)
+        assertEquals(ProjectJoinStatus.Rejected, joins[1].status)
         assertNull(joins[2].type, "the old numeric codes are not read")
         assertNull(joins[2].status)
     }
@@ -452,17 +452,17 @@ class GatewayResponsesDataSourceTest {
         api.onWithdraw = { joinDto("j", status = "") }
 
         assertEquals(ProjectJoinStatus.Accepted, source.decide(ProjectJoinId("j"), accept = true).status)
-        assertEquals(ProjectJoinStatus.Declined, source.decide(ProjectJoinId("j"), accept = false).status)
-        assertEquals(ProjectJoinStatus.Withdrawn, source.withdraw(ProjectJoinId("j")).status)
+        assertEquals(ProjectJoinStatus.Rejected, source.decide(ProjectJoinId("j"), accept = false).status)
+        assertEquals(ProjectJoinStatus.Cancelled, source.withdraw(ProjectJoinId("j")).status)
         assertEquals(listOf("j" to true, "j" to false), api.decisions)
         assertEquals(listOf("j"), api.withdrawals)
     }
 
     @Test
     fun aKnownStatusInTheAnswerIsKeptAsTheServerSaid() = runTest {
-        api.onDecide = { _, _ -> joinDto("j", status = "declined") }
+        api.onDecide = { _, _ -> joinDto("j", status = "rejected") }
 
-        assertEquals(ProjectJoinStatus.Declined, source().decide(ProjectJoinId("j"), accept = true).status)
+        assertEquals(ProjectJoinStatus.Rejected, source().decide(ProjectJoinId("j"), accept = true).status)
     }
 
     @Test
@@ -502,12 +502,12 @@ class GatewayResponsesDataSourceTest {
         val source = source()
         api.onListMine = { _, _ -> listDto(1, joinDto("j")) }
         source.refreshMyJoins()
-        api.onWithdraw = { joinDto("j", status = "withdrawn") }
+        api.onWithdraw = { joinDto("j", status = "cancelled") }
 
         source.withdraw(ProjectJoinId("j/1"))
 
         assertEquals(listOf("j/1"), api.withdrawals)
-        assertEquals(ProjectJoinStatus.Withdrawn, source.observeMyJoins().first()?.single()?.status)
+        assertEquals(ProjectJoinStatus.Cancelled, source.observeMyJoins().first()?.single()?.status)
     }
 
     // ---- invite ----
@@ -649,7 +649,7 @@ class GatewayResponsesDataSourceTest {
             gate.await()
             old
         }
-        api.onDecide = { _, _ -> joinDto("j", status = "declined") }
+        api.onDecide = { _, _ -> joinDto("j", status = "rejected") }
 
         val read = async { source.refreshMyJoins() }
         runCurrent()
@@ -661,7 +661,7 @@ class GatewayResponsesDataSourceTest {
         read.await()
         decision.await()
 
-        assertEquals(ProjectJoinStatus.Declined, source.observeMyJoins().first()?.single()?.status)
+        assertEquals(ProjectJoinStatus.Rejected, source.observeMyJoins().first()?.single()?.status)
         assertEquals(listOf("listMine", "decide"), api.log)
     }
 
@@ -673,7 +673,7 @@ class GatewayResponsesDataSourceTest {
             gate.await()
             joinDto("a")
         }
-        api.onWithdraw = { joinDto("b", status = "withdrawn") }
+        api.onWithdraw = { joinDto("b", status = "cancelled") }
 
         val first = async { source.apply(project, RoleId("r1"), null) }
         runCurrent()

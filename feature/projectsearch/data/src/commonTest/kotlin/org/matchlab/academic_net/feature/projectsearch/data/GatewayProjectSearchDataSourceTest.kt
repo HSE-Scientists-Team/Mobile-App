@@ -147,7 +147,7 @@ class GatewayProjectSearchDataSourceTest {
             source.search(ProjectQuery(filters = ProjectFilters(durations = setOf(duration))), PageRequest.First)
         }
 
-        assertEquals(listOf("up_to_3_months", "from_3_to_6_months", "over_6_months"), api.searches.map { it.first.duration })
+        assertEquals(listOf("up_to_3m", "3_to_6m", "over_6m"), api.searches.map { it.first.duration })
     }
 
     @Test
@@ -174,7 +174,7 @@ class GatewayProjectSearchDataSourceTest {
         source.search(ProjectQuery(text = "робот", filters = filters), PageRequest(20, 20))
 
         assertEquals(
-            ProjectSearchParams(q = "робот", type = "practical", field = "Физика", duration = "from_3_to_6_months", tags = listOf("ROS")),
+            ProjectSearchParams(q = "робот", type = "practical", field = "Физика", duration = "3_to_6m", tags = listOf("ROS")),
             api.searches.single().first,
         )
     }

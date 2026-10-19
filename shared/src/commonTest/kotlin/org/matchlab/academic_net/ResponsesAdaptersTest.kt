@@ -61,8 +61,8 @@ class ResponsesAdaptersTest {
             join("b", "p1", status = ProjectJoinStatus.Pending),
             join("c", "p2", status = null),
             join("d", "p3", status = ProjectJoinStatus.Accepted),
-            join("e", "p4", status = ProjectJoinStatus.Declined),
-            join("f", "p5", status = ProjectJoinStatus.Withdrawn),
+            join("e", "p4", status = ProjectJoinStatus.Rejected),
+            join("f", "p5", status = ProjectJoinStatus.Cancelled),
             join("g", "p6", type = ProjectJoinType.Invitation, status = ProjectJoinStatus.Accepted),
             join("h", "p2", status = ProjectJoinStatus.Accepted),
         )
@@ -101,8 +101,8 @@ class ResponsesAdaptersTest {
                 join("a", "p1", "r1", status = ProjectJoinStatus.Pending),
                 join("b", "p1", "r2", status = null),
                 join("c", "p1", "r3", status = ProjectJoinStatus.Accepted),
-                join("d", "p1", "r4", status = ProjectJoinStatus.Declined),
-                join("e", "p1", "r5", status = ProjectJoinStatus.Withdrawn),
+                join("d", "p1", "r4", status = ProjectJoinStatus.Rejected),
+                join("e", "p1", "r5", status = ProjectJoinStatus.Cancelled),
                 join("f", "p1", "r6", type = ProjectJoinType.Invitation),
                 join("g", "p1", "r7", type = null),
                 join("h", "p2", "r8"),
@@ -124,7 +124,7 @@ class ResponsesAdaptersTest {
 
         joins.joins.value = listOf(join("a"))
         joins.joins.value = listOf(join("a"), join("other", "p2"))
-        joins.joins.value = listOf(join("a", status = ProjectJoinStatus.Withdrawn))
+        joins.joins.value = listOf(join("a", status = ProjectJoinStatus.Cancelled))
 
         assertEquals(listOf(emptySet(), setOf(RoleId("r1")), emptySet()), seen)
     }

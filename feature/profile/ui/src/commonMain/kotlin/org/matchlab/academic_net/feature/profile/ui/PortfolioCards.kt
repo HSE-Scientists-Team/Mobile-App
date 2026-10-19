@@ -19,19 +19,20 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_mark_pending
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_mark_unverified
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_mark_verified
+import org.matchlab.academic_net.theme.extendedColors
 
 /**
  * Verification of a portfolio work or a document as the viewer sees it, shown as an icon at the
  * end of the card's title row.
  */
 enum class VerificationMark {
-    /** A moderator has confirmed it: the shield with a check. */
+    /** A moderator has confirmed it: the blue shield with a check. */
     Verified,
 
-    /** It is being checked: a clock. Only the owner of the profile sees this state. */
+    /** It is being checked: an amber clock. Only the owner of the profile sees this state. */
     Pending,
 
-    /** It is not confirmed (no proof, or the proof was rejected): the crossed shield. */
+    /** It is not confirmed (no proof, or more proof was asked for): the red crossed shield. */
     Unverified,
 }
 
@@ -163,7 +164,7 @@ internal fun VerificationIcon(mark: VerificationMark, modifier: Modifier = Modif
             contentDescription = stringResource(Res.string.profile_mark_pending),
             modifier = modifier,
             size = 18.dp,
-            tint = colors.onSurfaceVariant,
+            tint = MaterialTheme.extendedColors.onWarningContainer,
         )
         VerificationMark.Unverified -> AppIcon(
             icon = AppIcons.ShieldX,

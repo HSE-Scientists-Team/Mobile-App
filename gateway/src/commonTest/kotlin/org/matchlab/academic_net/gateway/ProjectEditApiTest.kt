@@ -291,7 +291,7 @@ class ProjectEditApiTest {
             5,
             setOf(
                 ProjectActions.PUBLISH,
-                ProjectActions.PAUSE,
+                ProjectActions.UNPUBLISH,
                 ProjectActions.START,
                 ProjectActions.COMPLETE,
                 ProjectActions.CANCEL,

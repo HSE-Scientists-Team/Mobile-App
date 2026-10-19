@@ -47,9 +47,9 @@ data class ProfileCapabilities(
 /**
  * Moderation state of a work or of a document, when the server tells it.
  *
- * API-GAP G12: the Gateway does not (the list of its statuses is not defined), and the models carry
- * `VerificationStatus?` where `null` is "unknown". Only a source that knows the states
- * ([ProfileCapabilities.verificationStatuses]) gives the four of them.
+ * The models carry `VerificationStatus?` where `null` is "unknown" (a text the app has no state for, or a source without
+ * [ProfileCapabilities.verificationStatuses]). The Gateway maps the four statuses of the backend to these four: `unverified`,
+ * `pending_review`, `verified`, `needs_evidence`.
  */
 enum class VerificationStatus {
     /** Added without a link or a proof: nobody checks it. */
@@ -61,7 +61,7 @@ enum class VerificationStatus {
     /** A moderator confirmed it. */
     Verified,
 
-    /** A moderator did not confirm it. */
+    /** A moderator returned it for more proof (`needs_evidence`); the reason is the moderator's comment. */
     Rejected,
 }
 

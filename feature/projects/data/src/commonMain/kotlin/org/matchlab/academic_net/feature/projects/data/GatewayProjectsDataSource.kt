@@ -34,7 +34,6 @@ import org.matchlab.academic_net.gateway.ProjectCatalogApi
 import org.matchlab.academic_net.gateway.ProjectSearchParams
 import org.matchlab.academic_net.gateway.ProjectsApi
 import org.matchlab.academic_net.gateway.contract.ProjectActions
-import org.matchlab.academic_net.gateway.contract.UnverifiedContract
 import org.matchlab.academic_net.gateway.dto.ProjectCreateDto
 import org.matchlab.academic_net.gateway.dto.ProjectDto
 import org.matchlab.academic_net.gateway.dto.ProjectInitialRoleDto
@@ -61,8 +60,8 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * | `loadProject` | `GET /projects/{id}` and the profiles of its team ([ProjectTeamReader]; they fill `Role.members`) into the cache; a 400, 403 or 404, and an answer the app cannot read (no `id` or `owner_user_id`), drop the project from the cache and give `null`; any other failure is thrown and the cache is left as it was |
  * | `getProject` | the cache without a request, else `loadProject` |
  * | `createProject` | `POST /projects` (the type as text and the sphere as its name, the first day of the first month and the last day of the last, a role for one person each); the answer goes into the cache and to the top of the list of the viewer's projects; any failure is thrown as the `RemoteFailure` it is |
- * | `unpublishProject` | `POST /projects/{id}/transitions` with the action "pause" and the cached revision (the project is read first if the cache does not have it); a 404 is [ProjectNotFoundException], a 409 is [ProjectConflictException] after the project was read again; the rest is thrown |
- * | `changeLifecycle` | like `unpublishProject`, with the action "start", "finish" or "cancel" of [ProjectActions] |
+ * | `unpublishProject` | `POST /projects/{id}/transitions` with the action "unpublish" and the cached revision (the project is read first if the cache does not have it); a 404 is [ProjectNotFoundException], a 409 is [ProjectConflictException] after the project was read again; the rest is thrown |
+ * | `changeLifecycle` | like `unpublishProject`, with the action "start", "complete" or "cancel" of [ProjectActions] |
  * | `updateProject` | `PUT /projects/{id}` with the description, without roles (API-GAP G63), and the cached revision; 404 and 409 as for `unpublishProject` |
  * | `updateRole` | `PUT /projects/{id}/roles/{role_id}` with the new title and skills; `slots` and `description` are those the cache has (the PUT replaces the role); a 409 is [ProjectConflictException] after the project was read again, a 404 reads the project again too: gone is [ProjectNotFoundException], still there (the role is gone) is [ProjectConflictException] |
  * | `removeRole` | `DELETE /projects/{id}/roles/{role_id}?expected_revision=` with the cached revision; a 403 or 409 is [RoleNotRemovableException] after the project was read again (API-GAP G64); a 404 reads the project again: gone is [ProjectNotFoundException], still there counts as deleted and the project is returned |
@@ -161,12 +160,8 @@ class GatewayProjectsDataSource(
         written
     }
 
-    // The action is the app's own code, not confirmed by the backend (docs/api-values.md).
-    @OptIn(UnverifiedContract::class)
-    override suspend fun unpublishProject(id: ProjectId): Project = transition(id, ProjectActions.PAUSE)
+    override suspend fun unpublishProject(id: ProjectId): Project = transition(id, ProjectActions.UNPUBLISH)
 
-    // The actions are the app's own codes, not confirmed by the backend (docs/api-values.md).
-    @OptIn(UnverifiedContract::class)
     override suspend fun changeLifecycle(id: ProjectId, action: ProjectLifecycleAction): Project =
         transition(
             id,

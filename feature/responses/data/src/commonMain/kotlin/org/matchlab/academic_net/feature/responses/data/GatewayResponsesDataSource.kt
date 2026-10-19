@@ -110,13 +110,13 @@ class GatewayResponsesDataSource(
 
     override suspend fun withdraw(id: ProjectJoinId): ProjectJoin = lock.withLock {
         // API-GAP G59: an answer with a status the app does not know is "taken back": that is what was asked.
-        val join = refusing { api.withdraw(id.value) }.readable().withStatusOr(ProjectJoinStatus.Withdrawn)
+        val join = refusing { api.withdraw(id.value) }.readable().withStatusOr(ProjectJoinStatus.Cancelled)
         replaceInCaches(join)
         join
     }
 
     override suspend fun decide(id: ProjectJoinId, accept: Boolean): ProjectJoin = lock.withLock {
-        val byAction = if (accept) ProjectJoinStatus.Accepted else ProjectJoinStatus.Declined
+        val byAction = if (accept) ProjectJoinStatus.Accepted else ProjectJoinStatus.Rejected
         // API-GAP G59: an answer with a status the app does not know is what was asked.
         val join = refusing { api.decide(id.value, accept) }.readable().withStatusOr(byAction)
         replaceInCaches(join)

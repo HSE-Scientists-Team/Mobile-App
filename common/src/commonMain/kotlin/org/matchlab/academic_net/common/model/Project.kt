@@ -54,7 +54,7 @@ enum class ProjectType(val code: String) {
  * **Not confirmed by the backend:** the server writes the status itself, so these codes are the app's reading of it until
  * the backend says otherwise; a status the app has no code for is "unknown" (`null` in `Project.status`).
  *
- * @property code the text the app takes the status from (`recruiting`, `unpublished`, `started`, `finished`, `cancelled`); the one place where the table of values lives.
+ * @property code the text the app takes the status from (`recruiting`, `unpublished`, `active`, `completed`, `cancelled`); the one place where the table of values lives.
  */
 enum class ProjectStatus(val code: String) {
     /** Published and looking for people for its vacant roles. */
@@ -64,10 +64,10 @@ enum class ProjectStatus(val code: String) {
     Unpublished("unpublished"),
 
     /** "В работе": the initiator started the project (transition action "start"); the team works on it. */
-    Started("started"),
+    Started("active"),
 
     /** "Завершён": the initiator finished the project (transition action "complete"). */
-    Finished("finished"),
+    Finished("completed"),
 
     /** "Отменён": the initiator cancelled the project (transition action "cancel"). */
     Cancelled("cancelled"),

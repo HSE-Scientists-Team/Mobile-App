@@ -386,7 +386,7 @@ class ProjectsApiTest {
     fun aTransitionIsAPostOfTheTransitionsPathWithAJsonBodyAndTheBearerToken() = runTest {
         val server = server()
 
-        server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 7))
+        server.session.projects.transition("p-1", ProjectTransitionDto(action = "unpublish", expectedRevision = 7))
 
         val request = server.requests.single()
         assertEquals(HttpMethod.Post, request.method)
@@ -400,11 +400,11 @@ class ProjectsApiTest {
     fun theTransitionBodyIsTheActionAsAStringAndTheRevisionAsANumber() = runTest {
         val server = server()
 
-        server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 7))
+        server.session.projects.transition("p-1", ProjectTransitionDto(action = "unpublish", expectedRevision = 7))
 
         val body: JsonObject = server.requests.single().bodyObject()
         assertEquals(setOf("action", "expected_revision"), body.keys)
-        assertEquals("pause", body.getValue("action").jsonPrimitive.content)
+        assertEquals("unpublish", body.getValue("action").jsonPrimitive.content)
         assertTrue(body.getValue("action").jsonPrimitive.isString)
         assertEquals(7, body.getValue("expected_revision").jsonPrimitive.int)
         assertFalse(body.getValue("expected_revision").jsonPrimitive.isString)
@@ -414,7 +414,7 @@ class ProjectsApiTest {
     fun theRevisionZeroOfATransitionIsSentAndNotLeftOut() = runTest {
         val server = server()
 
-        server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 0))
+        server.session.projects.transition("p-1", ProjectTransitionDto(action = "unpublish", expectedRevision = 0))
 
         assertEquals(0, server.requests.single().bodyObject().getValue("expected_revision").jsonPrimitive.int)
     }
@@ -423,14 +423,14 @@ class ProjectsApiTest {
     fun theIdOfTheTransitionedProjectIsEscaped() = runTest {
         val server = server()
 
-        server.session.projects.transition("a/b?c", ProjectTransitionDto(action = "pause", expectedRevision = 1))
+        server.session.projects.transition("a/b?c", ProjectTransitionDto(action = "unpublish", expectedRevision = 1))
 
         assertEquals("/api/v1/projects/a%2Fb%3Fc/transitions", server.requests.single().url.encodedPath)
     }
 
     @Test
     fun theAnswerOfATransitionIsTheWholeProject() = runTest {
-        val project = server().session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 7))
+        val project = server().session.projects.transition("p-1", ProjectTransitionDto(action = "unpublish", expectedRevision = 7))
 
         assertEquals("p-1", project.id)
         assertEquals(7, project.revision)
@@ -442,7 +442,7 @@ class ProjectsApiTest {
             val server = ProjectSessionFixture { jsonError(HttpStatusCode.fromValue(status), "причина") }
 
             val failure = failureOf<RemoteFailure.Http> {
-                server.session.projects.transition("p-1", ProjectTransitionDto(action = "pause", expectedRevision = 1))
+                server.session.projects.transition("p-1", ProjectTransitionDto(action = "unpublish", expectedRevision = 1))
             }
 
             assertEquals(status, failure.status)
@@ -454,6 +454,6 @@ class ProjectsApiTest {
     @OptIn(UnverifiedContract::class)
     fun theActionOfTheAppIsTheTextOfTheContract() {
         assertEquals("publish", ProjectActions.PUBLISH)
-        assertEquals("pause", ProjectActions.PAUSE)
+        assertEquals("unpublish", ProjectActions.UNPUBLISH)
     }
 }

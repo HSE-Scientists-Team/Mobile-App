@@ -44,8 +44,8 @@ class ProjectCodesTest {
     fun projectStatusCodesAreTheOnesOfTheContract() {
         assertEquals("recruiting", ProjectStatus.Recruiting.code)
         assertEquals("unpublished", ProjectStatus.Unpublished.code)
-        assertEquals("started", ProjectStatus.Started.code)
-        assertEquals("finished", ProjectStatus.Finished.code)
+        assertEquals("active", ProjectStatus.Started.code)
+        assertEquals("completed", ProjectStatus.Finished.code)
         assertEquals("cancelled", ProjectStatus.Cancelled.code)
     }
 
@@ -63,19 +63,19 @@ class ProjectCodesTest {
     fun projectStatusIsReadAfterTheOuterSpacesAreCut() {
         assertEquals(ProjectStatus.Recruiting, ProjectStatus.fromCode(" recruiting"))
         assertEquals(ProjectStatus.Unpublished, ProjectStatus.fromCode("unpublished "))
-        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode(" finished "))
+        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode(" completed "))
     }
 
     @Test
     fun lifecycleStatusesAreReadFromTheirCodes() {
-        assertEquals(ProjectStatus.Started, ProjectStatus.fromCode("started"))
-        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode("finished"))
+        assertEquals(ProjectStatus.Started, ProjectStatus.fromCode("active"))
+        assertEquals(ProjectStatus.Finished, ProjectStatus.fromCode("completed"))
         assertEquals(ProjectStatus.Cancelled, ProjectStatus.fromCode("cancelled"))
     }
 
     @Test
     fun anythingButAnExactProjectStatusCodeIsUnknown() {
-        for (raw in listOf(null, "", " ", "0", "1", "5", "01", "1.0", "published", "draft", "Recruiting", "CANCELLED", "canceled")) {
+        for (raw in listOf(null, "", " ", "0", "1", "5", "01", "1.0", "published", "draft", "started", "finished", "Recruiting", "CANCELLED", "canceled")) {
             assertNull(ProjectStatus.fromCode(raw), "status of '$raw'")
         }
     }
@@ -100,22 +100,22 @@ class ProjectCodesTest {
     @Test
     fun joinStatusCodesAreTheOnesOfTheContractAndReadBack() {
         assertEquals(
-            listOf("pending", "accepted", "declined", "withdrawn"),
+            listOf("pending", "accepted", "rejected", "cancelled"),
             listOf(
                 ProjectJoinStatus.Pending,
                 ProjectJoinStatus.Accepted,
-                ProjectJoinStatus.Declined,
-                ProjectJoinStatus.Withdrawn,
+                ProjectJoinStatus.Rejected,
+                ProjectJoinStatus.Cancelled,
             ).map { it.code },
         )
         assertEquals(4, ProjectJoinStatus.entries.size)
         for (status in ProjectJoinStatus.entries) assertEquals(status, ProjectJoinStatus.fromCode(status.code))
-        assertEquals(ProjectJoinStatus.Declined, ProjectJoinStatus.fromCode("\tdeclined\n"))
+        assertEquals(ProjectJoinStatus.Rejected, ProjectJoinStatus.fromCode("\trejected\n"))
     }
 
     @Test
     fun anythingButAnExactJoinStatusCodeIsUnknown() {
-        for (raw in listOf(null, "", " ", "0", "1", "4", "02", "Pending", "ACCEPTED", "rejected")) {
+        for (raw in listOf(null, "", " ", "0", "1", "4", "02", "Pending", "ACCEPTED", "declined", "withdrawn")) {
             assertNull(ProjectJoinStatus.fromCode(raw), "join status of '$raw'")
         }
     }

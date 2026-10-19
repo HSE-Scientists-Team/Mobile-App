@@ -3,7 +3,7 @@
     <string name="profile_mark_verified">Подтверждено</string>
     <string name="profile_mark_pending">На проверке</string>
     <string name="profile_mark_unverified">Не подтверждено</string>
-    <string name="profile_status_rejected">Отклонено</string>
+    <string name="profile_status_rejected">Нужны подтверждения</string>
     <!-- 1: what the moderator wrote -->
     <string name="profile_moderator_comment">Комментарий модератора: %1$s</string>
 

@@ -11,7 +11,7 @@ package org.matchlab.academic_net.feature.projects.domain
  * @property canListMine "Я инициатор" lists the viewer's projects: the catalog `GET /projects`, the projects whose
  *  `owner_user_id` is the viewer. When `false` "Я инициатор" shows a message and asks nothing, and
  *  [ProjectsRepository.observeMyProjects] fails with `FeatureUnavailableException`.
- * @property canUnpublish 07c offers "Снять с публикации": `POST /projects/{id}/transitions` with the action "pause". When
+ * @property canUnpublish 07c offers "Снять с публикации": `POST /projects/{id}/transitions` with the action "unpublish". When
  *  `false` there is no such action, and [ProjectsRepository.unpublishProject] throws `FeatureUnavailableException`.
  */
 data class ProjectsCapabilities(

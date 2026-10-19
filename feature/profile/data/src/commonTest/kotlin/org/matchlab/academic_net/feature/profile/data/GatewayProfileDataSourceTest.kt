@@ -65,10 +65,10 @@ class GatewayProfileDataSourceTest {
     // ---- what it can do ----
 
     @Test
-    fun theProjectTypesAreOnAndTheStatesOfRecordsStayOff() = runTest {
+    fun theProjectTypesAndTheStatesOfRecordsAreOn() = runTest {
         val capabilities = rig().source.capabilities
 
-        assertFalse(capabilities.verificationStatuses, "the server writes the states and the app cannot define them")
+        assertTrue(capabilities.verificationStatuses, "the backend lists the states of a record")
         assertTrue(capabilities.interestTypes)
     }
 

@@ -28,11 +28,11 @@ class WithdrawApplicationUseCaseTest {
 
     @Test
     fun aWithdrawnApplicationComesBackAsTheRecordOfTheRepository() = runTest {
-        joins.result = join(status = ProjectJoinStatus.Withdrawn)
+        joins.result = join(status = ProjectJoinStatus.Cancelled)
 
         val result = assertIs<JoinActionResult.Done>(withdraw(join()))
 
-        assertEquals(ProjectJoinStatus.Withdrawn, result.join.status)
+        assertEquals(ProjectJoinStatus.Cancelled, result.join.status)
         assertEquals(listOf("withdraw j1"), joins.calls)
     }
 
@@ -130,7 +130,7 @@ class DecideApplicationUseCaseTest {
 
     @Test
     fun decliningIntoAFullRoleIsAllowed() = runTest {
-        joins.result = join(roleId = "full", status = ProjectJoinStatus.Declined)
+        joins.result = join(roleId = "full", status = ProjectJoinStatus.Rejected)
 
         assertIs<JoinActionResult.Done>(decide(join(roleId = "full"), accept = false))
 

@@ -164,17 +164,17 @@ class ProjectResponsesViewModelTest {
             response("a", "r1"),
             response("b", "r1", status = ProjectJoinStatus.Accepted),
             response("c", "r1", status = null),
-            response("d", "r2", status = ProjectJoinStatus.Declined),
+            response("d", "r2", status = ProjectJoinStatus.Rejected),
         )
 
         val state = viewModel().state
 
         assertEquals(
-            listOf(RoleFilterItem(RoleId("r1"), "Роль r1", 2), RoleFilterItem(RoleId("r2"), "Роль r2", 0)),
+            listOf(RoleFilterItem(RoleId("r1"), "Роль r1", 1), RoleFilterItem(RoleId("r2"), "Роль r2", 0)),
             state.roleFilters,
             "r3 has no applications, so no chip",
         )
-        assertEquals(2, state.waitingCount)
+        assertEquals(1, state.waitingCount, "a status the app does not know is not waiting")
     }
 
     @Test
@@ -232,13 +232,13 @@ class ProjectResponsesViewModelTest {
             response("p", status = ProjectJoinStatus.Pending),
             response("u", status = null),
             response("a", status = ProjectJoinStatus.Accepted),
-            response("d", status = ProjectJoinStatus.Declined),
-            response("w", status = ProjectJoinStatus.Withdrawn),
+            response("d", status = ProjectJoinStatus.Rejected),
+            response("w", status = ProjectJoinStatus.Cancelled),
         )
 
         val deciding = viewModel().state.items.filter { it.canDecide }.map { it.id.value }
 
-        assertEquals(listOf("p", "u"), deciding)
+        assertEquals(listOf("p"), deciding, "a status the app does not know has no buttons")
     }
 
     // ---- deciding ----
@@ -276,7 +276,7 @@ class ProjectResponsesViewModelTest {
 
         assertTrue("decide a false" in projectJoins.calls)
         assertNull(viewModel.state.accepted)
-        assertEquals(ProjectJoinStatus.Declined, viewModel.state.items.single().join.status)
+        assertEquals(ProjectJoinStatus.Rejected, viewModel.state.items.single().join.status)
     }
 
     @Test

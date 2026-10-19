@@ -29,7 +29,7 @@ enum class ProjectJoinType(val code: String) {
  * Where a [ProjectJoin] is. The server writes `status` itself; these are the codes the app reads it by. **Not confirmed by
  * the backend** (`docs/api-values.md`); an unknown code is `null` and the record is shown all the same.
  *
- * @property code the text the app takes the status from (`pending`, `accepted`, `declined`, `withdrawn`).
+ * @property code the text the app takes the status from (`pending`, `accepted`, `rejected`, `cancelled`).
  */
 enum class ProjectJoinStatus(val code: String) {
     /** Waiting for the other side's decision. */
@@ -38,11 +38,14 @@ enum class ProjectJoinStatus(val code: String) {
     /** Accepted: the candidate is on the team. */
     Accepted("accepted"),
 
-    /** Declined by the side that decides. */
-    Declined("declined"),
+    /** Turned down by the side that decides. */
+    Rejected("rejected"),
 
-    /** Taken back by the side that sent it. */
-    Withdrawn("withdrawn"),
+    /**
+     * Cancelled: taken back by the side that sent it, or by the server itself after the project or the role changed
+     * or another application for the place was accepted.
+     */
+    Cancelled("cancelled"),
     ;
 
     companion object {

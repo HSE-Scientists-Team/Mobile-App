@@ -148,10 +148,10 @@ internal class FakeMyJoins(initial: List<ProjectJoin>? = null) : MyJoinsReposito
         return join("new", projectId.value, roleId.value).also { joins.value = listOf(it) + joins.value.orEmpty() }
     }
 
-    override suspend fun withdraw(id: ProjectJoinId) = act("withdraw ${id.value}", id, null, ProjectJoinStatus.Withdrawn)
+    override suspend fun withdraw(id: ProjectJoinId) = act("withdraw ${id.value}", id, null, ProjectJoinStatus.Cancelled)
 
     override suspend fun decide(id: ProjectJoinId, accept: Boolean) =
-        act("decide ${id.value} $accept", id, accept, if (accept) ProjectJoinStatus.Accepted else ProjectJoinStatus.Declined)
+        act("decide ${id.value} $accept", id, accept, if (accept) ProjectJoinStatus.Accepted else ProjectJoinStatus.Rejected)
 
     override fun observeInvitationsSeenAt(): Flow<Instant?> = seenAt
 
@@ -188,7 +188,7 @@ internal class FakeProjectJoins : ProjectJoinsRepository {
         responses.value = responses.value.mapValues { (_, list) ->
             list.map {
                 if (it.join.id == id) {
-                    val join = it.join.copy(status = if (accept) ProjectJoinStatus.Accepted else ProjectJoinStatus.Declined)
+                    val join = it.join.copy(status = if (accept) ProjectJoinStatus.Accepted else ProjectJoinStatus.Rejected)
                     updated = join
                     it.copy(join = join)
                 } else {

@@ -213,7 +213,7 @@ class ProjectsGraphTest {
     }
 
     @Test
-    fun unpublishingPostsThePauseActionWithTheRevisionOfTheList() = runTest {
+    fun unpublishingPostsTheUnpublishActionWithTheRevisionOfTheList() = runTest {
         val server = serverWithProjects()
         val dependencies = dependenciesOf(server)
         dependencies.projects.observeMyProjects().first()
@@ -223,7 +223,7 @@ class ProjectsGraphTest {
         val unpublished = assertIs<UnpublishProjectResult.Unpublished>(result).project
         assertEquals(ProjectStatus.Unpublished, unpublished.status)
         val post = server.requests("POST /api/v1/projects/m-1/transitions").single()
-        assertTrue("\"action\":\"pause\"" in post.body, post.body)
+        assertTrue("\"action\":\"unpublish\"" in post.body, post.body)
         assertTrue("\"expected_revision\":3" in post.body, post.body)
         assertEquals(
             listOf(ProjectStatus.Unpublished, ProjectStatus.Recruiting),
@@ -284,7 +284,7 @@ class ProjectsGraphTest {
         assertEquals(listOf("ml"), request.queryValues("q"))
         assertEquals(listOf("scientific"), request.queryValues("type"))
         assertEquals(listOf("Инженерия"), request.queryValues("field").map { it.decodeURLQueryComponent() })
-        assertEquals(listOf("up_to_3_months"), request.queryValues("duration"))
+        assertEquals(listOf("up_to_3m"), request.queryValues("duration"))
     }
 
     @Test
@@ -445,7 +445,7 @@ class ProjectsGraphTest {
             val inner = onOther
             onOther = { arrival ->
                 if (arrival.call == "POST /api/v1/projects/m-1/transitions") {
-                    json(project("m-1", viewer, revision = 4).replace("\"status\":\"recruiting\"", "\"status\":\"started\""))
+                    json(project("m-1", viewer, revision = 4).replace("\"status\":\"recruiting\"", "\"status\":\"active\""))
                 } else {
                     inner(arrival)
                 }

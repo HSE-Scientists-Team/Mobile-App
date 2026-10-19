@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 
 class ResponsesModelsTest {
     @Test
-    fun aRecordWaitsForADecisionWhenPendingOrUnknown() {
+    fun aRecordWaitsForADecisionOnlyWhenPending() {
         val waiting = ProjectJoinStatus.entries.associateWith { join(status = it).isWaitingForDecision } +
             (null to join(status = null).isWaitingForDecision)
 
@@ -14,9 +14,9 @@ class ResponsesModelsTest {
             mapOf<ProjectJoinStatus?, Boolean>(
                 ProjectJoinStatus.Pending to true,
                 ProjectJoinStatus.Accepted to false,
-                ProjectJoinStatus.Declined to false,
-                ProjectJoinStatus.Withdrawn to false,
-                null to true,
+                ProjectJoinStatus.Rejected to false,
+                ProjectJoinStatus.Cancelled to false,
+                null to false,
             ),
             waiting,
         )

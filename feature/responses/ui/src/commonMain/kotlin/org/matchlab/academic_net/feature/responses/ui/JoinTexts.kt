@@ -49,13 +49,13 @@ internal fun joinStatusChip(
             ),
             AppStatusChipTone.Success,
         )
-        ProjectJoinStatus.Declined -> StatusChipUiModel(
+        ProjectJoinStatus.Rejected -> StatusChipUiModel(
             stringResource(
                 if (invitation) Res.string.responses_status_invitation_declined else Res.string.responses_status_declined,
             ),
             AppStatusChipTone.Cancelled,
         )
-        ProjectJoinStatus.Withdrawn -> StatusChipUiModel(
+        ProjectJoinStatus.Cancelled -> StatusChipUiModel(
             stringResource(
                 if (invitation) Res.string.responses_status_invitation_withdrawn else Res.string.responses_status_withdrawn,
             ),

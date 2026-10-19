@@ -90,19 +90,19 @@ class ResponsesViewModelTest {
     }
 
     @Test
-    fun theNumbersCountThePendingAndUnknownStatusRecordsOnly() {
+    fun theNumbersCountThePendingRecordsOnly() {
         serve(
             join("a1", type = application, status = ProjectJoinStatus.Pending),
             join("a2", type = application, status = null),
             join("a3", type = application, status = ProjectJoinStatus.Accepted),
-            join("a4", type = application, status = ProjectJoinStatus.Withdrawn),
+            join("a4", type = application, status = ProjectJoinStatus.Cancelled),
             join("i1", type = invitation, status = ProjectJoinStatus.Pending),
-            join("i2", type = invitation, status = ProjectJoinStatus.Declined),
+            join("i2", type = invitation, status = ProjectJoinStatus.Rejected),
         )
 
         val state = viewModel().state
 
-        assertEquals(2, state.applicationsWaiting)
+        assertEquals(1, state.applicationsWaiting)
         assertEquals(1, state.invitationsWaiting)
     }
 
@@ -114,15 +114,15 @@ class ResponsesViewModelTest {
             join("app-done", type = application, status = ProjectJoinStatus.Accepted),
             join("inv-pending", type = invitation, status = ProjectJoinStatus.Pending),
             join("inv-unknown", type = invitation, status = null),
-            join("inv-done", type = invitation, status = ProjectJoinStatus.Declined),
+            join("inv-done", type = invitation, status = ProjectJoinStatus.Rejected),
             join("untyped", type = null, status = ProjectJoinStatus.Pending),
         )
 
         val state = viewModel().state
         val all = (state.applications + state.invitations).associateBy { it.id.value }
 
-        assertEquals(setOf("app-pending", "app-unknown"), all.filterValues { it.canWithdraw }.keys)
-        assertEquals(setOf("inv-pending", "inv-unknown"), all.filterValues { it.canDecide }.keys)
+        assertEquals(setOf("app-pending"), all.filterValues { it.canWithdraw }.keys)
+        assertEquals(setOf("inv-pending"), all.filterValues { it.canDecide }.keys)
         assertFalse(all.getValue("untyped").canWithdraw || all.getValue("untyped").canDecide, "no type, no actions")
     }
 
@@ -320,7 +320,7 @@ class ResponsesViewModelTest {
 
         assertEquals(listOf("withdraw a"), joins.calls)
         assertNull(viewModel.state.dialog)
-        assertEquals(ProjectJoinStatus.Withdrawn, viewModel.state.applications.single().join.status)
+        assertEquals(ProjectJoinStatus.Cancelled, viewModel.state.applications.single().join.status)
         assertTrue(viewModel.state.inProgress.isEmpty())
         assertNull(viewModel.state.actionFailure)
     }

@@ -18,9 +18,11 @@ import org.matchlab.academic_net.feature.profile.domain.ProofAttachment
 import org.matchlab.academic_net.feature.profile.domain.Review
 import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.domain.ReviewsSummary
+import org.matchlab.academic_net.feature.profile.domain.VerificationStatus
 import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import org.matchlab.academic_net.gateway.contract.AchievementKinds
+import org.matchlab.academic_net.gateway.contract.AchievementStatuses
 import org.matchlab.academic_net.gateway.dto.UserAchievementDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementListDto
@@ -33,9 +35,9 @@ import org.matchlab.academic_net.gateway.mapping.toCollaborator
 import org.matchlab.academic_net.utils.linkSource
 
 // The Gateway's shapes as the models of the profile feature, and back. Only what the API defines, or the app defines for
-// itself, is read: the `kind` of an achievement (its enum), the links, the numbers, the codes of the project types of a
-// profile (docs/api-values.md). The strings the server writes and the API does not define are not read at all: the status
-// of an achievement is `null` (API-GAP G12), the role of the author of a review is `null` (G13). The ids are not required
+// itself, is read: the `kind` and the `status` of an achievement (their enums), the links, the numbers, the codes of the
+// project types of a profile (docs/api-values.md). The strings the server writes and the API does not define are not read
+// at all: the role of the author of a review is `null` (G13). The ids are not required
 // by the schema (API-GAP G55): a work, a document or a review
 // without one is left out, and an author without one stays, with an empty id.
 
@@ -86,9 +88,22 @@ internal fun List<String>.withSelectedTypes(selected: Set<ProjectType>): List<St
 private fun List<String>.knownProjectTypes(): Set<ProjectType> = mapNotNull { ProjectType.fromCode(it) }.toSet()
 
 /**
+ * The state of a record in the moderation: `unverified` is [VerificationStatus.Unconfirmed], `pending_review` is
+ * [VerificationStatus.Pending], `verified` is [VerificationStatus.Verified] and `needs_evidence` (returned for more
+ * proof) is [VerificationStatus.Rejected]. A text the app has no state for is `null` ("unknown"): the record has no mark.
+ */
+internal fun String.toVerificationStatus(): VerificationStatus? = when (trim()) {
+    AchievementStatuses.Unverified -> VerificationStatus.Unconfirmed
+    AchievementStatuses.PendingReview -> VerificationStatus.Pending
+    AchievementStatuses.Verified -> VerificationStatus.Verified
+    AchievementStatuses.NeedsEvidence -> VerificationStatus.Rejected
+    else -> null
+}
+
+/**
  * The work, or `null` when the record is not one (its `kind` is not [AchievementKinds.Works]) or it has no `id`
  * (API-GAP G55: the schema does not require it, and a work without one can be neither opened nor changed).
- * API-GAP G12: no status.
+ * The status is [toVerificationStatus].
  */
 internal fun UserAchievementDto.toWork(): PortfolioWork? {
     val type = when (details.kind) {
@@ -105,7 +120,7 @@ internal fun UserAchievementDto.toWork(): PortfolioWork? {
         description = details.description.orEmpty().trim(),
         link = link,
         source = linkSource(link),
-        status = null, // API-GAP G12: the API does not define the statuses of an achievement
+        status = status.toVerificationStatus(),
         moderationComment = moderationComment.trimmedOrNull(),
         hasEvidenceFile = !details.evidenceFileId.isNullOrBlank(),
         revision = revision,
@@ -115,7 +130,7 @@ internal fun UserAchievementDto.toWork(): PortfolioWork? {
 /**
  * The document, or `null` when the record is not one (its `kind` is not [AchievementKinds.Documents]) or it has no
  * `id` (API-GAP G55: the schema does not require it, and a document without one can be neither opened nor changed).
- * API-GAP G12: no status.
+ * The status is [toVerificationStatus].
  */
 internal fun UserAchievementDto.toDocument(): ProfileDocument? {
     val kind = when (details.kind) {
@@ -131,7 +146,7 @@ internal fun UserAchievementDto.toDocument(): ProfileDocument? {
         issuer = details.institution.orEmpty().trim(),
         year = details.graduationYear?.takeIf { it > 0 },
         proof = details.url.trimmedOrNull()?.let(::ProofAttachment),
-        status = null, // API-GAP G12: the API does not define the statuses of an achievement
+        status = status.toVerificationStatus(),
         moderationComment = moderationComment.trimmedOrNull(),
         hasEvidenceFile = !details.evidenceFileId.isNullOrBlank(),
         revision = revision,

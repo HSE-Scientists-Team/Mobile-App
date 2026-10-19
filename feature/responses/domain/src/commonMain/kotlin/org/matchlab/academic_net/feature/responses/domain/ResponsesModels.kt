@@ -62,16 +62,17 @@ class ProjectResponsesUnavailableException(val projectId: ProjectId) :
     NoSuchElementException("Responses of project ${projectId.value} are not available")
 
 /**
- * The record waits for a decision: its status is `Pending` or unknown (`null`; a record is never hidden because of a
- * code the app does not know, `docs/api-values.md`).
+ * The record waits for a decision: its status is `Pending`. A status the app does not know (`null`) is not waiting: the
+ * server lists its statuses (`pending`, `accepted`, `rejected`, `cancelled`), so a record with another text must not get
+ * buttons that the server would answer with a conflict. The record is shown all the same, without a decision to take.
  *
  * The rules of the statuses, used by the use cases and by the UI:
  *
  * - **Actions on 15.** A record of type `Application` that [isWaitingForDecision] has "Отозвать отклик". A record of type
  *   `Invitation` that [isWaitingForDecision] has ✓ ×. A record with `type = null` has no actions.
- * - **Actions on 07d.** ✓ × are on the records that [isWaitingForDecision]; `Accepted`, `Declined` and `Withdrawn` ones
+ * - **Actions on 07d.** ✓ × are on the records that [isWaitingForDecision]; `Accepted`, `Rejected` and `Cancelled` ones
  *   have a chip and no buttons.
  * - **The numbers "· N".** The tabs of 15 and the chips of 07d count the records that [isWaitingForDecision].
  */
 val ProjectJoin.isWaitingForDecision: Boolean
-    get() = status == null || status == ProjectJoinStatus.Pending
+    get() = status == ProjectJoinStatus.Pending

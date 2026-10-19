@@ -60,10 +60,11 @@ class GatewayProfileDataSource(
     private val users: UserDirectory,
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) : ProfileDataSource {
-    // API-GAP G12 (the states of a record) is not closed: the server writes them and the app cannot define them, so they
-    // are off. The project types are the app's own codes (docs/api-values.md): on.
+    // The states of a record are the ones the backend lists (`AchievementStatuses`), the project types are the app's own
+    // codes (docs/api-values.md): both on. The decisions of the moderators arrive as no notification, so the list of
+    // results stays empty (see ProfileRepositoryImpl).
     override val capabilities: ProfileCapabilities =
-        ProfileCapabilities(verificationStatuses = false, interestTypes = true)
+        ProfileCapabilities(verificationStatuses = true, interestTypes = true)
 
     override suspend fun getProfile(id: UserId): ProfileRecord? = users.profile(id.value)?.toRecord()
 

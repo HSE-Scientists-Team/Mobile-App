@@ -9,8 +9,9 @@ import org.matchlab.academic_net.common.model.Sphere
  * counted inclusively (October 2026 to March 2027 is 6 months): [UpTo3Months] is 3 months or fewer, [From3To6Months] is
  * 4 to 6 and [Over6Months] is 7 or more. It is the length of the work, not a date range.
  *
- * The API has no list of values for the server's `duration`, so the app defines the codes it sends
- * (`docs/api-values.md`, decision of 2026-10-19). The chips are offered only with
+ * The codes are the ones the backend lists for `duration` (`ProjectDurationFilter`, matchlab-backend PR #16): it counts
+ * the days between `planned_start` and `planned_end`, up to 92 days, up to 183 and more. The month buckets above are the
+ * app's reading of the same three chips (`docs/api-values.md`). The chips are offered only with
  * [ProjectSearchCapabilities.durationFilter]. The parameter holds one value, so a code is sent only when exactly one
  * chip is chosen.
  *
@@ -18,9 +19,9 @@ import org.matchlab.academic_net.common.model.Sphere
  *  never reused or renamed.
  */
 enum class ProjectDuration(val code: String) {
-    UpTo3Months("up_to_3_months"),
-    From3To6Months("from_3_to_6_months"),
-    Over6Months("over_6_months"),
+    UpTo3Months("up_to_3m"),
+    From3To6Months("3_to_6m"),
+    Over6Months("over_6m"),
 }
 
 /**

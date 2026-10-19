@@ -885,7 +885,7 @@ class GatewayProjectsDataSourceTest {
     // ---- taking a project off publication ----
 
     @Test
-    fun aProjectIsTakenOffWithThePauseActionAndTheCachedRevision() = runTest {
+    fun aProjectIsTakenOffWithTheUnpublishActionAndTheCachedRevision() = runTest {
         api.onGet = { projectDto(it, revision = 4) }
         source.loadProject(id)
         api.onTransition = { pid, _ -> projectDto(pid, revision = 5, status = "unpublished") }
@@ -893,7 +893,7 @@ class GatewayProjectsDataSourceTest {
         source.unpublishProject(id)
 
         assertEquals(listOf("p1"), api.transitions.map { it.first })
-        assertEquals("pause", api.transitions.single().second.action)
+        assertEquals("unpublish", api.transitions.single().second.action)
         assertEquals(4, api.transitions.single().second.expectedRevision)
         assertEquals(listOf("p1"), api.gets, "the cache had the project: no extra read")
     }

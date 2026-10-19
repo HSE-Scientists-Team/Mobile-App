@@ -153,7 +153,7 @@ class ProfileGraphTest {
         val body = assertNotNull(saved)
         assertTrue("\"project_types\":[\"from-another-client\",\"practical\"]" in body, body)
         assertTrue(dependencies.profile.capabilities.interestTypes)
-        assertFalse(dependencies.profile.capabilities.verificationStatuses)
+        assertTrue(dependencies.profile.capabilities.verificationStatuses)
     }
 
     @Test

@@ -2,10 +2,9 @@ package org.matchlab.academic_net.gateway.contract
 
 /**
  * Marks what depends on a format or a value that `docs/openapi.yaml` does not define, that the server itself interprets
- * and that has not been checked against a live server. Today that is two things:
- * - the shape of the link in the confirmation letter, which [ConfirmationLinks] reads (API-GAP G01 of
- *   `docs/api-gaps.md`);
- * - the `action` of the transitions of a project, which [ProjectActions] holds (`docs/api-values.md`, §1 rule 4).
+ * and that has not been checked against a live server. Today that is one thing: the shape of the link in the
+ * confirmation letter, which [ConfirmationLinks] reads (API-GAP G01 of `docs/api-gaps.md`). The `action` of the
+ * transitions of a project was marked too until the backend listed them (matchlab-backend PR #16).
  *
  * Using it is a warning, not an error, so that the guess works in the app today; the warning says where the
  * app leans on something unconfirmed. The other objects of the `contract` package are not marked:

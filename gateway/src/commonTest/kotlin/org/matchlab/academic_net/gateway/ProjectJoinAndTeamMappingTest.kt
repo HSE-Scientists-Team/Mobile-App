@@ -101,8 +101,8 @@ class ProjectJoinMappingTest {
     fun everyCodeOfTheContractIsRead() {
         assertEquals(ProjectJoinType.Invitation, dto(type = "invitation").toProjectJoin()?.type)
         assertEquals(
-            listOf(ProjectJoinStatus.Pending, ProjectJoinStatus.Accepted, ProjectJoinStatus.Declined, ProjectJoinStatus.Withdrawn),
-            listOf("pending", "accepted", "declined", "withdrawn").map { dto(status = it).toProjectJoin()?.status },
+            listOf(ProjectJoinStatus.Pending, ProjectJoinStatus.Accepted, ProjectJoinStatus.Rejected, ProjectJoinStatus.Cancelled),
+            listOf("pending", "accepted", "rejected", "cancelled").map { dto(status = it).toProjectJoin()?.status },
         )
     }
 
