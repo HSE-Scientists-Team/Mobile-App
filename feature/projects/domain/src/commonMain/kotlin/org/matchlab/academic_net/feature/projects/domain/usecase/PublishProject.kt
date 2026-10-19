@@ -13,7 +13,7 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  *
  * Roles are optional: more can be declared later from the project's roles screen.
  *
- * API-GAP G40, G43: the Gateway cannot create projects (`type` has no list of values, `planned_*` no format). Without
+ * The project is sent with the codes the app defines (`docs/api-values.md`). Without
  * [org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities.canCreate] the screen does not offer it; if it
  * is called anyway the result is [SubmitResult.Failure] with
  * [org.matchlab.academic_net.common.result.FeatureUnavailableException].

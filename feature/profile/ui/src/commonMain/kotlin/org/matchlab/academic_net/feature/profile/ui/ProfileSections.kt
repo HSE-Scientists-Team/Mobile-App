@@ -163,10 +163,8 @@ internal fun ColumnScope.ProfileSections(
 
 /**
  * Interests: the two project types as static chips with the chosen ones highlighted, then the
- * free topics as tags. The types are shown only when the person has chosen some.
- *
- * API-GAP G11: the API has no list of the project types, so with the Gateway the set is always empty and only the topics
- * are shown.
+ * free topics as tags. The types are shown only when the person has chosen some (a type the app does not know is not
+ * a chip, see `docs/api-values.md`).
  */
 @Composable
 private fun InterestsBlock(

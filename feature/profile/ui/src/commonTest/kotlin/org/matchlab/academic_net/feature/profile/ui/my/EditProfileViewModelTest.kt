@@ -4,7 +4,6 @@ import kotlinx.coroutines.CompletableDeferred
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraftError
-import org.matchlab.academic_net.feature.profile.domain.ProfileLimits
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
 import org.matchlab.academic_net.feature.profile.ui.FakeMyProfileRepository
@@ -137,17 +136,41 @@ class EditProfileViewModelTest {
     }
 
     @Test
-    fun theYearTakesDigitsOnlyAndNoMoreThanTheLargestYearHas() {
+    fun theYearTakesDigitsOnlyAndHasNoUpperLimit() {
         val viewModel = viewModel()
 
         viewModel.onStudyYearChange("a3b")
         assertEquals("3", viewModel.uiState.value.draft.studyYear)
 
         viewModel.onStudyYearChange("12345")
-        assertEquals("1", viewModel.uiState.value.draft.studyYear, "one digit: the year is 1..${ProfileLimits.MaxStudyYear}")
+        assertEquals("12345", viewModel.uiState.value.draft.studyYear, "how large the year may be is the server's to judge")
 
         viewModel.onStudyYearChange("")
         assertEquals("", viewModel.uiState.value.draft.studyYear)
+    }
+
+    @Test
+    fun aYearOfSevenOrTenIsSaved() {
+        for (year in listOf("7", "10")) {
+            val viewModel = viewModel()
+            viewModel.onStudyYearChange(year)
+
+            viewModel.onSaveClick()
+
+            assertEquals(emptySet(), viewModel.uiState.value.errors, year)
+            assertEquals(year, repository.updatedProfiles.last().studyYear, year)
+        }
+    }
+
+    @Test
+    fun aYearOfZeroIsAnError() {
+        val viewModel = viewModel()
+        viewModel.onStudyYearChange("0")
+
+        viewModel.onSaveClick()
+
+        assertEquals(setOf(ProfileDraftError.StudyYearInvalid), viewModel.uiState.value.errors)
+        assertEquals(emptyList(), repository.updatedProfiles)
     }
 
     @Test
@@ -183,7 +206,7 @@ class EditProfileViewModelTest {
     fun anInvalidFormShowsItsErrorsAndSendsNothing() {
         val viewModel = viewModel()
         viewModel.onNameChange("   ")
-        viewModel.onStudyYearChange("9")
+        viewModel.onStudyYearChange("0")
 
         viewModel.onSaveClick()
 

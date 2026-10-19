@@ -62,6 +62,10 @@ fun SettingListItem(
 /**
  * "List item/Toggle": row with a switch; the whole row toggles it. With [enabled] `false` the
  * row ignores taps and the switch is dimmed, e.g. while the new value is being saved.
+ *
+ * @param dimText whether the title and the subtitle are drawn at 38% alpha, as in the design's `state=disabled`; by
+ *  default they follow [enabled]. A row that is only busy (a save is running) passes `false` so its text stays
+ *  as it is while the switch is dimmed.
  */
 @Composable
 fun ToggleListItem(
@@ -71,12 +75,13 @@ fun ToggleListItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     enabled: Boolean = true,
+    dimText: Boolean = !enabled,
 ) {
     OutlinedRow(
         modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
         MaterialTheme.shapes.large,
     ) {
-        TitleWithSubtitle(title, subtitle)
+        TitleWithSubtitle(title, subtitle, dim = dimText)
         AppSwitch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
@@ -104,12 +109,18 @@ fun RadioListItem(
     }
 }
 
+/**
+ * What [PersonListItem] shows.
+ *
+ * @property name the person's name; an empty one is shown as "Без имени" (see [PersonName])
+ * @property subtitle the line under the name, e.g. "Stanford · 3 курс · Computer Science"
+ * @property avatar the picture of the person
+ */
 @Immutable
 data class PersonListItemUiModel(
     val name: String,
     val subtitle: String,
     val avatar: DrawableResource,
-    val isVerified: Boolean = false,
 )
 
 /**
@@ -150,7 +161,7 @@ fun PersonListItem(
     row {
         Avatar(model.avatar, contentDescription = null, size = 48.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            PersonName(model.name, model.isVerified, MaterialTheme.typography.titleMedium)
+            PersonName(model.name, MaterialTheme.typography.titleMedium)
             Text(
                 text = model.subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -237,11 +248,14 @@ private fun PlainRow(modifier: Modifier, content: @Composable RowScope.() -> Uni
 }
 
 @Composable
-private fun RowScope.TitleWithSubtitle(title: String, subtitle: String?) {
+private fun RowScope.TitleWithSubtitle(title: String, subtitle: String?, dim: Boolean = false) {
+    val colors = MaterialTheme.colorScheme
+    val titleColor = if (dim) colors.onSurface.copy(alpha = DisabledTextAlpha) else colors.onSurface
+    val subtitleColor = if (dim) colors.onSurfaceVariant.copy(alpha = DisabledTextAlpha) else colors.onSurfaceVariant
     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(title, style = MaterialTheme.typography.titleSmall, color = titleColor)
         if (subtitle != null) {
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = subtitleColor)
         }
     }
 }
@@ -250,3 +264,6 @@ private fun RowScope.TitleWithSubtitle(title: String, subtitle: String?) {
 private fun Chevron() {
     AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.outline)
 }
+
+/** The alpha of the text of a disabled row (Figma `List item/Toggle`, `state=disabled`). */
+private const val DisabledTextAlpha = 0.38f

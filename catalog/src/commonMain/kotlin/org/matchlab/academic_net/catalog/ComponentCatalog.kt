@@ -199,7 +199,6 @@ private val Initiator = PersonCardUiModel(
     name = "Проф. Елена Васкес",
     subtitle = "Инициатор · Stanford University",
     avatar = Elena,
-    isVerified = true,
     stats = "★ 4.9 · 12 завершённых проектов",
     showChatButton = true,
 )
@@ -316,8 +315,17 @@ private fun BaseComponents() {
         SettingListItem("Название настройки", AppIcons.Lock, onClick = {}, subtitle = "Пояснение к настройке")
         var visible by remember { mutableStateOf(true) }
         ToggleListItem("Показывать меня в поиске", visible, { visible = it }, subtitle = "Пояснение к переключателю")
-        // Saving: the row ignores taps and the switch is dimmed until the new value is stored.
+        // "List item/Toggle · disabled": no taps, the switch and the text are dimmed (38%).
         ToggleListItem("Показывать контакты", true, {}, subtitle = "Пояснение к переключателю", enabled = false)
+        // Saving: the row ignores taps and only the switch is dimmed until the new value is stored.
+        ToggleListItem(
+            "Показывать контакты",
+            true,
+            {},
+            subtitle = "Пояснение к переключателю",
+            enabled = false,
+            dimText = false,
+        )
         InfoCard("Окт 2026 — Март 2027", AppIcons.Calendar)
         UploadCard("Загрузить подтверждение", "PDF или скриншот с указанием авторства", {})
         SecurityNote("Данные входа хранятся на устройстве в зашифрованном виде")
@@ -486,13 +494,12 @@ private fun SharedFeatureComponents() {
                 name = "Александра Константинопольская-Вишневецкая",
                 subtitle = "Московский государственный университет имени М. В. Ломоносова · аспирантка · биоинформатика",
                 avatar = Arjun,
-                isVerified = true,
                 stats = "★ 4.9 · 12 завершённых проектов",
                 showChatButton = true,
             ),
         )
         PersonListItem(
-            PersonListItemUiModel("Арджун Мехта", "Stanford · 3 курс · Computer Science", Arjun, isVerified = true),
+            PersonListItemUiModel("Арджун Мехта", "Stanford · 3 курс · Computer Science", Arjun),
             onClick = {},
         )
         PersonListItem(
@@ -500,7 +507,6 @@ private fun SharedFeatureComponents() {
                 name = "Арджун Мехта",
                 subtitle = "Stanford · 3 курс бакалавриата · Computer Science",
                 avatar = Arjun,
-                isVerified = true,
             ),
             onClick = {},
             outlined = true,
@@ -527,7 +533,6 @@ private fun SharedFeatureComponents() {
                 type = "Научный",
                 footer = "4 места в команде · окт 2026 — мар 2027",
                 tags = listOf("Поиск соавторов", "Computer Science"),
-                isAuthorVerified = true,
                 showInvitationActions = true,
             ),
         )
@@ -537,7 +542,6 @@ private fun SharedFeatureComponents() {
                 title = "Обнаружение аномалий в МРТ",
                 author = "Д-р Анна Петрова · Сеченовский",
                 avatarKey = "u-anna",
-                isAuthorVerified = true,
                 type = ProjectType.Scientific,
                 status = ProjectStatus.Recruiting,
                 sphere = "Медицина",
@@ -545,17 +549,30 @@ private fun SharedFeatureComponents() {
                 period = ProjectPeriod(YearMonth(2026, 11), YearMonth(2027, 5)),
             ),
         )
-        // As the Gateway gives a project: no type, no status, no months, so only the sphere and the number of roles.
+        // A project of which the app knows neither the type, nor the status, nor the months: the sphere and the number
+        // of roles are what the card shows.
         ProjectCard(
             projectCardUiModel(
                 title = "Анализ научных публикаций",
                 author = "Вы инициатор",
                 avatarKey = "u-anna",
-                isAuthorVerified = false,
                 type = null,
                 status = null,
                 sphere = "Computer Science",
                 rolesCount = 2,
+                period = null,
+            ),
+        )
+        // Nothing is known but the title and the roles: the project is on the list all the same, with no chips.
+        ProjectCard(
+            projectCardUiModel(
+                title = "Проект без сферы и срока",
+                author = "Вы инициатор",
+                avatarKey = "u-anna",
+                type = null,
+                status = null,
+                sphere = null,
+                rolesCount = 1,
                 period = null,
             ),
         )
@@ -625,8 +642,8 @@ private fun ReviewComponents() {
             )
         }
         // A person whose name is empty gets "Без имени" instead of an empty line, on every card.
-        PersonName("", verified = false, style = MaterialTheme.typography.titleMedium)
-        PersonName("   ", verified = true, style = MaterialTheme.typography.titleMedium)
+        PersonName("", style = MaterialTheme.typography.titleMedium)
+        PersonName("   ", style = MaterialTheme.typography.titleMedium)
         PersonCard(PersonCardUiModel(name = "", subtitle = "Stanford University", avatar = Arjun, showChatButton = true))
     }
 }
@@ -716,16 +733,16 @@ private fun ProjectPageComponents() {
             status = ProjectStatus.Recruiting,
             sphere = "Computer Science",
         )
-        // Only the sphere is known (the Gateway gives no type and no status), and not even that: no row of chips.
+        // Only the sphere is known (the type and the status are not recognized), and not even that: no row of chips.
         ProjectHeader(title = "Анализ научных публикаций", type = null, status = null, sphere = "Computer Science")
-        ProjectHeader(title = "Проект без сферы", type = null, status = null, sphere = "")
+        ProjectHeader(title = "Проект без сферы", type = null, status = null, sphere = null)
+        ProjectHeader(title = "Проект с пустой сферой", type = null, status = null, sphere = "")
         // The line under the name: with the rating, and for a person with no reviews yet.
         PersonCard(
             PersonCardUiModel(
                 name = "Проф. Елена Васкес",
                 subtitle = "Инициатор · Stanford University",
                 avatar = Elena,
-                isVerified = true,
                 stats = personStatsText(rating = 4.9, completedProjects = 12),
                 showChatButton = true,
             ),
@@ -859,7 +876,6 @@ private fun ProjectsComponents() {
                 name = "Арджун Мехта",
                 subtitle = "Stanford · 3 курс бакалавриата · CS",
                 avatar = Elena,
-                isVerified = true,
                 note = "Совпадение 92% · отклик 2 дня назад",
                 tags = listOf("Machine Learning", "Machine Learning"),
                 showActions = true,
@@ -899,29 +915,27 @@ private fun ProfileComponents() {
     Section(":feature:profile:ui") {
         // The line under the name is made of the university, the study (a free text level and the year) and the field.
         val student = Collaborator(
-            user = UserSummary(UserId("user-arjun"), "Арджун Мехта", isVerified = true),
+            user = UserSummary(UserId("user-arjun"), "Арджун Мехта"),
             university = "Stanford University",
             study = Study(level = "бакалавриат", year = 3),
             field = "Computer Science",
         )
-        // Someone else's profile: the verification chip and the chat icon at the end of the first row.
+        // Someone else's profile: the chat icon at the end of the first row. The person carries no verification mark:
+        // trust is shown on the works and the documents below.
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = student.user.name,
                 subtitle = student.subtitleText(),
                 avatar = Elena,
-                isVerified = true,
-                statuses = listOf(ProfileStatusUiModel("Профиль подтверждён", AppStatusChipTone.Success)),
                 showChatButton = true,
             ),
         )
-        // Own profile: no chip, no chat icon.
+        // Own profile: no chat icon.
         ProfileHeaderCard(
             ProfileHeaderCardUiModel(
                 name = "Алексей Морозов",
                 subtitle = student.subtitleText(),
                 avatar = Arjun,
-                isVerified = true,
             ),
         )
         // The text column is narrow next to the icon: a long name takes two lines, the subtitle wraps.
@@ -935,8 +949,8 @@ private fun ProfileComponents() {
                     field = "биоинформатика",
                 ).subtitleText(),
                 avatar = Elena,
-                isVerified = true,
-                statuses = listOf(ProfileStatusUiModel("Профиль не подтверждён", AppStatusChipTone.Off)),
+                // The chips under the first row, for a status the profile has to say (the design's "Открыт к сотрудничеству").
+                statuses = listOf(ProfileStatusUiModel("Открыт к сотрудничеству", AppStatusChipTone.Success)),
                 showChatButton = true,
             ),
         )

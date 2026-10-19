@@ -10,8 +10,9 @@ data class CollaboratorFilters(
     val hasVerifiedProjects: Boolean = false,
     val hasPublications: Boolean = false,
     /**
-     * The types of the person's works. API-GAP G11: the API has no list of values of a project type, so only a source
-     * whose [CollaboratorsCapabilities.projectTypeFilter] is on applies this, and the filters sheet offers it only then.
+     * The types of the person's works. Only a source whose [CollaboratorsCapabilities.projectTypeFilter] is on applies
+     * this, and the filters sheet offers it only then. The server is sent the `ProjectType.code` when exactly one type is
+     * chosen (`docs/api-values.md`, §3): `project_type` holds one value, and two of two mean "any".
      */
     val workTypes: Set<ProjectType> = emptySet(),
     /** The university as typed; blank means any. How it is matched is the server's. */
@@ -68,11 +69,11 @@ class RoleNotFoundException(val projectId: ProjectId, val roleId: RoleId) :
 
 /**
  * What the people search can do with the server it talks to. The filters sheet reads the flags and hides what the server
- * cannot do, instead of offering a filter without effect. Every flag is closed by one gap of `docs/api-gaps.md`: when the
- * backend fills the gap, the data source turns the flag on and sends the filter.
+ * cannot do, instead of offering a filter without effect.
  *
- * @property projectTypeFilter API-GAP G11: `project_type` of the search has no list of values, so the filter by the types
- * of a person's works ([CollaboratorFilters.workTypes]) is not sent, and the group "Тип работы" of "08b" is hidden.
+ * @property projectTypeFilter the filter by the types of a person's works ([CollaboratorFilters.workTypes]) is offered in
+ * the group "Тип работы" of "08b" and sent as `project_type`: the API has no list of its values, so the app defines the
+ * codes (`docs/api-values.md`, decision of 2026-10-19). When `false` the group is hidden and the types are never sent.
  */
 data class CollaboratorsCapabilities(
     val projectTypeFilter: Boolean,

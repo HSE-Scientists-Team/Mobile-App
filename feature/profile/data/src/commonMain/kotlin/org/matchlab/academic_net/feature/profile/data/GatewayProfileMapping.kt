@@ -32,27 +32,31 @@ import org.matchlab.academic_net.gateway.mapping.ratingOrNull
 import org.matchlab.academic_net.gateway.mapping.toCollaborator
 import org.matchlab.academic_net.utils.linkSource
 
-// The Gateway's shapes as the models of the profile feature, and back. Only what the API defines is read: the `kind` of
-// an achievement (its enum), the links, the numbers. The strings it does not define are not read at all: the status of an
-// achievement is `null` (API-GAP G12), the role of the author of a review is `null` (G13), the project types of a
-// profile are an empty set (G11). The ids are not required by the schema (API-GAP G55): a work, a document or a review
+// The Gateway's shapes as the models of the profile feature, and back. Only what the API defines, or the app defines for
+// itself, is read: the `kind` of an achievement (its enum), the links, the numbers, the codes of the project types of a
+// profile (docs/api-values.md). The strings the server writes and the API does not define are not read at all: the status
+// of an achievement is `null` (API-GAP G12), the role of the author of a review is `null` (G13). The ids are not required
+// by the schema (API-GAP G55): a work, a document or a review
 // without one is left out, and an author without one stays, with an empty id.
 
-/** The profile without the portfolio and the reviews. API-GAP G11: the project types are not read. */
+/**
+ * The profile without the portfolio and the reviews. The project types are the ones whose code the server's
+ * `project_types` hold ([ProjectType.fromCode], in the server's order, each once); an entry the app has no code for is
+ * left out of the model (and kept on the server by [withDraft]).
+ */
 internal fun UserProfileDto.toRecord(): ProfileRecord = ProfileRecord(
     person = toCollaborator(),
     about = details.about.orEmpty().trim(),
-    // API-GAP G11: the project types of the profile are not read.
-    interests = ProfileInterests(projectTypes = emptySet(), topics = details.interests),
+    interests = ProfileInterests(projectTypes = details.projectTypes.knownProjectTypes(), topics = details.interests),
     skills = details.skills,
     reviews = ReviewsSummary(average = ratingOrNull(), count = reviewCount, positiveCount = positiveReviewCount),
 )
 
 /**
  * The profile as it is after [draft], laid over what the server has: the name, the university, the study, the field, the
- * text about the person, the interests and the skills come from the form (a blank text clears the field); the avatar, the
- * contacts, `open_to_collaboration` and the project types are not the form's and stay as the server sent them.
- * API-GAP G10: the level of study is the text as typed. API-GAP G11: the project types are never written.
+ * text about the person, the project types, the interests and the skills come from the form (a blank text clears the
+ * field); the avatar, the contacts and `open_to_collaboration` are not the form's and stay as the server sent them.
+ * docs/api-values.md: the level of study is the text as typed. The project types are written as codes by [withSelectedTypes].
  */
 internal fun UserProfileInputDto.withDraft(draft: ProfileDraft): UserProfileInputDto = copy(
     displayName = draft.name,
@@ -61,9 +65,23 @@ internal fun UserProfileInputDto.withDraft(draft: ProfileDraft): UserProfileInpu
     studyYear = draft.studyYearNumber,
     specialization = draft.field.nullIfBlank(),
     about = draft.about.nullIfBlank(),
+    projectTypes = projectTypes.withSelectedTypes(draft.interestTypes),
     interests = draft.interests,
     skills = draft.skills,
 )
+
+/**
+ * The `project_types` of a profile after a save: the entries the app has no code for first, exactly as the server sent them
+ * (another client may have written them; they are not the person's to lose), then the codes of the [selected] types in
+ * the order of [ProjectType]; each entry once. An entry that is a code of a type the app knows (also with outer spaces)
+ * is replaced by the selection: a type that was cleared is gone.
+ */
+internal fun List<String>.withSelectedTypes(selected: Set<ProjectType>): List<String> =
+    (filter { ProjectType.fromCode(it) == null } + ProjectType.entries.filter { it in selected }.map { it.code })
+        .distinct()
+
+/** The types of the codes in the list, in its order, each once; entries that are not the code of a type are left out. */
+private fun List<String>.knownProjectTypes(): Set<ProjectType> = mapNotNull { ProjectType.fromCode(it) }.toSet()
 
 /**
  * The work, or `null` when the record is not one (its `kind` is not [AchievementKinds.Works]) or it has no `id`

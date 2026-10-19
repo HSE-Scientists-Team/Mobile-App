@@ -42,8 +42,8 @@ fun rolesCountText(count: Int): String =
 
 /**
  * The last line of a project card: the team size and, when the months the project runs are known, the months, e.g.
- * "4 роли · окт 2026 — мар 2027". Without a [period] (API-GAP G43: the server gives none) it is the team size alone:
- * "4 роли". Dates follow the app language, see `monthRangeText`.
+ * "4 роли · окт 2026 — мар 2027". Without a [period] (the server's dates could not be read, see `docs/api-values.md`)
+ * it is the team size alone: "4 роли". Dates follow the app language, see `monthRangeText`.
  *
  * @param rolesCount how many roles the project has
  * @param period the months the project runs, `null` while they are unknown
@@ -57,14 +57,16 @@ fun projectCardFooter(rolesCount: Int, period: ProjectPeriod?): String {
 /**
  * Builds the [ProjectCardUiModel] every list of projects shows, so the chips and the footer look
  * the same in "Мои проекты" and in the search: the type chip first, then the [status] and the [sphere]
- * as tags. What the server does not tell is left out, not guessed (API-GAP G40, G41, G43): no [type] means no type
- * chip, no [status] no status tag, a blank [sphere] no sphere tag, no [period] no months in the footer.
+ * as tags. A value the app does not know is left out, not guessed (`docs/api-values.md`): no [type] means no type
+ * chip, no [status] no status tag, a `null` or blank [sphere] no sphere tag, no [period] no months in the footer.
+ * The project itself is always drawn.
  *
  * @param author the author line, e.g. "Проф. Елена Васкес · Stanford" or "Вы инициатор"
  * @param avatarKey stands in for the author's picture until profiles carry images
  *  (see [AppAvatars.forKey])
  * @param type the project type, `null` when unknown
  * @param status the project status, `null` when unknown
+ * @param sphere the name of the project's sphere, `null` when unknown
  * @param period the months the project runs, `null` when unknown
  */
 @Composable
@@ -72,10 +74,9 @@ fun projectCardUiModel(
     title: String,
     author: String,
     avatarKey: String,
-    isAuthorVerified: Boolean,
     type: ProjectType?,
     status: ProjectStatus?,
-    sphere: String,
+    sphere: String?,
     rolesCount: Int,
     period: ProjectPeriod?,
 ): ProjectCardUiModel = ProjectCardUiModel(
@@ -84,8 +85,7 @@ fun projectCardUiModel(
     authorAvatar = AppAvatars.forKey(avatarKey),
     type = type?.label(),
     footer = projectCardFooter(rolesCount, period),
-    tags = listOfNotNull(status?.label(), sphere.takeIf { it.isNotBlank() }),
-    isAuthorVerified = isAuthorVerified,
+    tags = listOfNotNull(status?.label(), sphere?.takeIf { it.isNotBlank() }),
 )
 
 /**

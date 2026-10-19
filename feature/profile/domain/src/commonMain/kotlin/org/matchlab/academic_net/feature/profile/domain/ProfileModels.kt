@@ -34,9 +34,10 @@ value class VerificationResultId(val value: String)
  * @property verificationStatuses API-GAP G12: the `status` of an achievement has no list of values, so the state of a
  * work or a document in the moderation is unknown (`null`). When `false` there are no status chips and banners, no
  * "Верификация профиля" queue, no results of the verification and no dot on the profile tab.
- * @property interestTypes API-GAP G11: the `project_types` of a profile have no list of values, so the project
- * types a person is interested in are neither shown nor chosen (the chips of the editor are hidden); the server's
- * value is kept as it is when the profile is saved.
+ * @property interestTypes the project types a person is interested in are shown and chosen (the chips of the editor):
+ * the `project_types` of a profile hold the codes of `ProjectType` (`docs/api-values.md`). The entries the app does not
+ * know are not shown but are kept when the profile is saved. When `false` the chips are hidden and the server's value
+ * is kept as it is.
  */
 data class ProfileCapabilities(
     val verificationStatuses: Boolean,
@@ -122,7 +123,8 @@ data class ProfileDocument(
 /**
  * What a person is interested in: the project types (the chips of the screen) and free topics.
  *
- * API-GAP G11: the project types are empty when [ProfileCapabilities.interestTypes] is `false`.
+ * The project types are only the ones the app knows (`ProjectType.fromCode`); they are empty when
+ * [ProfileCapabilities.interestTypes] is `false`.
  */
 data class ProfileInterests(
     val projectTypes: Set<ProjectType>,

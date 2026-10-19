@@ -37,12 +37,26 @@ class UnpublishProjectUseCaseTest {
     }
 
     @Test
-    fun aProjectWithAnUnknownStatusIsLeftAlone() = runTest {
-        // API-GAP G41: the status is unknown on the Gateway, and only a project known to be recruiting is taken off.
+    fun aProjectWithAnUnknownStatusIsTriedAndTheServerDecides() = runTest {
+        // docs/api-values.md, section 4: only a project known to be off publication is left alone.
         repository.projects.value += testProject("unknown", status = null)
 
-        assertEquals(UnpublishProjectResult.NotPublished, unpublish(ProjectId("unknown")))
-        assertEquals(null, repository.projects.value.first { it.id == ProjectId("unknown") }.status)
+        val result = unpublish(ProjectId("unknown"))
+
+        assertEquals(ProjectStatus.Unpublished, assertIs<UnpublishProjectResult.Unpublished>(result).project.status)
+        assertEquals(
+            ProjectStatus.Unpublished,
+            repository.projects.value.first { it.id == ProjectId("unknown") }.status,
+        )
+    }
+
+    @Test
+    fun anUnpublishedProjectIsNotSentToTheRepositoryAgain() = runTest {
+        val before = repository.projects.value
+
+        unpublish(ProjectId("hidden"))
+
+        assertEquals(before, repository.projects.value)
     }
 
     @Test

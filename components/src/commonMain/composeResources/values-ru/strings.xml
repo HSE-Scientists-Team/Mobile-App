@@ -6,7 +6,6 @@
     <string name="components_decline">Отклонить</string>
     <string name="components_message">Написать</string>
     <string name="components_report">Пожаловаться</string>
-    <string name="components_verified">Подтверждён</string>
     <string name="components_retry">Повторить</string>
 
     <!-- The toggle of the password field says what a tap does -->

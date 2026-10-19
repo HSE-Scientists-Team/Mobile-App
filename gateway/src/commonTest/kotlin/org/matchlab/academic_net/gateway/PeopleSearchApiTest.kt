@@ -65,6 +65,7 @@ class PeopleSearchApiTest {
             PeopleSearchParams(
                 q = "Computer Vision, Python",
                 university = "НИУ ВШЭ",
+                projectType = "2",
                 skills = listOf("Kotlin", "SQL"),
                 interests = listOf("ML", "NLP"),
                 myUniversity = true,
@@ -78,19 +79,34 @@ class PeopleSearchApiTest {
         val parameters = server.requests.single().url.parameters
         assertEquals("Computer Vision, Python", parameters["q"])
         assertEquals("НИУ ВШЭ", parameters["university"])
+        assertEquals("2", parameters["project_type"])
         assertEquals(listOf("Kotlin", "SQL"), parameters.getAll("skill"))
         assertEquals(listOf("ML", "NLP"), parameters.getAll("interest"))
         for (flag in listOf("my_university", "open_only", "verified_only", "verified_projects", "publications")) {
             assertEquals(listOf("true"), parameters.getAll(flag), flag)
         }
-        // These are all the names: in particular no `project_type` (API-GAP G11) and no role (API-GAP G31).
+        // These are all the names: in particular no role (API-GAP G31).
         assertEquals(
             setOf(
-                "limit", "offset", "q", "university", "skill", "interest",
+                "limit", "offset", "q", "university", "project_type", "skill", "interest",
                 "my_university", "open_only", "verified_only", "verified_projects", "publications",
             ),
             parameters.names(),
         )
+    }
+
+    @Test
+    fun theProjectTypeGoesAsItsCodeOnlyWhenSet() = runTest {
+        val server = server()
+
+        server.search(PeopleSearchParams(projectType = "1"))
+        server.search(PeopleSearchParams(projectType = ""))
+        server.search(PeopleSearchParams(projectType = "  "))
+        server.search(PeopleSearchParams(projectType = null))
+
+        assertEquals("1", server.requests[0].url.parameters["project_type"])
+        assertEquals(setOf("limit", "offset", "project_type"), server.requests[0].url.parameters.names())
+        for (request in server.requests.drop(1)) assertEquals(setOf("limit", "offset"), request.url.parameters.names())
     }
 
     @Test

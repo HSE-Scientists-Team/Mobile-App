@@ -187,8 +187,8 @@ private fun Messages(messages: List<MessageItem>, modifier: Modifier = Modifier)
 }
 
 /**
- * "app-bar" of the chat: back, the peer's avatar, name and verification mark; the last three are
- * one tap target that opens the peer's profile.
+ * "app-bar" of the chat: back, the peer's avatar and name; the last two are one tap target that opens the peer's
+ * profile.
  */
 @Composable
 private fun ChatTopBar(peer: ChatPeer?, onNavigateBack: () -> Unit, onPeerClick: (UserId) -> Unit) {
@@ -225,7 +225,6 @@ private fun ChatTopBar(peer: ChatPeer?, onNavigateBack: () -> Unit, onPeerClick:
                 Avatar(AppAvatars.forKey(peer.avatarKey), contentDescription = null, size = 40.dp)
                 PersonName(
                     name = peer.name,
-                    verified = peer.isVerified,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )

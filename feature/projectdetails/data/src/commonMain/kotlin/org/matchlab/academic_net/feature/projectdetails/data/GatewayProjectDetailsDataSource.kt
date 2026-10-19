@@ -21,7 +21,8 @@ import org.matchlab.academic_net.gateway.mapping.ratingOrNull
  *
  * An owner without a profile the viewer may see is not a reason to fail: the page shows the initiator without a
  * name, a university and numbers. API-GAP G47: the project names its owner by id only, so the owner is looked up
- * separately. API-GAP G40, G41, G43: the project has no type, no status and no period.
+ * separately. The type, the sphere, the status and the months of the project are read from the codes the app defines
+ * (`docs/api-values.md`); a value the app has no code for is `null` and does not hide the project.
  *
  * @param assembler turns the server's project into the app's, with its owner.
  */

@@ -236,7 +236,6 @@ private fun PeopleContent(
                             name = person.user.name,
                             subtitle = person.collaborator.subtitleText(),
                             avatar = AppAvatars.forKey(person.user.id.value),
-                            isVerified = person.user.isVerified,
                         ),
                         onClick = { onPersonClick(person.user) },
                         outlined = true,

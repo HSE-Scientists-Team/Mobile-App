@@ -10,7 +10,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
+import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.paging.Page
 import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectDuration
@@ -136,7 +139,6 @@ class ProjectSearchViewModelTest {
                 initiatorName = "Автор 1",
                 initiatorUniversity = "НИУ ВШЭ",
                 initiatorAvatarKey = "u1",
-                isInitiatorVerified = true,
                 isOwnProject = false,
                 type = null,
                 status = null,
@@ -146,6 +148,37 @@ class ProjectSearchViewModelTest {
             ),
             item,
         )
+    }
+
+    @Test
+    fun aProjectOfUnknownValuesIsListedWithoutThem() {
+        repository.server = listOf(found("1", sphere = null, type = null, status = null, period = null), found("2"))
+
+        val items = viewModel().state.results
+
+        assertEquals(listOf("p1", "p2"), items.map { it.id.value })
+        with(items.first()) {
+            assertNull(sphere)
+            assertNull(type)
+            assertNull(status)
+            assertNull(period)
+            assertEquals("Проект 1", title)
+        }
+    }
+
+    @Test
+    fun theKnownValuesOfAProjectReachItsCard() {
+        val period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3))
+        repository.server = listOf(
+            found("1", sphere = Biology, type = ProjectType.Practical, status = ProjectStatus.Recruiting, period = period),
+        )
+
+        with(viewModel().state.results.single()) {
+            assertEquals("Биология", sphere)
+            assertEquals(ProjectType.Practical, type)
+            assertEquals(ProjectStatus.Recruiting, status)
+            assertEquals(period, this.period)
+        }
     }
 
     @Test
@@ -527,8 +560,8 @@ class ProjectSearchViewModelTest {
 
         with(assertNotNullSheet(viewModel)) {
             assertEquals(ProjectFilters(), draft)
-            assertFalse(typeFilter, "API-GAP G40: the server cannot filter by the type")
-            assertFalse(durationFilter, "API-GAP G45: nor by the duration")
+            assertFalse(typeFilter, "the source cannot filter by the type")
+            assertFalse(durationFilter, "nor by the duration")
             assertFalse(isSpherePickerOpen)
         }
     }
@@ -629,7 +662,7 @@ class ProjectSearchViewModelTest {
 
     @Test
     fun theTypeAndTheDurationOfADraftReachTheRepositoryAsTheyAre() {
-        // The data layer drops them (nothing sends them while the flags are off); the view model does not decide that.
+        // The data layer turns them into the parameters (one chip: its code, none or several: nothing); the view model does not decide that.
         val filters = ProjectFilters(types = setOf(ProjectType.Scientific), durations = setOf(ProjectDuration.Over6Months))
         val viewModel = viewModel()
         viewModel.onFiltersClick()

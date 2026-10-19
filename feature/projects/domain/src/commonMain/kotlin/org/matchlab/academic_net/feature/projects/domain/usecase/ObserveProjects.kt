@@ -6,11 +6,12 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 
 /**
- * "Просматривать свои проекты": projects the user has initiated, newest first.
+ * "Просматривать свои проекты": projects the user has initiated, the ones created in this session first and then in the
+ * server's order. The first collection loads the list, and its failure is thrown to the collector (the screen shows
+ * "Повторить" and collects again).
  *
- * API-GAP G44: the server cannot list them yet. Without [org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities.canListMine]
- * the screen does not collect this flow, and collecting it anyway fails with
- * [org.matchlab.academic_net.common.result.FeatureUnavailableException].
+ * Without [org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities.canListMine] the screen does not collect
+ * this flow, and collecting it anyway fails with [org.matchlab.academic_net.common.result.FeatureUnavailableException].
  */
 class ObserveMyProjectsUseCase(private val repository: ProjectsRepository) {
     operator fun invoke(): Flow<List<Project>> = repository.observeMyProjects()

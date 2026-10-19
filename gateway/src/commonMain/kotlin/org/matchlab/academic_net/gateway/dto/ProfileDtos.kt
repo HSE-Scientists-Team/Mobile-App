@@ -8,15 +8,17 @@ import kotlinx.serialization.Serializable
 // schema is written in the style of protobuf JSON, which leaves zeros out. A field the client may leave out is
 // nullable with a `null` default, and a missing one is not sent.
 //
-// The strings without a list of values in the spec (`study_level`, `project_types`) stay strings here: what they
-// mean is not known (API-GAP G10, G11), so nothing in this module parses them.
+// The strings without a list of values in the spec (`study_level`, `project_types`) stay strings here and nothing in this
+// module parses them: `study_level` is a free text (docs/api-values.md), the entries of `project_types` are the codes of the
+// project types that the app defines (docs/api-values.md), read and written by the profile data layer.
 
 /**
  * `UserProfileInput`: the body of `PUT /users/me/profile` and the `details` of [UserProfileDto]. Only
  * `display_name` is required by the API.
  *
- * API-GAP G10: [studyLevel] is a free text. API-GAP G11: [projectTypes] has no list of values; the client reads it
- * and writes it back as it came.
+ * docs/api-values.md: [studyLevel] is a free text. [projectTypes] holds the codes of the project types the person is interested
+ * in (`ProjectType.code`, `docs/api-values.md`) and may hold entries of other clients that the app does not know: the
+ * profile data layer reads the codes and writes the unknown entries back as they came.
  */
 @Serializable
 data class UserProfileInputDto(

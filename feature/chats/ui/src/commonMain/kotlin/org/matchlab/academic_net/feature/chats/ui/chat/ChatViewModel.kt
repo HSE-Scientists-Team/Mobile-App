@@ -38,7 +38,6 @@ data class ChatPeer(
     /** Whose profile a tap on the header of the chat opens. */
     val userId: UserId,
     val name: String,
-    val isVerified: Boolean,
     /** Key of the peer's avatar illustration. */
     val avatarKey: String,
 )
@@ -126,7 +125,6 @@ class ChatViewModel(
 private fun Conversation.toPeer() = ChatPeer(
     userId = peer.id,
     name = peer.name,
-    isVerified = peer.isVerified,
     avatarKey = peer.id.value,
 )
 

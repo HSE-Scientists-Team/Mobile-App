@@ -215,7 +215,6 @@ private fun ProjectSearchItem.toCardUiModel(): ProjectCardUiModel = projectCardU
     title = title,
     author = authorText(),
     avatarKey = initiatorAvatarKey,
-    isAuthorVerified = isInitiatorVerified,
     type = type,
     status = status,
     sphere = sphere,

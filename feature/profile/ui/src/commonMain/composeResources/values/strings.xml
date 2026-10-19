@@ -18,8 +18,6 @@
 
     <!-- Profile of another person -->
     <string name="profile_message">Message</string>
-    <string name="profile_status_verified">Profile verified</string>
-    <string name="profile_status_unverified">Profile not verified</string>
 
     <!-- Sections of a profile -->
     <string name="profile_about">About</string>
@@ -101,8 +99,8 @@
     <string name="profile_error_about_too_long">No more than %1$d characters</string>
     <string name="profile_error_too_many_interests">No more than %1$d interests</string>
     <string name="profile_error_too_many_skills">No more than %1$d skills</string>
-    <!-- 1: the first year of study, 2: the last -->
-    <string name="profile_error_study_year">Enter a year of study from %1$d to %2$d</string>
+    <!-- 1: the first year of study; there is no last one, the server judges -->
+    <string name="profile_error_study_year">Enter the year of study: a whole number from %1$d</string>
 
     <!-- New work -->
     <string name="profile_work_new_title">New work</string>
@@ -129,7 +127,7 @@
     <string name="profile_document_field_year">Year</string>
     <string name="profile_document_field_year_hint">For example, 2027</string>
     <string name="profile_document_field_proof">Link to the proof *</string>
-    <string name="profile_document_banner">A moderator checks the document. A verified education document adds a trust badge to your profile.</string>
+    <string name="profile_document_banner">A moderator checks the document. A verified document gets a trust badge.</string>
     <!-- The proof of a document is the public link of its record until the app can upload files -->
     <string name="profile_proof_public_warning">Everyone who opens your profile will see the link to the proof</string>
     <!-- A file attached to the record elsewhere: the form shows that it is there and keeps it -->

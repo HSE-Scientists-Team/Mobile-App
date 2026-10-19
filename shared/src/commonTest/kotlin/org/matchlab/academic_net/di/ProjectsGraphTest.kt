@@ -1,17 +1,19 @@
 package org.matchlab.academic_net.di
 
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.ProjectsRoleRequirementProvider
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
+import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.paging.PageRequest
-import org.matchlab.academic_net.common.result.FeatureUnavailableException
 import org.matchlab.academic_net.common.result.LoadResult
+import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.auth.domain.AccessToken
 import org.matchlab.academic_net.feature.auth.domain.Session
@@ -22,14 +24,16 @@ import org.matchlab.academic_net.feature.projects.domain.ProjectConflictExceptio
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraft
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
+import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectResult
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectDuration
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectFilters
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectQuery
 import org.matchlab.academic_net.feature.projectsearch.domain.ProjectSearchCapabilities
-import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.Spheres
 import kotlinx.datetime.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -37,15 +41,15 @@ import kotlin.test.assertTrue
 /**
  * The projects, their search and their page in the graph of a signed-in user over the Gateway (a mock engine): the wiring
  * that no layer's own tests see, from the use cases the screens hold down to the HTTP calls. The answers are the shapes
- * `docs/openapi.yaml` gives. API-GAP G40-G45: creating, "Мои проекты", unpublishing and the type and duration filters are
- * off, so nothing for them is ever sent.
+ * `docs/openapi.yaml` gives. Creating, "Мои проекты", unpublishing and the type and duration filters are on, with the
+ * values the app defines (`docs/api-values.md`).
  */
 class ProjectsGraphTest {
     private val viewer = ServerUserId
     private val session = Session(UserId(viewer), StudentEmail, AccessToken("token-1"))
 
     private fun project(id: String, owner: String, revision: Int = 3, roles: String = "[]", title: String = "Проект $id") =
-        """{"id":"$id","owner_user_id":"$owner","details":{"title":"$title","field":"Biology","problem":"Проблема","goal":"Цель","tags":["ML"]},"status":"published","revision":$revision,"roles":$roles}"""
+        """{"id":"$id","owner_user_id":"$owner","details":{"title":"$title","type":"1","field":"7","problem":"Проблема","goal":"Цель","tags":["ML"],"planned_start":"2026-10-01","planned_end":"2027-03-31"},"status":"1","revision":$revision,"roles":$roles}"""
 
     private fun profile(id: String, university: String) =
         """{"user_id":"$id","details":{"display_name":"Имя $id","university":"$university"},"verified":true,"rating":4.5,"review_count":2,"completed_project_count":7}"""
@@ -60,6 +64,11 @@ class ProjectsGraphTest {
                     json("""{"items":[${project("p-1", "owner-a")},${project("p-2", "owner-b")}],"total":"2"}""")
                 "GET /api/v1/users/owner-a/profile" -> json(profile("owner-a", "НИУ ВШЭ"))
                 "GET /api/v1/users/owner-b/profile" -> jsonError(HttpStatusCode.NotFound, "no such user")
+                "GET /api/v1/users/$viewer/profile" -> json(profile(viewer, "МГУ"))
+                "GET /api/v1/projects" ->
+                    json("""{"items":[${project("p-1", "owner-a")},${project("m-1", viewer)},${project("p-2", "owner-b")},${project("m-2", viewer)}],"total":"4"}""")
+                "POST /api/v1/projects" -> json(project("m-new", viewer, revision = 1), HttpStatusCode.Created)
+                "POST /api/v1/projects/m-1/transitions" -> json(project("m-1", viewer, revision = 4).replace("\"status\":\"1\"", "\"status\":\"2\""))
                 "GET /api/v1/projects/p-1" -> json(project("p-1", "owner-a", revision, roles))
                 "POST /api/v1/projects/p-1/roles" -> {
                     revision += 1
@@ -78,13 +87,13 @@ class ProjectsGraphTest {
     // ---- building ----
 
     @Test
-    fun theProjectSourcesAreBuiltWithoutARequestAndSayWhatTheyCannotDo() {
+    fun theProjectSourcesAreBuiltWithoutARequestAndAreOn() {
         val server = serverWithProjects()
 
         val dependencies = dependenciesOf(server)
 
-        assertEquals(ProjectsCapabilities(canCreate = false, canListMine = false, canUnpublish = false), dependencies.projects.capabilities)
-        assertEquals(ProjectSearchCapabilities(typeFilter = false, durationFilter = false), dependencies.projectSearch.capabilities)
+        assertEquals(ProjectsCapabilities(canCreate = true, canListMine = true, canUnpublish = true), dependencies.projects.capabilities)
+        assertEquals(ProjectSearchCapabilities(typeFilter = true, durationFilter = true), dependencies.projectSearch.capabilities)
         assertEquals(emptyList(), server.calls)
     }
 
@@ -96,21 +105,140 @@ class ProjectsGraphTest {
         assertTrue(component.roleRequirements is ProjectsRoleRequirementProvider)
     }
 
-    // ---- what the Gateway cannot do ----
+    // ---- creating, "Я инициатор", unpublishing ----
 
     @Test
-    fun creatingAProjectIsRefusedByTheGatewaySourceAndSendsNothing() = runTest {
+    fun creatingAProjectPostsTheCodesAndTheMonthsAndReturnsTheProject() = runTest {
         val server = serverWithProjects()
         val draft = ProjectDraft(
-            title = "T", type = ProjectType.Scientific, sphere = Sphere("Biology", "Biology"),
-            problem = "P", goal = "G",
+            title = "T", type = ProjectType.Practical, sphere = Spheres.all[11],
+            problem = "P", goal = "G", tags = listOf("ML"),
+            roles = listOf(RoleDraft("Дизайнер", listOf("Figma"))),
+            start = YearMonth(2026, 10), end = YearMonth(2028, 2),
+        )
+
+        val result = dependenciesOf(server).projects.publishProject(draft)
+
+        val project = assertIs<SubmitResult.Success<Project>>(result).value
+        assertEquals(ProjectId("m-new"), project.id)
+        assertTrue(project.viewerIsInitiator)
+        val post = server.requests("POST /api/v1/projects").single()
+        assertEquals(listOf("Bearer token-1"), post.authorization)
+        for (part in listOf(
+            "\"title\":\"T\"", "\"type\":\"2\"", "\"field\":\"12\"", "\"planned_start\":\"2026-10-01\"",
+            "\"planned_end\":\"2028-02-29\"", "\"slots\":1", "\"tags\":[\"ML\"]",
+        )) {
+            assertTrue(part in post.body, "$part in ${post.body}")
+        }
+    }
+
+    @Test
+    fun aRejectedCreationIsAFailureAndIsNotRepeated() = runTest {
+        val server = serverWithProjects().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "POST /api/v1/projects") jsonError(HttpStatusCode.BadRequest, "bad") else inner(arrival)
+            }
+        }
+        val draft = ProjectDraft(
+            title = "T", type = ProjectType.Scientific, sphere = Spheres.all[0], problem = "P", goal = "G",
             start = YearMonth(2026, 10), end = YearMonth(2027, 3),
         )
 
         val result = dependenciesOf(server).projects.publishProject(draft)
 
-        assertEquals("G40", assertIs<FeatureUnavailableException>(assertIs<SubmitResult.Failure>(result).cause).gap)
+        assertEquals(400, assertIs<RemoteFailure.Http>(assertIs<SubmitResult.Failure>(result).cause).status)
+        assertEquals(1, server.requests("POST /api/v1/projects").size)
+    }
+
+    @Test
+    fun anInvalidDraftSendsNothing() = runTest {
+        val server = serverWithProjects()
+
+        val result = dependenciesOf(server).projects.publishProject(ProjectDraft())
+
+        assertIs<SubmitResult.Invalid<*>>(result)
         assertEquals(emptyList(), server.calls)
+    }
+
+    @Test
+    fun myProjectsAreTheCatalogsProjectsOfTheViewerInTheServersOrder() = runTest {
+        val server = serverWithProjects()
+
+        val mine = dependenciesOf(server).projects.observeMyProjects().first()
+
+        assertEquals(listOf("m-1", "m-2"), mine.map { it.id.value })
+        assertTrue(mine.all { it.viewerIsInitiator })
+        val request = server.requests("GET /api/v1/projects").single()
+        assertEquals(setOf("limit", "offset"), request.queryNames, "no mine, no profile_user_id, no status")
+        assertEquals(listOf("100"), request.queryValues("limit"))
+        assertEquals(listOf("0"), request.queryValues("offset"))
+        assertEquals(ProjectType.Scientific, mine.first().type)
+        assertEquals(Spheres.all[6], mine.first().sphere)
+    }
+
+    @Test
+    fun aCreatedProjectIsFirstInMyProjects() = runTest {
+        val dependencies = dependenciesOf(serverWithProjects())
+        val draft = ProjectDraft(
+            title = "T", type = ProjectType.Scientific, sphere = Spheres.all[0], problem = "P", goal = "G",
+            start = YearMonth(2026, 10), end = YearMonth(2027, 3),
+        )
+        dependencies.projects.publishProject(draft)
+
+        val mine = dependencies.projects.observeMyProjects().first()
+
+        assertEquals(listOf("m-new", "m-1", "m-2"), mine.map { it.id.value })
+    }
+
+    @Test
+    fun aFailureOfTheCatalogGoesToTheCollectorAndCollectingAgainReadsAgain() = runTest {
+        var fail = true
+        val server = serverWithProjects().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "GET /api/v1/projects" && fail) jsonError(HttpStatusCode.InternalServerError, "oops") else inner(arrival)
+            }
+        }
+        val dependencies = dependenciesOf(server)
+
+        assertFailsWith<RemoteFailure.Http> { dependencies.projects.observeMyProjects().first() }
+        fail = false
+
+        assertEquals(listOf("m-1", "m-2"), dependencies.projects.observeMyProjects().first().map { it.id.value })
+    }
+
+    @Test
+    fun unpublishingPostsThePauseActionWithTheRevisionOfTheList() = runTest {
+        val server = serverWithProjects()
+        val dependencies = dependenciesOf(server)
+        dependencies.projects.observeMyProjects().first()
+
+        val result = dependencies.projects.unpublishProject(ProjectId("m-1"))
+
+        val unpublished = assertIs<UnpublishProjectResult.Unpublished>(result).project
+        assertEquals(ProjectStatus.Unpublished, unpublished.status)
+        val post = server.requests("POST /api/v1/projects/m-1/transitions").single()
+        assertTrue("\"action\":\"2\"" in post.body, post.body)
+        assertTrue("\"expected_revision\":3" in post.body, post.body)
+        assertEquals(
+            listOf(ProjectStatus.Unpublished, ProjectStatus.Recruiting),
+            dependencies.projects.observeMyProjects().first().map { it.status },
+        )
+    }
+
+    @Test
+    fun unpublishingAProjectThatIsAlreadyUnpublishedSendsNothing() = runTest {
+        val server = serverWithProjects()
+        val dependencies = dependenciesOf(server)
+        dependencies.projects.observeMyProjects().first()
+        dependencies.projects.unpublishProject(ProjectId("m-1"))
+        val posts = server.requests("POST /api/v1/projects/m-1/transitions").size
+
+        val again = dependencies.projects.unpublishProject(ProjectId("m-1"))
+
+        assertEquals(UnpublishProjectResult.NotPublished, again)
+        assertEquals(posts, server.requests("POST /api/v1/projects/m-1/transitions").size)
     }
 
     // ---- the search ----
@@ -118,7 +246,7 @@ class ProjectsGraphTest {
     @Test
     fun aSearchAsksForTheListAndThenForTheProfileOfEachOwnerOnce() = runTest {
         val server = serverWithProjects()
-        val query = ProjectQuery(text = "  ml ", filters = ProjectFilters(sphere = Sphere("Biology", "Biology"), keywords = listOf("ROS")))
+        val query = ProjectQuery(text = "  ml ", filters = ProjectFilters(sphere = Spheres.all[6], keywords = listOf("ROS")))
 
         val page = dependenciesOf(server).projectSearch.searchProjects(query, PageRequest.First).getOrThrow()
 
@@ -135,20 +263,61 @@ class ProjectsGraphTest {
     }
 
     @Test
-    fun aSearchNeverSendsTheParametersTheApiDoesNotDefine() = runTest {
+    fun aSearchSendsTheCodesOfOneChosenTypeDurationAndTheSphere() = runTest {
         val server = serverWithProjects()
         val filters = ProjectFilters(
             types = setOf(ProjectType.Scientific),
+            sphere = Spheres.all[2],
             durations = setOf(ProjectDuration.UpTo3Months),
         )
 
         dependenciesOf(server).projectSearch.searchProjects(ProjectQuery("ml", filters), PageRequest(20, 20)).getOrThrow()
 
         val request = server.requests("GET /api/v1/search/projects").single()
-        assertEquals(setOf("limit", "offset", "q"), request.queryNames, "no type, duration, status, mine or profile_user_id")
+        assertEquals(setOf("limit", "offset", "q", "type", "field", "duration"), request.queryNames, "no status, mine or profile_user_id")
         assertEquals(listOf("20"), request.queryValues("limit"))
         assertEquals(listOf("20"), request.queryValues("offset"))
         assertEquals(listOf("ml"), request.queryValues("q"))
+        assertEquals(listOf("1"), request.queryValues("type"))
+        assertEquals(listOf("3"), request.queryValues("field"))
+        assertEquals(listOf("1"), request.queryValues("duration"))
+    }
+
+    @Test
+    fun aSearchWithBothTypesAndTwoDurationsSendsNeitherParameter() = runTest {
+        val server = serverWithProjects()
+        val filters = ProjectFilters(
+            types = ProjectType.entries.toSet(),
+            durations = setOf(ProjectDuration.UpTo3Months, ProjectDuration.Over6Months),
+        )
+
+        dependenciesOf(server).projectSearch.searchProjects(ProjectQuery("ml", filters), PageRequest(20, 20)).getOrThrow()
+
+        val request = server.requests("GET /api/v1/search/projects").single()
+        assertEquals(setOf("limit", "offset", "q"), request.queryNames)
+    }
+
+    @Test
+    fun aProjectOfValuesTheAppDoesNotKnowIsFoundAllTheSame() = runTest {
+        val server = serverWithProjects().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "GET /api/v1/search/projects") {
+                    json("""{"items":[{"id":"x-1","owner_user_id":"owner-a","details":{"title":"Чужой","type":"scientific","field":"Biology"},"status":"published","revision":1}],"total":"1"}""")
+                } else {
+                    inner(arrival)
+                }
+            }
+        }
+
+        val page = dependenciesOf(server).projectSearch.searchProjects(ProjectQuery("x"), PageRequest.First).getOrThrow()
+
+        val project = page.items.single().project
+        assertEquals("Чужой", project.title)
+        assertNull(project.type)
+        assertNull(project.status)
+        assertNull(project.sphere)
+        assertNull(project.period)
     }
 
     @Test
@@ -157,7 +326,7 @@ class ProjectsGraphTest {
 
         val spheres = dependenciesOf(server).projectSearch.getSpheres().getOrThrow()
 
-        assertEquals(12, spheres.size)
+        assertEquals(Spheres.all, spheres)
         assertEquals(emptyList(), server.calls)
     }
 

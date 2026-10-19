@@ -11,7 +11,7 @@ import org.matchlab.academic_net.common.model.Study
 /**
  * Where a person is in their studies, as one line: the level and the year of [study].
  *
- * API-GAP G10: the level is a free text (the API has no list of its values), so it is shown as the person typed it
+ * docs/api-values.md: the level is a free text (the API has no list of its values), so it is shown as the person typed it
  * or the server sent it, with the first letter in capitals; only the word "курс" / "year" is the app's own and follows
  * the language of the app. A part that is not given is left out, and nothing is shown when neither is:
  *

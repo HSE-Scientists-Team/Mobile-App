@@ -16,6 +16,7 @@ import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.result.FeatureUnavailableException
+import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
 import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 import org.matchlab.academic_net.feature.projects.domain.RoleDraftError
@@ -29,8 +30,8 @@ import org.matchlab.academic_net.feature.projects.ui.project
 import org.matchlab.academic_net.feature.projects.ui.uninstallMainDispatcher
 
 /**
- * "05 Создание проекта": the form, its checks, and what happens when the server cannot create projects (API-GAP G40,
- * G43: the Gateway refuses, and the screen says so instead of "Не удалось опубликовать").
+ * "05 Создание проекта": the form, its checks, publishing (the success, the failures that keep what was typed, the guard
+ * against a second tap) and what the screen says if a source cannot create projects at all.
  */
 class CreateProjectViewModelTest {
     @BeforeTest
@@ -166,10 +167,10 @@ class CreateProjectViewModelTest {
         assertNull(viewModel.state.draft.start)
     }
 
-    // ---- the server cannot create projects ----
+    // ---- a source that cannot create projects ----
 
     @Test
-    fun theGatewayRefusingToCreateIsNotAFailureToTryAgain() = runTest {
+    fun aSourceThatCannotCreateIsNotAFailureToTryAgain() = runTest {
         repository.publishFailure = FeatureUnavailableException("G40")
         val viewModel = viewModel()
         viewModel.fillValidForm()
@@ -274,6 +275,127 @@ class CreateProjectViewModelTest {
         viewModel.onPublishClick()
 
         assertEquals(1, repository.published.size)
+    }
+
+    @Test
+    fun aFailureOfTheServerKeepsEverythingTyped() {
+        repository.publishFailure = RemoteFailure.Http(400)
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        viewModel.onAddTag("Python")
+        viewModel.onAddRoleClick()
+        viewModel.onRoleTitleChange("ML Engineer")
+        viewModel.onRoleSave()
+        val typed = viewModel.state.draft
+
+        viewModel.onPublishClick()
+
+        with(viewModel.state) {
+            assertEquals(typed, draft)
+            assertTrue(publishFailed)
+            assertFalse(publishUnavailable)
+            assertFalse(isPublishing)
+            assertNull(publishedProjectId)
+            assertEquals(emptySet(), errors)
+        }
+    }
+
+    @Test
+    fun everyKindOfFailureCanBeRetriedUntilItSucceeds() {
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        for (failure in listOf(RemoteFailure.NoConnection(), RemoteFailure.Timeout(), RemoteFailure.Http(500), RemoteFailure.Http(400))) {
+            repository.publishFailure = failure
+            viewModel.onPublishClick()
+            assertSame(failure, viewModel.state.publishFailure)
+            assertFalse(viewModel.state.isPublishing)
+        }
+        repository.publishFailure = null
+
+        viewModel.onPublishClick()
+
+        assertEquals(5, repository.published.size)
+        assertEquals(ProjectId("new"), viewModel.state.publishedProjectId)
+        assertFalse(viewModel.state.publishFailed)
+    }
+
+    @Test
+    fun theNextAttemptClearsTheOldFailureWhileItIsOnItsWay() {
+        repository.publishFailure = cause
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        viewModel.onPublishClick()
+        assertTrue(viewModel.state.publishFailed)
+        repository.publishFailure = null
+        repository.publishGate = Gate()
+
+        viewModel.onPublishClick()
+
+        assertTrue(viewModel.state.isPublishing)
+        assertFalse(viewModel.state.publishFailed)
+    }
+
+    @Test
+    fun aRetryTapWhileTheRetryIsOnItsWayPublishesNothingMore() {
+        repository.publishFailure = cause
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        viewModel.onPublishClick()
+        repository.publishFailure = null
+        repository.publishGate = Gate()
+
+        viewModel.onPublishClick()
+        viewModel.onPublishClick()
+
+        assertEquals(2, repository.published.size, "the failed attempt and one retry")
+        repository.publishGate!!.open()
+        assertNotNull(viewModel.state.publishedProjectId)
+    }
+
+    @Test
+    fun theDeclaredRolesAreSentWithTheProject() {
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        viewModel.onAddRoleClick()
+        viewModel.onRoleTitleChange("ML Engineer")
+        viewModel.onRoleSkillAdd("Python")
+        viewModel.onRoleSave()
+        viewModel.onAddRoleClick()
+        viewModel.onRoleTitleChange("Дизайнер")
+        viewModel.onRoleSave()
+
+        viewModel.onPublishClick()
+
+        assertEquals(
+            listOf(RoleDraft("ML Engineer", listOf("Python")), RoleDraft("Дизайнер")),
+            repository.published.single().roles,
+        )
+    }
+
+    @Test
+    fun theSphereOfTheFormIsSentWithItsCode() {
+        val sphere = Sphere("12", "Дизайн")
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        viewModel.onSphereSelect(sphere)
+
+        viewModel.onPublishClick()
+
+        assertEquals("12", repository.published.single().sphere.id)
+    }
+
+    @Test
+    fun aSecondTapAfterAFailureOfTheFirstWhileThereIsAnInvalidEditSendsNothing() {
+        repository.publishFailure = cause
+        val viewModel = viewModel()
+        viewModel.fillValidForm()
+        viewModel.onPublishClick()
+
+        viewModel.onTitleChange("   ")
+        viewModel.onPublishClick()
+
+        assertEquals(1, repository.published.size)
+        assertEquals(setOf(ProjectDraftError.TitleEmpty), viewModel.state.errors)
     }
 
     // ---- the roles ----

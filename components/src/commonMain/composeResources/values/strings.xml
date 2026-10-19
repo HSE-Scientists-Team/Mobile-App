@@ -6,7 +6,6 @@
     <string name="components_decline">Decline</string>
     <string name="components_message">Message</string>
     <string name="components_report">Report</string>
-    <string name="components_verified">Verified</string>
     <string name="components_retry">Retry</string>
 
     <!-- The toggle of the password field says what a tap does -->

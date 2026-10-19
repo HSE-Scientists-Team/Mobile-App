@@ -27,10 +27,10 @@ import org.matchlab.academic_net.feature.profile.ui.my.MyProfileVisibility
  * What the screens of the profile feature need from the outside; the app creates it once and
  * hands it to every `…Route` and to [profileTabHasBadge].
  *
- * @param capabilities what the server behind the profiles can give (API-GAP G11, G12): the screens hide what it
- *  cannot, instead of showing made-up data. Without [ProfileCapabilities.verificationStatuses] there are no status
- *  chips and banners, no queue and no results of the verification, and no dot on the tab; without
- *  [ProfileCapabilities.interestTypes] there are no project-type chips in the editor
+ * @param capabilities what the source behind the profiles can give (API-GAP G12 and `docs/api-values.md`): the screens
+ *  hide what it cannot, instead of showing made-up data. Without [ProfileCapabilities.verificationStatuses] there are no
+ *  status chips and banners of the works and the documents, no queue and no results of the verification, and no dot on
+ *  the tab; without [ProfileCapabilities.interestTypes] there are no project-type chips in the editor
  * @param clock and [timeZone] say when a decision of a moderator was made relative to "now" in the
  *  list of results on the viewer's profile
  */

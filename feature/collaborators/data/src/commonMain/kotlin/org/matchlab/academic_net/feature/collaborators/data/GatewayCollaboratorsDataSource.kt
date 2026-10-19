@@ -18,13 +18,14 @@ import org.matchlab.academic_net.gateway.mapping.toCollaboratorPage
  * (never less than what has been received). API-GAP G34: the API does not describe the order, the stability of `offset`
  * between two pages or the exactness of `total`.
  *
- * What it does not send, because the API does not define it: API-GAP G11, the types of the person's works
- * ([CollaboratorsCapabilities.projectTypeFilter] is off); API-GAP G31, the role the search is started for, and what the
- * text is matched against is the server's secret.
+ * What it sends besides the text and the switches: the type of the person's works as its code in `project_type`, only when
+ * exactly one type is chosen (the parameter holds one value: none or two of two send nothing), the code being the app's
+ * own (`docs/api-values.md`, [CollaboratorsCapabilities.projectTypeFilter] is on). What it does not send, because the API
+ * does not define it: API-GAP G31, the role the search is started for, and what the text is matched against is the
+ * server's secret.
  */
 class GatewayCollaboratorsDataSource(private val api: PeopleSearchApi) : CollaboratorsDataSource {
-    // API-GAP G11: `project_type` has no list of values, so the filter by the types of works is not sent.
-    override val capabilities: CollaboratorsCapabilities = CollaboratorsCapabilities(projectTypeFilter = false)
+    override val capabilities: CollaboratorsCapabilities = CollaboratorsCapabilities(projectTypeFilter = true)
 
     override suspend fun search(query: CollaboratorQuery, page: PageRequest): Page<Collaborator> =
         api.search(query.toParams(), page).toCollaboratorPage(page)
@@ -40,12 +41,14 @@ class GatewayCollaboratorsDataSource(private val api: PeopleSearchApi) : Collabo
 
 /**
  * What the query asks for, as the parameters of the people search; a value that restricts nothing is left out.
- * API-GAP G31: `q` goes as typed (only the outer spaces are cut), commas and all. API-GAP G11: `workTypes` is not sent.
- * The filters the sheet "08b" does not have (`interest`, `my_university`, `open_only`) are not sent either.
+ * API-GAP G31: `q` goes as typed (only the outer spaces are cut), commas and all. `workTypes` goes as the code of its
+ * type when there is exactly one (`project_type` holds one value; two of two mean "any" and send nothing). The filters
+ * the sheet "08b" does not have (`interest`, `my_university`, `open_only`) are not sent.
  */
 internal fun CollaboratorQuery.toParams(): PeopleSearchParams = PeopleSearchParams(
     q = text.trim().takeIf { it.isNotEmpty() },
     university = filters.university.trim().takeIf { it.isNotEmpty() },
+    projectType = filters.workTypes.singleOrNull()?.code,
     skills = filters.keywords.map { it.trim() }.filter { it.isNotEmpty() }.distinct(),
     verifiedOnly = filters.verifiedProfile,
     verifiedProjects = filters.hasVerifiedProjects,

@@ -13,6 +13,9 @@ import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.ProjectPeriod
+import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
@@ -51,19 +54,23 @@ internal fun found(
     own: Boolean = false,
     university: String = "МГУ",
     roles: Int = 1,
+    sphere: Sphere? = ComputerScience,
+    type: ProjectType? = null,
+    status: ProjectStatus? = null,
+    period: ProjectPeriod? = null,
 ): FoundProject = FoundProject(
     project = Project(
         id = ProjectId("p$id"),
         title = "Проект $id",
-        type = null,
-        sphere = ComputerScience,
+        type = type,
+        sphere = sphere,
         problem = "Проблема",
         goal = "Цель",
         tags = emptyList(),
         initiator = UserSummary(UserId("u$id"), "Автор $id", isVerified = true),
         roles = List(roles) { Role(RoleId("r$it"), "Роль $it") },
-        status = null,
-        period = null,
+        status = status,
+        period = period,
         viewerIsInitiator = own,
     ),
     initiatorUniversity = university,

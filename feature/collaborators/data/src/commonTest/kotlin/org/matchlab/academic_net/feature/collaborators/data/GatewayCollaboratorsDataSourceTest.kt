@@ -6,6 +6,7 @@ import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorFilters
 import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorQuery
+import org.matchlab.academic_net.feature.collaborators.domain.CollaboratorsCapabilities
 import org.matchlab.academic_net.gateway.PeopleSearchApi
 import org.matchlab.academic_net.gateway.PeopleSearchParams
 import org.matchlab.academic_net.gateway.dto.PeopleListDto
@@ -100,12 +101,46 @@ class GatewayCollaboratorsDataSourceTest {
     }
 
     @Test
-    fun theTypesOfWorksNeverChangeTheCall() {
-        // API-GAP G11: `project_type` has no list of values, so nothing is sent for it (and the params have no field for it).
-        val plain = CollaboratorQuery("kotlin", CollaboratorFilters(verifiedProfile = true))
-        val typed = plain.copy(filters = plain.filters.copy(workTypes = setOf(ProjectType.Scientific, ProjectType.Practical)))
+    fun theProjectTypeFilterIsOn() {
+        assertEquals(CollaboratorsCapabilities(projectTypeFilter = true), source.capabilities)
+    }
 
-        assertEquals(plain.toParams(), typed.toParams())
+    @Test
+    fun oneTypeOfWorksIsSentAsItsCode() {
+        fun typeOf(vararg types: ProjectType) =
+            CollaboratorQuery(filters = CollaboratorFilters(workTypes = types.toSet())).toParams().projectType
+
+        assertEquals("1", typeOf(ProjectType.Scientific))
+        assertEquals("2", typeOf(ProjectType.Practical))
+    }
+
+    @Test
+    fun noTypeOrBothTypesOfWorksSendNoType() {
+        fun typeOf(vararg types: ProjectType) =
+            CollaboratorQuery(filters = CollaboratorFilters(workTypes = types.toSet())).toParams().projectType
+
+        assertEquals(null, typeOf())
+        assertEquals(null, typeOf(ProjectType.Scientific, ProjectType.Practical))
+    }
+
+    @Test
+    fun theTypeOfWorksComesWithTheRestOfTheFilters() {
+        val params = CollaboratorQuery(
+            text = "kotlin",
+            filters = CollaboratorFilters(verifiedProfile = true, workTypes = setOf(ProjectType.Scientific), university = "МГУ"),
+        ).toParams()
+
+        assertEquals(
+            PeopleSearchParams(q = "kotlin", university = "МГУ", projectType = "1", verifiedOnly = true),
+            params,
+        )
+    }
+
+    @Test
+    fun theTypeOfWorksReachesTheApiInTheCall() = runTest {
+        source.search(CollaboratorQuery(filters = CollaboratorFilters(workTypes = setOf(ProjectType.Practical))), PageRequest.First)
+
+        assertEquals("2", api.calls.single().first.projectType)
     }
 
     @Test
@@ -265,13 +300,5 @@ class GatewayCollaboratorsDataSourceTest {
         api.answer = { _, _ -> throw CancellationException("cancelled") }
 
         assertFailsWith<CancellationException> { source.count(CollaboratorQuery()) }
-    }
-
-    // ---- capabilities ----
-
-    @Test
-    fun theTypeFilterIsOffBecauseTheApiHasNoListOfTypes() {
-        // API-GAP G11.
-        assertFalse(source.capabilities.projectTypeFilter)
     }
 }

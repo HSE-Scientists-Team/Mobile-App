@@ -11,10 +11,14 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.RoleMember
+import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.projects.domain.ProjectConflictException
@@ -66,8 +70,12 @@ class ProjectManagementViewModelTest {
 
     private val ProjectManagementViewModel.state get() = uiState.value
 
-    private fun serve(status: ProjectStatus? = ProjectStatus.Recruiting, roles: List<org.matchlab.academic_net.common.model.Role> = emptyList()) {
-        repository.server[id] = project("p1", status = status, roles = roles)
+    private fun serve(
+        status: ProjectStatus? = ProjectStatus.Recruiting,
+        roles: List<org.matchlab.academic_net.common.model.Role> = emptyList(),
+        viewerIsInitiator: Boolean = true,
+    ) {
+        repository.server[id] = project("p1", status = status, roles = roles, viewerIsInitiator = viewerIsInitiator)
     }
 
     // ---- reading ----
@@ -233,16 +241,43 @@ class ProjectManagementViewModelTest {
     // ---- unpublishing ----
 
     @Test
-    fun unpublishingIsOfferedOnlyToARecruitingProjectOfAServerThatCanDoIt() = runTest {
+    fun unpublishingIsOfferedWhileTheProjectIsNotAlreadyUnpublishedAndTheSourceCanDoIt() = runTest {
         serve(ProjectStatus.Recruiting)
         assertTrue(viewModel(caps(canUnpublish = true)).state.project!!.canUnpublish)
-        assertFalse(viewModel(caps(canUnpublish = false)).state.project!!.canUnpublish, "API-GAP G42: the server cannot")
+        assertFalse(viewModel(caps(canUnpublish = false)).state.project!!.canUnpublish, "the source cannot")
 
         serve(ProjectStatus.Unpublished)
-        assertFalse(viewModel(caps(canUnpublish = true)).state.project!!.canUnpublish)
+        assertFalse(viewModel(caps(canUnpublish = true)).state.project!!.canUnpublish, "already off publication")
+    }
 
+    @Test
+    fun aProjectOfAnUnknownStatusIsOfferedForUnpublishingToo() = runTest {
         serve(status = null)
-        assertFalse(viewModel(caps(canUnpublish = true)).state.project!!.canUnpublish, "API-GAP G41: the status is unknown")
+
+        assertTrue(viewModel(caps(canUnpublish = true)).state.project!!.canUnpublish)
+        assertFalse(viewModel(caps(canUnpublish = false)).state.project!!.canUnpublish)
+    }
+
+    @Test
+    fun unpublishingIsNotOfferedToAViewerWhoIsNotTheInitiator() = runTest {
+        for (status in listOf(ProjectStatus.Recruiting, ProjectStatus.Unpublished, null)) {
+            serve(status, viewerIsInitiator = false)
+
+            assertFalse(viewModel(caps(canUnpublish = true)).state.project!!.canUnpublish, "status $status")
+        }
+    }
+
+    @Test
+    fun theUnknownStatusBecomesUnpublishedAfterTheConfirmation() = runTest {
+        serve(status = null)
+        val viewModel = viewModel()
+
+        viewModel.onUnpublishClick()
+        viewModel.onUnpublishConfirm()
+
+        assertEquals(listOf(id), repository.unpublishes)
+        assertEquals(ProjectStatus.Unpublished, viewModel.state.project?.status)
+        assertFalse(viewModel.state.project!!.canUnpublish, "nothing to take off any more")
     }
 
     @Test
@@ -584,20 +619,48 @@ class ProjectManagementViewModelTest {
         val details = project("p1", roles = listOf(role("r1", slots = 2, occupied = 1, members = listOf(member)))).toDetails(caps())
 
         assertEquals(
-            listOf(RoleMemberItem(name = "Мария", isVerified = true, avatarKey = "u9", rating = 4.5, completedProjects = 3)),
+            listOf(RoleMemberItem(name = "Мария", avatarKey = "u9", rating = 4.5, completedProjects = 3)),
             details.roles.single().members,
         )
         assertEquals(RoleId("r1"), details.roles.single().id)
     }
 
     @Test
-    fun anUnknownTypeStatusAndPeriodStayUnknown() {
-        val details = project("p1", status = null).toDetails(caps(canUnpublish = true))
+    fun anUnknownTypeStatusSphereAndPeriodStayUnknownAndTheProjectIsShown() {
+        val details = project("p1", status = null, sphere = null).toDetails(caps(canUnpublish = true))
 
         assertNull(details.type)
         assertNull(details.status)
+        assertNull(details.sphere)
         assertNull(details.period)
-        assertFalse(details.canUnpublish)
+        assertEquals("Проект p1", details.title)
+        assertTrue(details.canUnpublish, "an unknown status does not hide the action")
+    }
+
+    @Test
+    fun theKnownValuesAreShownAsTheyAre() {
+        val period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3))
+
+        val details = project(
+            "p1",
+            status = ProjectStatus.Recruiting,
+            type = ProjectType.Practical,
+            sphere = Sphere("12", "Дизайн"),
+            period = period,
+        ).toDetails(caps())
+
+        assertEquals(ProjectType.Practical, details.type)
+        assertEquals(ProjectStatus.Recruiting, details.status)
+        assertEquals("Дизайн", details.sphere)
+        assertEquals(period, details.period)
+        assertFalse(details.canUnpublish, "the source cannot")
+    }
+
+    @Test
+    fun aProjectWithoutASphereIsShownByTheScreenState() = runTest {
+        repository.server[id] = project("p1", sphere = null)
+
+        assertNull(viewModel().state.project?.sphere)
     }
 
     private fun roleItem(slots: Int, occupied: Int, members: Int = 0) = RoleItem(
@@ -606,7 +669,7 @@ class ProjectManagementViewModelTest {
         skills = emptyList(),
         slots = slots,
         occupied = occupied,
-        members = List(members) { RoleMemberItem("M$it", false, "k$it", null, 0) },
+        members = List(members) { RoleMemberItem("M$it", "k$it", null, 0) },
         canFindPeople = false,
     )
 }

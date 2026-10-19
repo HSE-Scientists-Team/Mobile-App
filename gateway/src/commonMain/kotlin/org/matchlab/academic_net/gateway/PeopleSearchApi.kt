@@ -20,11 +20,12 @@ interface PeopleSearchApi {
  * string, a blank item of a list, an empty list, `false`. A list goes as the parameter repeated (`skill=a&skill=b`, the
  * OpenAPI default for an array in the query).
  *
- * API-GAP G11: `project_type` has no list of values, so there is no field for it and nothing can send it.
  * API-GAP G31: there is no parameter for a role, and what [q] is matched against is not described.
  *
  * @property q `q`: the text of the search bar
  * @property university `university`
+ * @property projectType `project_type`: the code of a project type, the `ProjectType.code` (`docs/api-values.md`); the
+ *  parameter holds one value
  * @property skills `skill`, repeated
  * @property interests `interest`, repeated
  * @property myUniversity `my_university=true`
@@ -36,6 +37,7 @@ interface PeopleSearchApi {
 data class PeopleSearchParams(
     val q: String? = null,
     val university: String? = null,
+    val projectType: String? = null,
     val skills: List<String> = emptyList(),
     val interests: List<String> = emptyList(),
     val myUniversity: Boolean = false,

@@ -50,9 +50,10 @@ data class VacantRoleUiModel(
 /**
  * The project as the page shows it; carries no localized text, the screen builds the labels.
  *
- * @property type `null` when the server gives none (API-GAP G40): the header has no chip
- * @property status `null` when the server gives none (API-GAP G41): the header has no chip
- * @property period `null` when the server gives none (API-GAP G43): the page has no card of the months
+ * @property type `null` when unknown (`docs/api-values.md`): the header has no chip
+ * @property status `null` when unknown: the header has no chip
+ * @property sphere the name of the sphere, `null` when unknown: the header has no chip
+ * @property period `null` when unknown: the page has no card of the months
  * @property vacantRoles only the roles with a free place: the others are counted in [occupiedPlaces]
  * @property occupiedPlaces taken places of all roles, the "2" of "2 из 4 занято"
  * @property totalPlaces places of all roles, the "4" of "2 из 4 занято"
@@ -64,7 +65,7 @@ data class ProjectDetailsUiModel(
     val title: String,
     val type: ProjectType?,
     val status: ProjectStatus?,
-    val sphere: String,
+    val sphere: String?,
     val problem: String,
     val goal: String,
     val tags: List<String>,
@@ -130,7 +131,7 @@ private fun LoadedProject.toUiModel(): ProjectDetailsUiModel = ProjectDetailsUiM
     title = project.title,
     type = project.type,
     status = project.status,
-    sphere = project.sphere.name,
+    sphere = project.sphere?.name,
     problem = project.problem,
     goal = project.goal,
     tags = project.tags,

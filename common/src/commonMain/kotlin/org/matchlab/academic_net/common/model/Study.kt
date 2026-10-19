@@ -3,7 +3,7 @@ package org.matchlab.academic_net.common.model
 /**
  * Where a person is in their studies: the level and the year, either of which may be unknown.
  *
- * API-GAP G10: the API's `study_level` is a string without a list of values, so [level] is the text as the
+ * docs/api-values.md: the API's `study_level` is a string without a list of values, so [level] is the text as the
  * person typed it or as the server sent it ("Бакалавриат", "Master"), never an enum. The app shows it as
  * it is, with the year ("Бакалавриат, 3 курс"); how that line is written and translated is the UI's job.
  *

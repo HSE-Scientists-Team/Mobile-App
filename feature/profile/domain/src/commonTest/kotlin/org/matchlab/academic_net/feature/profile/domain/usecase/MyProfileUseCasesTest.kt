@@ -50,7 +50,7 @@ class MyProfileUseCasesTest {
 
     @Test
     fun savingAnInvalidProfileSendsNothing() = runTest {
-        val result = UpdateProfileUseCase(repository)(ProfileDraft(name = "  ", studyYear = "9"))
+        val result = UpdateProfileUseCase(repository)(ProfileDraft(name = "  ", studyYear = "0"))
 
         assertEquals(
             SubmitResult.Invalid(setOf(ProfileDraftError.NameEmpty, ProfileDraftError.StudyYearInvalid)),

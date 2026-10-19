@@ -12,7 +12,8 @@ import org.matchlab.academic_net.feature.collaborators.domain.usecase.SearchColl
  * @property getRoleRequirement the title and the skills of the role a search is started for
  * @property searchCollaborators one page of the people the server finds
  * @property countCollaborators "Показать N" of the filters sheet: how many people the server finds
- * @property capabilities what the server behind the search can do (API-GAP G11): the filters sheet hides the rest
+ * @property capabilities what the source behind the search can do (see `docs/api-values.md`): the filters sheet hides
+ *  the rest
  */
 class CollaboratorsUiDependencies(
     val getRoleRequirement: GetRoleRequirementUseCase,

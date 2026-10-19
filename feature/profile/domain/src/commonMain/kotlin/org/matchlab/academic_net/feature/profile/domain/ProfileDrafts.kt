@@ -11,12 +11,14 @@ object ProfileLimits {
     const val MaxUniversityLength = 150
     const val MaxFieldLength = 100
 
-    /** The level of study is a free text (API-GAP G10): a word or two. */
+    /** The level of study is a free text (docs/api-values.md): a word or two. */
     const val MaxStudyLevelLength = 50
 
-    /** The first and the last year of study a person may name. */
+    /**
+     * The first year of study a person may name. There is no last one: the number is the server's to judge, so a
+     * programme of more than 6 years, or a postgraduate year, is not refused here (`docs/api-values.md`, §3).
+     */
     const val MinStudyYear = 1
-    const val MaxStudyYear = 6
 
     const val MaxAboutLength = 1000
     const val MaxTitleLength = 150
@@ -45,7 +47,7 @@ enum class ProfileDraftError {
     /** Longer than [ProfileLimits.MaxStudyLevelLength]. */
     StudyLevelTooLong,
 
-    /** The year is not a number from [ProfileLimits.MinStudyYear] to [ProfileLimits.MaxStudyYear]. */
+    /** The year is not a whole number of at least [ProfileLimits.MinStudyYear] (there is no upper limit). */
     StudyYearInvalid,
 
     /** Longer than [ProfileLimits.MaxFieldLength]. */
@@ -65,8 +67,9 @@ enum class ProfileDraftError {
  * "Редактирование профиля" as the user has filled it: who they are, what they study, the text about them, their
  * interests and skills. Only the name is required.
  *
- * API-GAP G10: [studyLevel] is a free text, typed by the person, and goes to the server as it is. API-GAP G11:
- * [interestTypes] is written only when [ProfileCapabilities.interestTypes]; otherwise the server's value stays.
+ * docs/api-values.md: [studyLevel] is a free text, typed by the person, and goes to the server as it is. [interestTypes] is
+ * written as the codes of the types (`docs/api-values.md`); the entries of the server's `project_types` that the app
+ * does not know are kept next to them.
  */
 data class ProfileDraft(
     val name: String = "",
@@ -87,7 +90,7 @@ data class ProfileDraft(
         get() = studyYear.trim()
             .takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
             ?.toIntOrNull()
-            ?.takeIf { it in ProfileLimits.MinStudyYear..ProfileLimits.MaxStudyYear }
+            ?.takeIf { it >= ProfileLimits.MinStudyYear }
 
     /** Outer spaces trimmed, one-line texts and tags normalized, tags deduplicated. */
     fun normalized(): ProfileDraft = copy(

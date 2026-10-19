@@ -72,11 +72,13 @@ class ProfileDraftTest {
     }
 
     @Test
-    fun theYearOfStudyIsOptionalAndBetweenOneAndSix() {
+    fun theYearOfStudyIsOptionalAndAtLeastOneWithNoUpperLimit() {
         assertEquals(emptySet(), valid.copy(studyYear = "").validate())
         assertEquals(emptySet(), valid.copy(studyYear = "  ").validate())
-        for (year in 1..6) assertEquals(emptySet(), valid.copy(studyYear = year.toString()).validate(), "year $year")
-        for (year in listOf("0", "7", "10", "-1", "+3", "abc", "3.5", "1 2", "99999999999999999999")) {
+        for (year in listOf(1, 2, 6, 7, 10, 25, 100)) {
+            assertEquals(emptySet(), valid.copy(studyYear = year.toString()).validate(), "year $year")
+        }
+        for (year in listOf("0", "-1", "+3", "abc", "3.5", "1 2", "99999999999999999999")) {
             assertEquals(setOf(ProfileDraftError.StudyYearInvalid), valid.copy(studyYear = year).validate(), year)
         }
     }
@@ -86,7 +88,10 @@ class ProfileDraftTest {
         assertEquals(3, valid.copy(studyYear = "3").studyYearNumber)
         assertEquals(4, valid.copy(studyYear = " 4 ").studyYearNumber)
         assertNull(valid.copy(studyYear = "").studyYearNumber)
-        assertNull(valid.copy(studyYear = "7").studyYearNumber)
+        assertEquals(7, valid.copy(studyYear = "7").studyYearNumber)
+        assertEquals(10, valid.copy(studyYear = "10").studyYearNumber)
+        assertNull(valid.copy(studyYear = "0").studyYearNumber)
+        assertNull(valid.copy(studyYear = "-1").studyYearNumber)
         assertNull(valid.copy(studyYear = "x").studyYearNumber)
     }
 

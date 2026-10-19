@@ -20,7 +20,8 @@ import org.matchlab.academic_net.utils.ChatListTime
  * @property person the name, the university, the study and the field; the line under the name
  * ("Stanford · Бакалавриат, 3 курс · Computer Science") is made by the screen with `subtitleText`, because the study is
  * written in the language of the app
- * @property interestTypes the project types the person is interested in; empty while the server gives none (API-GAP G11)
+ * @property interestTypes the project types the person is interested in; empty when the person chose none or the source
+ * cannot read them (`ProfileCapabilities.interestTypes`)
  * @property interests free topics ("Computer Vision")
  * @property works the newest works only, see [hasMoreWorks]
  * @property hasMoreWorks there are more works than [works]: the section has "Все"

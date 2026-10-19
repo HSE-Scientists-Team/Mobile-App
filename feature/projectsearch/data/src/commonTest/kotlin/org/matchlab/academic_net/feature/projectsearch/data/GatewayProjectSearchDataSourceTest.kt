@@ -11,6 +11,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.Spheres
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.common.result.RemoteFailure
@@ -40,6 +41,9 @@ class GatewayProjectSearchDataSourceTest {
             failure?.let { throw it }
             return answer
         }
+
+        override suspend fun list(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
+            throw AssertionError("The search never reads the catalog")
 
         override suspend fun get(id: String): ProjectDto = throw AssertionError("The search never reads one project")
     }
@@ -72,8 +76,8 @@ class GatewayProjectSearchDataSourceTest {
     // ---- what is asked ----
 
     @Test
-    fun bothFiltersThatNeedUndefinedValuesAreOff() {
-        assertEquals(ProjectSearchCapabilities(typeFilter = false, durationFilter = false), source.capabilities)
+    fun bothTheTypeFilterAndTheDurationFilterAreOn() {
+        assertEquals(ProjectSearchCapabilities(typeFilter = true, durationFilter = true), source.capabilities)
     }
 
     @Test
@@ -98,14 +102,18 @@ class GatewayProjectSearchDataSourceTest {
     }
 
     @Test
-    fun theSphereGoesAsItsNameAndABlankNameIsNotSent() = runTest {
-        source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere("cs", " Computer Science "))), PageRequest.First)
-        source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere("x", "  "))), PageRequest.First)
+    fun theSphereGoesAsItsCodeAndABlankCodeIsNotSent() = runTest {
+        source.search(ProjectQuery(filters = ProjectFilters(sphere = Spheres.all[0])), PageRequest.First)
+        source.search(ProjectQuery(filters = ProjectFilters(sphere = Spheres.all[11])), PageRequest.First)
+        source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere(" 3 ", "Инженерия"))), PageRequest.First)
+        source.search(ProjectQuery(filters = ProjectFilters(sphere = Sphere("  ", "Пустая"))), PageRequest.First)
         source.search(ProjectQuery(filters = ProjectFilters(sphere = null)), PageRequest.First)
 
-        assertEquals("Computer Science", api.searches[0].first.field)
-        assertNull(api.searches[1].first.field)
-        assertNull(api.searches[2].first.field)
+        assertEquals("1", api.searches[0].first.field)
+        assertEquals("12", api.searches[1].first.field)
+        assertEquals("3", api.searches[2].first.field)
+        assertNull(api.searches[3].first.field)
+        assertNull(api.searches[4].first.field)
     }
 
     @Test
@@ -116,16 +124,59 @@ class GatewayProjectSearchDataSourceTest {
     }
 
     @Test
-    fun theTypesAndTheDurationsAreNeverSent() = runTest {
-        // API-GAP G40, G45: the filters are off in the capabilities, and even a query that has them does not send them.
+    fun oneChosenTypeGoesAsItsCode() = runTest {
+        source.search(ProjectQuery(filters = ProjectFilters(types = setOf(ProjectType.Scientific))), PageRequest.First)
+        source.search(ProjectQuery(filters = ProjectFilters(types = setOf(ProjectType.Practical))), PageRequest.First)
+
+        assertEquals("1", api.searches[0].first.type)
+        assertEquals("2", api.searches[1].first.type)
+    }
+
+    @Test
+    fun noTypeOrBothTypesSendNoTypeAtAll() = runTest {
+        source.search(ProjectQuery(filters = ProjectFilters(types = emptySet())), PageRequest.First)
+        source.search(ProjectQuery(filters = ProjectFilters(types = ProjectType.entries.toSet())), PageRequest.First)
+
+        assertNull(api.searches[0].first.type)
+        assertNull(api.searches[1].first.type)
+    }
+
+    @Test
+    fun oneChosenDurationGoesAsItsCode() = runTest {
+        for (duration in ProjectDuration.entries) {
+            source.search(ProjectQuery(filters = ProjectFilters(durations = setOf(duration))), PageRequest.First)
+        }
+
+        assertEquals(listOf("1", "2", "3"), api.searches.map { it.first.duration })
+    }
+
+    @Test
+    fun noDurationOrSeveralDurationsSendNoDuration() = runTest {
+        source.search(ProjectQuery(filters = ProjectFilters(durations = emptySet())), PageRequest.First)
+        source.search(
+            ProjectQuery(filters = ProjectFilters(durations = setOf(ProjectDuration.UpTo3Months, ProjectDuration.Over6Months))),
+            PageRequest.First,
+        )
+        source.search(ProjectQuery(filters = ProjectFilters(durations = ProjectDuration.entries.toSet())), PageRequest.First)
+
+        for (search in api.searches) assertNull(search.first.duration)
+    }
+
+    @Test
+    fun everyFilterTogetherGoesUnderItsOwnParameter() = runTest {
         val filters = ProjectFilters(
-            types = setOf(ProjectType.Scientific),
-            durations = setOf(ProjectDuration.UpTo3Months),
+            types = setOf(ProjectType.Practical),
+            sphere = Spheres.all[4],
+            durations = setOf(ProjectDuration.From3To6Months),
+            keywords = listOf("ROS"),
         )
 
-        source.search(ProjectQuery(filters = filters), PageRequest.First)
+        source.search(ProjectQuery(text = "робот", filters = filters), PageRequest(20, 20))
 
-        assertEquals(ProjectSearchParams(), api.searches.single().first)
+        assertEquals(
+            ProjectSearchParams(q = "робот", type = "2", field = "5", duration = "2", tags = listOf("ROS")),
+            api.searches.single().first,
+        )
     }
 
     // ---- what comes back ----

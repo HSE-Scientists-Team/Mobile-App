@@ -18,8 +18,6 @@
 
     <!-- Profile of another person -->
     <string name="profile_message">Написать</string>
-    <string name="profile_status_verified">Профиль подтверждён</string>
-    <string name="profile_status_unverified">Профиль не подтверждён</string>
 
     <!-- Sections of a profile -->
     <string name="profile_about">О себе</string>
@@ -105,8 +103,8 @@
     <string name="profile_error_about_too_long">Не больше %1$d символов</string>
     <string name="profile_error_too_many_interests">Не больше %1$d интересов</string>
     <string name="profile_error_too_many_skills">Не больше %1$d навыков</string>
-    <!-- 1: the first year of study, 2: the last -->
-    <string name="profile_error_study_year">Введите курс от %1$d до %2$d</string>
+    <!-- 1: the first year of study; there is no last one, the server judges -->
+    <string name="profile_error_study_year">Введите курс: целое число от %1$d</string>
 
     <!-- New work -->
     <string name="profile_work_new_title">Новая работа</string>
@@ -133,7 +131,7 @@
     <string name="profile_document_field_year">Год</string>
     <string name="profile_document_field_year_hint">Например, 2027</string>
     <string name="profile_document_field_proof">Ссылка на подтверждение *</string>
-    <string name="profile_document_banner">Документ проверяет модератор. Подтверждённый документ об образовании добавляет значок доверия к вашему профилю.</string>
+    <string name="profile_document_banner">Документ проверяет модератор. Подтверждённый документ получает значок доверия.</string>
     <!-- The proof of a document is the public link of its record until the app can upload files -->
     <string name="profile_proof_public_warning">Ссылку на подтверждение увидят все, кто откроет ваш профиль</string>
     <!-- A file attached to the record elsewhere: the form shows that it is there and keeps it -->

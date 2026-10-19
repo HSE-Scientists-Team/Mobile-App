@@ -23,11 +23,13 @@ import org.matchlab.academic_net.feature.projects.domain.RoleDraft
 
 /** The repository only passes everything to the source; `publishProject` is the source's `createProject`. */
 class ProjectsRepositoryImplTest {
+    private val sphere = Sphere("Biology", "Biology")
+
     private val project = Project(
         id = ProjectId("p1"),
         title = "T",
         type = null,
-        sphere = Sphere("Biology", "Biology"),
+        sphere = sphere,
         problem = "P",
         goal = "G",
         tags = emptyList(),
@@ -52,7 +54,7 @@ class ProjectsRepositoryImplTest {
         override suspend fun createProject(project: NewProject): Project = this.project.also { calls += "create ${project.title}" }
         override suspend fun unpublishProject(id: ProjectId): Project = project.also { calls += "unpublish ${id.value}" }
         override suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role = this.role.also { calls += "role ${projectId.value} ${role.title}" }
-        override suspend fun getSpheres(): List<Sphere> = listOf(project.sphere).also { calls += "spheres" }
+        override suspend fun getSpheres(): List<Sphere> = listOfNotNull(project.sphere).also { calls += "spheres" }
     }
 
     @Test
@@ -63,10 +65,10 @@ class ProjectsRepositoryImplTest {
 
         assertSame(project, repository.loadProject(id))
         assertSame(project, repository.getProject(id))
-        assertSame(project, repository.publishProject(NewProject("Новый", ProjectType.Practical, project.sphere, "P", "G", emptyList(), emptyList(), ProjectPeriod(YearMonth(2026, 10), YearMonth(2026, 11)))))
+        assertSame(project, repository.publishProject(NewProject("Новый", ProjectType.Practical, sphere, "P", "G", emptyList(), emptyList(), ProjectPeriod(YearMonth(2026, 10), YearMonth(2026, 11)))))
         assertSame(project, repository.unpublishProject(id))
         assertSame(source.role, repository.addRole(id, RoleDraft("Дизайнер")))
-        assertEquals(listOf(project.sphere), repository.getSpheres())
+        assertEquals(listOf(sphere), repository.getSpheres())
         assertEquals(listOf(project), repository.observeMyProjects().first())
         assertEquals(project, repository.observeProject(id).first())
         assertEquals(

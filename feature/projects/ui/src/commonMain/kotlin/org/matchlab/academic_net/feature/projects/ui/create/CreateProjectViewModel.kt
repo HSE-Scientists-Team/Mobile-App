@@ -48,13 +48,22 @@ data class CreateProjectUiState(
     val publishFailed: Boolean get() = publishFailure != null
 
     /**
-     * The server cannot create projects at all (API-GAP G40, G43), which is not a failure to try again: the screen says
-     * "Создание проектов пока недоступно на сервере" instead of "Не удалось опубликовать проект".
+     * The source of the data cannot create projects at all (`ProjectsCapabilities.canCreate` is off), which is not a
+     * failure to try again: the screen says "Создание проектов пока недоступно на сервере" instead of "Не удалось
+     * опубликовать проект". The screen is not offered then, so this is the guard for a call made anyway.
      */
     val publishUnavailable: Boolean get() = publishFailure is FeatureUnavailableException
 }
 
-/** "05 Создание проекта": "опубликовать новый проект", "объявить роли", "выбрать сферу проекта". */
+/**
+ * "05 Создание проекта": "опубликовать новый проект", "объявить роли", "выбрать сферу проекта".
+ *
+ * **Publishing.** One form makes one project: [onPublishClick] does nothing while a request is on its way and once the
+ * project exists ([CreateProjectUiState.publishedProjectId]), the guard stays on while the form leaves the screen. A
+ * form that does not pass the checks shows its errors and sends nothing. A failure of the request (no network, a 400 or
+ * a 5xx of the server) is [CreateProjectUiState.publishFailure]: the form keeps everything typed, the button sends it
+ * again, and the next edit clears the message.
+ */
 class CreateProjectViewModel(
     private val publishProject: PublishProjectUseCase,
     private val getSpheres: GetSpheresUseCase,

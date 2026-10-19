@@ -79,8 +79,13 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
- * "05 Создание проекта". The start and end dates of the design are left out: setting a project's
- * dates is a story of the second sprint.
+ * "05 Создание проекта": the title, the type, the sphere, the problem, the goal, the tags, the roles and the first and
+ * the last month of the project. "Опубликовать проект" sends the form; when it is accepted the screen leaves for the new
+ * project ([onPublished]), when the request fails the message is under the form, the form keeps what was typed and the
+ * same button sends it again.
+ *
+ * @param onClose the cross of the app bar
+ * @param onPublished the project was created: the screen leaves for it
  */
 @Composable
 fun CreateProjectRoute(
@@ -331,7 +336,7 @@ internal fun CreateProjectScreen(
         ) {
             if (state.publishFailed) {
                 Text(
-                    // API-GAP G40, G43: a server that cannot create projects is not a failure to try again.
+                    // A source that cannot create projects at all is not a failure to try again.
                     text = stringResource(
                         if (state.publishUnavailable) Res.string.projects_create_unavailable else Res.string.projects_publish_error,
                     ),

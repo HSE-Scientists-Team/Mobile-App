@@ -18,16 +18,22 @@ import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.PersonName
 
+/**
+ * What [CandidateCard] shows.
+ *
+ * @property name the candidate's name; an empty one is shown as "Без имени" (see [PersonName])
+ * @property subtitle the line under the name, e.g. "Stanford · 3 курс бакалавриата · CS"
+ * @property note highlighted line, e.g. "Совпадение 92% · отклик 2 дня назад"; `null` for none
+ * @property tags the candidate's skills as chips
+ * @property showActions accept, decline and chat buttons for an application to a role
+ */
 @Immutable
 data class CandidateCardUiModel(
     val name: String,
     val subtitle: String,
     val avatar: DrawableResource,
-    val isVerified: Boolean = false,
-    /** Highlighted line, e.g. "Совпадение 92% · отклик 2 дня назад". */
     val note: String? = null,
     val tags: List<String> = emptyList(),
-    /** Accept, decline and chat buttons for an application to a role. */
     val showActions: Boolean = false,
 )
 
@@ -46,7 +52,7 @@ fun CandidateCard(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(model.avatar, contentDescription = null, size = 48.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                PersonName(model.name, model.isVerified, MaterialTheme.typography.titleMedium)
+                PersonName(model.name, MaterialTheme.typography.titleMedium)
                 Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                 if (model.note != null) {
                     Text(model.note, style = MaterialTheme.typography.labelSmall, color = colors.primary)

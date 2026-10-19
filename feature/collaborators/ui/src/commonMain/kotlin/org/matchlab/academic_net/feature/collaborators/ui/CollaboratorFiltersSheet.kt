@@ -36,9 +36,12 @@ import org.matchlab.academic_net.utils.withoutTag
 /**
  * "08b Фильтры коллабораторов": the draft of the filters, "Сбросить" in the header and "Показать N" below.
  *
- * @param showWorkTypes whether the group "Тип работы" is offered (API-GAP G11: only if the server can filter by the
- * type of a person's works, see `CollaboratorsCapabilities.projectTypeFilter`); when it is not, the group is not there
- * at all and there is no line that explains why
+ * "Верифицированный профиль" and "Есть верифицированные проекты" are filters of the search (the server looks at its own
+ * data); the people in the results carry no verification mark.
+ *
+ * @param showWorkTypes whether the group "Тип работы" is offered (only if the source can filter by the type of a
+ * person's works, see `CollaboratorsCapabilities.projectTypeFilter` and `docs/api-values.md`); when it is not, the
+ * group is not there at all and there is no line that explains why
  */
 @Composable
 internal fun CollaboratorFiltersSheet(
@@ -73,7 +76,7 @@ internal fun CollaboratorFiltersSheet(
                 onDraftChange(draft.copy(hasPublications = it))
             }
         }
-        // API-GAP G11: `project_type` has no list of values, so a source that cannot send it hides the group.
+        // A source that cannot send `project_type` hides the group.
         if (showWorkTypes) {
             FilterChipGroup(stringResource(Res.string.collaborators_group_work_type)) {
                 ToggleChip(Res.string.collaborators_filter_scientific, ProjectType.Scientific in draft.workTypes) {

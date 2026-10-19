@@ -11,7 +11,7 @@ import org.matchlab.academic_net.gateway.dto.PersonDto
 /**
  * The person as a row of the people search and of the feed: the id, the name with its outer spaces cut (an empty one is
  * the UI's "Без имени"), `verified`, the university, the study and the field of study (`specialization`). `null` for a
- * record without a `user_id`: it could be neither opened nor told apart from the others. API-GAP G10: the study level is
+ * record without a `user_id`: it could be neither opened nor told apart from the others. docs/api-values.md: the study level is
  * the server's text as it is (blank is `null`), a year of 0 or less is "not given". API-GAP G18: no avatar.
  * API-GAP G30: the rating is not read.
  */

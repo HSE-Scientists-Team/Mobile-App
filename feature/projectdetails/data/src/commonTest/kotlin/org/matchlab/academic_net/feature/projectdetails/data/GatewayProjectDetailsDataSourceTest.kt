@@ -37,6 +37,9 @@ class GatewayProjectDetailsDataSourceTest {
 
         override suspend fun search(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
             throw AssertionError("The page of a project never searches")
+
+        override suspend fun list(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
+            throw AssertionError("The page of a project never reads the catalog")
     }
 
     private class Assembler : ProjectAssembler {

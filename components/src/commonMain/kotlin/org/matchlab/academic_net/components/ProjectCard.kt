@@ -16,23 +16,22 @@ import org.jetbrains.compose.resources.DrawableResource
 /**
  * What [ProjectCard] shows.
  *
- * @property type the project type, the first chip, e.g. "Научный"; `null` leaves the chip out (API-GAP G40: the
- *  server gives no type)
+ * @property author the author line, e.g. "Проф. Елена Васкес · Stanford"; the author has no verification mark
+ * @property type the project type, the first chip, e.g. "Научный"; `null` leaves the chip out (the type is unknown,
+ *  see `docs/api-values.md`)
  * @property footer the line with the team size and, when the months are known, the dates (see `projectCardFooter`)
  * @property tags the chips after the type, e.g. the status and the sphere; the card draws no row of chips when there
  *  is neither a [type] nor a tag
+ * @property showInvitationActions accept, decline and chat buttons of an invitation to the project
  */
 @Immutable
 data class ProjectCardUiModel(
     val title: String,
-    /** Author line, e.g. "Проф. Елена Васкес · Stanford". */
     val author: String,
     val authorAvatar: DrawableResource,
     val type: String?,
     val footer: String,
     val tags: List<String> = emptyList(),
-    val isAuthorVerified: Boolean = false,
-    /** Accept, decline and chat buttons of an invitation to the project. */
     val showInvitationActions: Boolean = false,
 )
 
@@ -53,13 +52,12 @@ fun ProjectCard(
             Avatar(model.authorAvatar, contentDescription = null, size = 24.dp)
             Text(
                 text = model.author,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (model.isAuthorVerified) VerifiedBadge()
         }
         if (model.type != null || model.tags.isNotEmpty()) {
             FlowRow(

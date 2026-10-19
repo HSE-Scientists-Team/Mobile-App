@@ -20,7 +20,6 @@ import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppAvatars
-import org.matchlab.academic_net.components.AppStatusChipTone
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
@@ -31,7 +30,6 @@ import org.matchlab.academic_net.feature.profile.domain.ReviewId
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCard
 import org.matchlab.academic_net.feature.profile.ui.ProfileHeaderCardUiModel
 import org.matchlab.academic_net.feature.profile.ui.ProfileSections
-import org.matchlab.academic_net.feature.profile.ui.ProfileStatusUiModel
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiDependencies
 import org.matchlab.academic_net.feature.profile.ui.ProfileUiModel
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
@@ -39,8 +37,6 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_found_text
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_found_title
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_retry
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_status_unverified
-import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_status_verified
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_title
 import org.matchlab.academic_net.feature.profile.ui.openableLink
 import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
@@ -165,9 +161,6 @@ private fun ColumnScope.ProfileContent(
                 subtitle = profile.person.subtitleText(),
                 // API-GAP G18: no real avatars yet, an illustration chosen by the id.
                 avatar = AppAvatars.forKey(profile.user.id.value),
-                isVerified = profile.user.isVerified,
-                // Verification status of the person; on their own page it is not needed.
-                statuses = if (profile.canMessage) listOf(verificationStatus(profile.user.isVerified)) else emptyList(),
                 showChatButton = profile.canMessage,
             ),
             onChatClick = onMessageClick,
@@ -188,11 +181,4 @@ private fun ColumnScope.ProfileContent(
             onAuthorChatClick = onAuthorChatClick,
         )
     }
-}
-
-@Composable
-private fun verificationStatus(isVerified: Boolean): ProfileStatusUiModel = if (isVerified) {
-    ProfileStatusUiModel(stringResource(Res.string.profile_status_verified), AppStatusChipTone.Success)
-} else {
-    ProfileStatusUiModel(stringResource(Res.string.profile_status_unverified), AppStatusChipTone.Off)
 }

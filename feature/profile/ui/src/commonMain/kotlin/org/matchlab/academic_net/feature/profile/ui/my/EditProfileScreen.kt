@@ -72,13 +72,14 @@ import org.matchlab.academic_net.feature.profile.ui.interestLabel
 import org.matchlab.academic_net.feature.profile.ui.toCardUiModel
 
 /**
- * "10b Редактирование профиля": the name (required), the university, the level of study (a free text, API-GAP G10) and
+ * "10b Редактирование профиля": the name (required), the university, the level of study (a free text, docs/api-values.md) and
  * the year, the field, the text about the person, the interests and the skills, then the documents and the works. The
  * cross drops what was typed without asking. "Сохранить" saves the form; the documents and the works are added and
  * edited on their own screens, at once: their cards open for editing and have a chevron.
  *
- * API-GAP G11: the chips of the project types are there only when the server takes them
- * (`ProfileCapabilities.interestTypes`); the Gateway does not, and the types it has are kept as they are.
+ * The chips of the project types ("Научные проекты", "Практические проекты") are there only when the source takes them
+ * (`ProfileCapabilities.interestTypes`); the types the person has chosen elsewhere and the app does not know are kept
+ * as they are.
  *
  * @param onClose the cross, and the screen being saved
  * @param onAddWorkClick "Добавить работу"
@@ -264,7 +265,7 @@ private fun EditForm(
                 null
             },
         )
-        // API-GAP G10: the level of study is a free text, as in the design (there is no list of values to choose from).
+        // docs/api-values.md: the level of study is a free text, as in the design (there is no list of values to choose from).
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             AppTextField(
                 value = draft.studyLevel,
@@ -286,7 +287,7 @@ private fun EditForm(
                 enabled = fieldsEnabled,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 errorText = if (ProfileDraftError.StudyYearInvalid in errors) {
-                    stringResource(Res.string.profile_error_study_year, ProfileLimits.MinStudyYear, ProfileLimits.MaxStudyYear)
+                    stringResource(Res.string.profile_error_study_year, ProfileLimits.MinStudyYear)
                 } else {
                     null
                 },
@@ -316,8 +317,7 @@ private fun EditForm(
                 null
             },
         )
-        // API-GAP G11: the project types of a profile have no list of values in the API; the chips are there only when
-        // the server takes them.
+        // The chips of the project types are there only when the source reads and writes them.
         if (interestTypesEditable) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(

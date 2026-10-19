@@ -27,7 +27,12 @@ interface ProjectsRepository {
     /** What the server behind the projects can do; the screens hide the rest. */
     val capabilities: ProjectsCapabilities
 
-    /** The viewer's projects, newest first. API-GAP G44: fails unless [ProjectsCapabilities.canListMine]. */
+    /**
+     * The viewer's projects: the ones created in this session first, then the server's order. Collecting it loads the list
+     * on first use, and a failure of that load is thrown to the collector, which asks again by collecting again; after
+     * that the list follows the changes made in this session (a project created, taken off publication, given a role).
+     * Fails with `FeatureUnavailableException` unless [ProjectsCapabilities.canListMine].
+     */
     fun observeMyProjects(): Flow<List<Project>>
 
     /**
@@ -42,12 +47,13 @@ interface ProjectsRepository {
     /** The project as last read in this session, else as [loadProject] reads it. */
     suspend fun getProject(id: ProjectId): Project?
 
-    /** Creates the project already published. API-GAP G40, G43: only with [ProjectsCapabilities.canCreate]. */
+    /** Creates the project already published. Only with [ProjectsCapabilities.canCreate]. */
     suspend fun publishProject(project: NewProject): Project
 
     /**
-     * Hides the project from search. API-GAP G42: only with [ProjectsCapabilities.canUnpublish].
-     * @throws ProjectNotFoundException
+     * Hides the project from search. Only with [ProjectsCapabilities.canUnpublish].
+     * @throws ProjectNotFoundException the project is gone (404)
+     * @throws ProjectConflictException the project changed meanwhile (409); it has been read again
      */
     suspend fun unpublishProject(id: ProjectId): Project
 
@@ -58,6 +64,6 @@ interface ProjectsRepository {
      */
     suspend fun addRole(projectId: ProjectId, role: RoleDraft): Role
 
-    /** The spheres a project can belong to: the app's list (API-GAP G46). */
+    /** The spheres a project can belong to: the app's own list, `Spheres.all` (`docs/api-values.md`). */
     suspend fun getSpheres(): List<Sphere>
 }

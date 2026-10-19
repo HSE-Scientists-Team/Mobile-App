@@ -1,10 +1,14 @@
 package org.matchlab.academic_net.gateway
 
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
+import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
-import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.Spheres
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.gateway.dto.ProjectDto
@@ -27,9 +31,10 @@ class ProjectMappingTest {
     private fun dto(
         id: String = "p-1",
         owner: String = "owner-1",
-        details: ProjectInputDto = ProjectInputDto(title = "AI-навигация", field = "Computer Science"),
+        details: ProjectInputDto = ProjectInputDto(title = "AI-навигация", field = "1"),
+        status: String = "1",
         roles: List<ProjectRoleDto> = emptyList(),
-    ) = ProjectDto(id = id, ownerUserId = owner, details = details, status = "published", revision = 3, roles = roles)
+    ) = ProjectDto(id = id, ownerUserId = owner, details = details, status = status, revision = 3, roles = roles)
 
     private fun profile(id: String = "owner-1", name: String = "Елена Васкес", verified: Boolean = true) =
         UserProfileDto(userId = id, details = UserProfileInputDto(displayName = name), verified = verified)
@@ -68,7 +73,7 @@ class ProjectMappingTest {
                 id = "p-9",
                 details = ProjectInputDto(
                     title = "  AI-навигация ",
-                    field = " Computer Science\t",
+                    field = " 1\t",
                     problem = "\nGPS не работает ",
                     goal = " Маршруты ",
                 ),
@@ -79,13 +84,24 @@ class ProjectMappingTest {
         assertEquals("AI-навигация", project.title)
         assertEquals("GPS не работает", project.problem)
         assertEquals("Маршруты", project.goal)
-        assertEquals(Sphere("Computer Science", "Computer Science"), project.sphere)
+        assertEquals(Spheres.all[0], project.sphere)
     }
 
     @Test
-    fun theSphereIsTheTextOfTheFieldAsBothTheIdAndTheName() {
-        // API-GAP G46: the API names a field by its text and has no list of fields.
-        assertEquals(Sphere("Биология", "Биология"), project(dto(details = ProjectInputDto(field = "Биология"))).sphere)
+    fun theSphereIsTheOneWhoseCodeTheFieldHolds() {
+        for (sphere in Spheres.all) {
+            assertEquals(sphere, project(dto(details = ProjectInputDto(field = sphere.id))).sphere)
+        }
+    }
+
+    @Test
+    fun aFieldThatIsNoCodeOfASphereIsUnknownAndTheProjectStays() {
+        for (field in listOf("", "  ", "0", "13", "03", "Биология", "Computer Science")) {
+            val project = project(dto(details = ProjectInputDto(title = "T", field = field)))
+
+            assertNull(project.sphere, "field '$field'")
+            assertEquals("T", project.title)
+        }
     }
 
     @Test
@@ -96,15 +112,81 @@ class ProjectMappingTest {
     }
 
     @Test
-    fun theTypeTheStatusAndThePeriodAreUnknown() {
-        // API-GAP G40, G41, G43: the strings of the server have no list of values or format, so nothing parses them.
+    fun theTypeTheStatusAndThePeriodAreReadByTheirCodes() {
         val project = project(
-            dto(details = ProjectInputDto(title = "T", type = "scientific", plannedStart = "2026-10", plannedEnd = "2027-03")),
+            dto(
+                details = ProjectInputDto(title = "T", type = "1", plannedStart = "2026-10-01", plannedEnd = "2027-03-31"),
+                status = "1",
+            ),
         )
+
+        assertEquals(ProjectType.Scientific, project.type)
+        assertEquals(ProjectStatus.Recruiting, project.status)
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), project.period)
+    }
+
+    @Test
+    fun theOtherCodesAreReadToo() {
+        val project = project(dto(details = ProjectInputDto(type = " 2 "), status = "2 "))
+
+        assertEquals(ProjectType.Practical, project.type)
+        assertEquals(ProjectStatus.Unpublished, project.status)
+    }
+
+    @Test
+    fun valuesTheAppHasNoCodeForAreUnknownAndDoNotHideTheProject() {
+        val project = project(
+            dto(
+                id = "p-7",
+                details = ProjectInputDto(
+                    title = "T",
+                    type = "scientific",
+                    field = "99",
+                    plannedStart = "soon",
+                    plannedEnd = "later",
+                ),
+                status = "published",
+            ),
+        )
+
+        assertEquals(ProjectId("p-7"), project.id)
+        assertEquals("T", project.title)
+        assertNull(project.type)
+        assertNull(project.status)
+        assertNull(project.sphere)
+        assertNull(project.period)
+    }
+
+    @Test
+    fun nothingSentIsUnknown() {
+        val project = project(dto(details = ProjectInputDto(title = "T"), status = ""))
 
         assertNull(project.type)
         assertNull(project.status)
+        assertNull(project.sphere)
         assertNull(project.period)
+    }
+
+    @Test
+    fun codesWithAZeroOrADecimalPointAreUnknown() {
+        val project = project(dto(details = ProjectInputDto(type = "01"), status = "1.0"))
+
+        assertNull(project.type)
+        assertNull(project.status)
+    }
+
+    @Test
+    fun anEndBeforeTheStartLeavesThePeriodUnknownAndTheProjectShown() {
+        val project = project(dto(details = ProjectInputDto(title = "T", plannedStart = "2027-03-01", plannedEnd = "2026-10-31")))
+
+        assertNull(project.period)
+        assertEquals("T", project.title)
+    }
+
+    @Test
+    fun oneMissingDateLeavesThePeriodUnknown() {
+        assertNull(project(dto(details = ProjectInputDto(plannedStart = "2026-10-01", plannedEnd = ""))).period)
+        assertNull(project(dto(details = ProjectInputDto(plannedStart = "", plannedEnd = "2026-10-31"))).period)
     }
 
     // ---- the initiator ----
@@ -218,5 +300,9 @@ class ProjectMappingTest {
         assertEquals(2, project.totalPlaces)
         assertEquals(1, project.occupiedPlaces)
         assertFalse(project.viewerIsInitiator)
+        assertEquals(ProjectType.Scientific, project.type)
+        assertEquals(ProjectStatus.Recruiting, project.status)
+        assertEquals(Spheres.all[0], project.sphere)
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), project.period)
     }
 }

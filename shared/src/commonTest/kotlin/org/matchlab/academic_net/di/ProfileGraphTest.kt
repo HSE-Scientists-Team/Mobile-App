@@ -2,6 +2,7 @@ package org.matchlab.academic_net.di
 
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.LoadResult
@@ -18,7 +19,9 @@ import org.matchlab.academic_net.feature.profile.domain.WorkDraft
 import org.matchlab.academic_net.feature.profile.domain.WorkId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -123,6 +126,34 @@ class ProfileGraphTest {
         val body = server.requests("PUT /api/v1/users/me/profile").single().body
         assertTrue("\"display_name\":\"Имя\"" in body, body)
         assertTrue("\"university\":\"ВШЭ\"" in body, body)
+    }
+
+    @Test
+    fun theProjectTypesOfTheProfileAreReadAndWrittenAsCodesAndTheUnknownEntriesStay() = runTest {
+        var saved: String? = null
+        val server = FakeServer().apply {
+            onOther = { arrival ->
+                when (arrival.call) {
+                    "GET /api/v1/users/me/profile" ->
+                        json("""{"user_id":"$me","details":${saved ?: """{"display_name":"Я","project_types":["1","from-another-client"]}"""}}""")
+                    "PUT /api/v1/users/me/profile" -> {
+                        saved = arrival.body
+                        json("""{"user_id":"$me","details":${arrival.body}}""")
+                    }
+                    else -> jsonError(HttpStatusCode.NotFound, "not found")
+                }
+            }
+        }
+        val dependencies = dependenciesOf(server)
+
+        val result = dependencies.profile.updateProfile(ProfileDraft(name = "Я", interestTypes = setOf(ProjectType.Practical)))
+
+        val mine = assertIs<SubmitResult.Success<MyProfile>>(result).value
+        assertEquals(setOf(ProjectType.Practical), mine.profile.interests.projectTypes)
+        val body = assertNotNull(saved)
+        assertTrue("\"project_types\":[\"from-another-client\",\"2\"]" in body, body)
+        assertTrue(dependencies.profile.capabilities.interestTypes)
+        assertFalse(dependencies.profile.capabilities.verificationStatuses)
     }
 
     @Test

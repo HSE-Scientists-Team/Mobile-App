@@ -129,10 +129,8 @@ private fun ColumnScope.ReviewContent(
             model = PersonCardUiModel(
                 name = review.author.name,
                 subtitle = review.authorLine(),
-                // API-GAP G18: no real avatars yet. API-GAP G15: the API does not say whether the author is verified,
-                // so with the Gateway there is no shield.
+                // API-GAP G18: no real avatars yet.
                 avatar = AppAvatars.forKey(review.author.id.value),
-                isVerified = review.author.isVerified,
                 // API-GAP G55: an author the server gave no id for has no profile to open and nobody to message.
                 showChatButton = review.canMessageAuthor,
                 chatContentDescription = stringResource(Res.string.profile_message_author),

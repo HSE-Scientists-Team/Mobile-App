@@ -244,7 +244,6 @@ private fun ProfileHeader(state: MyProfileUiState.Content) {
             subtitle = profile.person.subtitleText(),
             // API-GAP G18: no real avatars yet, an illustration chosen by the id.
             avatar = AppAvatars.forKey(profile.user.id.value),
-            isVerified = profile.user.isVerified,
         ),
     )
 }

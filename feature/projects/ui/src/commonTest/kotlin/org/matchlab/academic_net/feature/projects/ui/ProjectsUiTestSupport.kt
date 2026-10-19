@@ -15,14 +15,15 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.RoleMember
 import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.common.result.FeatureUnavailableException
 import org.matchlab.academic_net.feature.projects.domain.NewProject
 import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundException
 import org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities
@@ -64,18 +65,21 @@ internal fun project(
     status: ProjectStatus? = null,
     viewerIsInitiator: Boolean = true,
     roles: List<Role> = emptyList(),
+    type: ProjectType? = null,
+    sphere: Sphere? = TestSphere,
+    period: ProjectPeriod? = null,
 ) = Project(
     id = ProjectId(id),
     title = title,
-    type = null,
-    sphere = TestSphere,
+    type = type,
+    sphere = sphere,
     problem = "Проблема",
     goal = "Цель",
     tags = listOf("ML"),
     initiator = UserSummary(UserId("owner-$id"), "Автор", isVerified = true),
     roles = roles,
     status = status,
-    period = null,
+    period = period,
     viewerIsInitiator = viewerIsInitiator,
 )
 
@@ -93,7 +97,7 @@ internal class Gate {
 /**
  * The data layer as the screens see it: [cache] is what `observeProject` shows; [server] is what `loadProject` reads into
  * it. Every call is recorded; a gate holds it back, a failure fails it. Nothing is scripted by default but the happy path:
- * unpublishing marks the project, a role is added to it, creating is refused as the Gateway refuses it.
+ * unpublishing marks the project, a role is added to it, creating answers with [publishAnswer].
  */
 internal class FakeProjectsRepository(
     override var capabilities: ProjectsCapabilities = caps(),
@@ -122,7 +126,7 @@ internal class FakeProjectsRepository(
 
     // ---- creating ----
     val published = mutableListOf<NewProject>()
-    var publishFailure: Throwable? = FeatureUnavailableException("G40")
+    var publishFailure: Throwable? = null
     var publishGate: Gate? = null
     var publishAnswer: Project = project("new")
 

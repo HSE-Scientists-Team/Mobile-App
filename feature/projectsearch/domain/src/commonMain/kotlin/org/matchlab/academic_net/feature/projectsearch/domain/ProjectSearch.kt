@@ -9,10 +9,19 @@ import org.matchlab.academic_net.common.model.Sphere
  * counted inclusively (October 2026 to March 2027 is 6 months): [UpTo3Months] is 3 months or fewer, [From3To6Months] is
  * 4 to 6 and [Over6Months] is 7 or more. It is the length of the work, not a date range.
  *
- * API-GAP G45: the server's `duration` has no list of values, so the chips are offered only with
- * [ProjectSearchCapabilities.durationFilter] and are never sent otherwise.
+ * The API has no list of values for the server's `duration`, so the app defines the codes it sends
+ * (`docs/api-values.md`, decision of 2026-10-19). The chips are offered only with
+ * [ProjectSearchCapabilities.durationFilter]. The parameter holds one value, so a code is sent only when exactly one
+ * chip is chosen.
+ *
+ * @property code the string of digits sent as `duration`: the one place where the table of codes lives; a code is never
+ *  reused or renumbered.
  */
-enum class ProjectDuration { UpTo3Months, From3To6Months, Over6Months }
+enum class ProjectDuration(val code: String) {
+    UpTo3Months("1"),
+    From3To6Months("2"),
+    Over6Months("3"),
+}
 
 /**
  * The filters of "03 Фильтры проектов". Different groups restrict the result together ("and"); inside a group of chips
@@ -21,18 +30,19 @@ enum class ProjectDuration { UpTo3Months, From3To6Months, Over6Months }
  */
 data class ProjectFilters(
     /**
-     * Project types to show; empty means any. API-GAP G40: offered and sent only with
-     * [ProjectSearchCapabilities.typeFilter].
+     * Project types to show; empty means any. Offered only with [ProjectSearchCapabilities.typeFilter]; the server is
+     * sent the [ProjectType.code] of the type when exactly one is chosen (`docs/api-values.md`, §3).
      */
     val types: Set<ProjectType> = emptySet(),
     /**
-     * The sphere of the project; `null` means any. The server is sent [Sphere.name] as `field` (API-GAP G46: the API
-     * names a field by its text).
+     * The sphere of the project; `null` means any. The server is sent [Sphere.id], the code of the sphere, as `field`
+     * (`docs/api-values.md`).
      */
     val sphere: Sphere? = null,
     /**
-     * Duration buckets to show; empty means any. API-GAP G45: offered and sent only with
-     * [ProjectSearchCapabilities.durationFilter].
+     * Duration buckets to show; empty means any. Offered only with [ProjectSearchCapabilities.durationFilter]; the server
+     * is sent the [ProjectDuration.code] when exactly one is chosen (`docs/api-values.md`, §3). With two chosen it is
+     * asked for no duration at all and returns more than was chosen: a known limit of the API, which takes one value.
      */
     val durations: Set<ProjectDuration> = emptySet(),
     /** Words the project is looked for by, sent as tags (`tag=…`, one parameter for each, in this order). */

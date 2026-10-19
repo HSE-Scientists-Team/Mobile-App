@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.Backend
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.paging.PageRequest
 import org.matchlab.academic_net.feature.auth.domain.AccessToken
@@ -22,11 +23,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * The people search and the feed in the graph of a signed-in user over the Gateway (a mock engine): they are built
- * without a request, the search offers no filter by the type of works (API-GAP G11), the feed knows the viewer from the
- * session, and both talk through the one session client with the token of the session.
+ * without a request, the feed knows the viewer from the
+ * session, and both talk through the one session client with the token of the session. The search offers the filter by the
+ * type of works (the app's own codes, `docs/api-values.md`).
  */
 class PeopleAndFeedGraphTest {
     private val viewer = UserId("user-me")
@@ -73,11 +76,10 @@ class PeopleAndFeedGraphTest {
     }
 
     @Test
-    fun theSearchHasNoFilterByTheTypeOfWorks() {
-        // API-GAP G11: `project_type` has no list of values, so the Gateway source turns the filter off.
+    fun theSearchHasTheFilterByTheTypeOfWorks() {
         val graph = Graph { error("No request is expected") }
 
-        assertFalse(graph.component.dependencies.collaborators.capabilities.projectTypeFilter)
+        assertTrue(graph.component.dependencies.collaborators.capabilities.projectTypeFilter)
     }
 
     @Test
@@ -107,7 +109,31 @@ class PeopleAndFeedGraphTest {
         assertEquals("true", parameters["verified_only"])
         assertEquals("20", parameters["limit"])
         assertEquals("0", parameters["offset"])
-        assertFalse("project_type" in parameters.names())
+        assertFalse("project_type" in parameters.names(), "no type chosen: the parameter is not sent")
+    }
+
+    @Test
+    fun oneChosenTypeOfWorksReachesTheServerAsItsCode() = runTest {
+        val graph = graphAnswering("""{"items":[],"total":"0"}""")
+
+        graph.component.dependencies.collaborators.searchCollaborators(
+            CollaboratorQuery(filters = CollaboratorFilters(workTypes = setOf(ProjectType.Practical))),
+            PageRequest(0, 20),
+        ).getOrThrow()
+
+        assertEquals("2", graph.requests.single().url.parameters["project_type"])
+    }
+
+    @Test
+    fun bothTypesOfWorksSendNoProjectType() = runTest {
+        val graph = graphAnswering("""{"items":[],"total":"0"}""")
+
+        graph.component.dependencies.collaborators.searchCollaborators(
+            CollaboratorQuery(filters = CollaboratorFilters(workTypes = ProjectType.entries.toSet())),
+            PageRequest(0, 20),
+        ).getOrThrow()
+
+        assertFalse("project_type" in graph.requests.single().url.parameters.names())
     }
 
     @Test

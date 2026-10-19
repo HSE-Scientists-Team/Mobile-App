@@ -2,9 +2,11 @@ package org.matchlab.academic_net.gateway.mapping
 
 import org.matchlab.academic_net.common.model.Project
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
-import org.matchlab.academic_net.common.model.Sphere
+import org.matchlab.academic_net.common.model.Spheres
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.gateway.dto.ProjectDto
@@ -15,26 +17,27 @@ import org.matchlab.academic_net.gateway.dto.UserProfileDto
  * The project as the app shows it, or `null` when it cannot be shown: the server sent no `id` or no `owner_user_id`.
  *
  * [owner] is the owner's public profile; without one the initiator is the owner's id with an empty name (the UI
- * writes "Без имени"). Type, status and months are `null` (API-GAP G40, G41, G43); the sphere is the `field` text
- * (G46); roles come from the top-level `roles`, a role without an id is dropped, `slots` below 1 is 1 (G49), members
- * are not read (G52). [viewerId] tells the viewer's own projects.
+ * writes "Без имени"). The type, the status, the sphere and the months are read from the codes the app defines
+ * (`docs/api-values.md`): [ProjectType.fromCode], [ProjectStatus.fromCode], [Spheres.fromCode] and [periodOfPlanned]. A
+ * value the app has no code for is `null` ("unknown") and does not hide the project. Roles come from the top-level
+ * `roles`, a role without an id is dropped, `slots` below 1 is 1 (G49), members are not read (G52). [viewerId] tells
+ * the viewer's own projects.
  */
 fun ProjectDto.toProject(viewerId: UserId, owner: UserProfileDto?): Project? {
     if (id.isBlank() || ownerUserId.isBlank()) return null
-    val field = details.field.trim()
     val ownerId = UserId(ownerUserId)
     return Project(
         id = ProjectId(id),
         title = details.title.trim(),
-        type = null, // API-GAP G40: `type` has no list of values
-        sphere = Sphere(id = field, name = field), // API-GAP G46
+        type = ProjectType.fromCode(details.type),
+        sphere = Spheres.fromCode(details.field),
         problem = details.problem.trim(),
         goal = details.goal.trim(),
         tags = details.tags.cleaned(),
         initiator = owner?.toUserSummary()?.copy(id = ownerId) ?: UserSummary(ownerId, name = ""),
         roles = roles.mapNotNull { it.toRole() },
-        status = null, // API-GAP G41: `status` has no list of values
-        period = null, // API-GAP G43: `planned_*` have no format
+        status = ProjectStatus.fromCode(status),
+        period = periodOfPlanned(details.plannedStart, details.plannedEnd),
         viewerIsInitiator = ownerUserId == viewerId.value,
     )
 }

@@ -36,7 +36,6 @@ import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorState
 @Immutable
 data class RoleMemberItem(
     val name: String,
-    val isVerified: Boolean,
     val avatarKey: String,
     val rating: Double?,
     val completedProjects: Int,
@@ -74,14 +73,17 @@ data class RoleItem(
 }
 
 /**
- * The project as the three management tabs show it.
+ * The project as the three management tabs show it. What the app does not know about it (a value the server sent in a
+ * form the app does not recognize, see `docs/api-values.md`) is `null` and is left out of the screen.
  *
- * @property type `null` when the server gives none (API-GAP G40): the overview has no chip
- * @property status `null` when the server gives none (API-GAP G41): the overview has no chip and 07c says so
- * @property period `null` when the server gives none (API-GAP G43): the overview has no card of the months
+ * @property type `null` when unknown: the overview has no chip
+ * @property status `null` when unknown: the overview has no chip and 07c has no banner of the status
+ * @property sphere the name of the sphere, `null` when unknown: the overview has no chip
+ * @property period `null` when unknown: the overview has no card of the months
  * @property occupiedPlaces taken places of all roles, the "2" of "2 из 4 занято"
  * @property totalPlaces places of all roles, the "4" of "2 из 4 занято"
- * @property canUnpublish "Снять с публикации" is offered: the server can do it (API-GAP G42) and the project is recruiting
+ * @property canUnpublish "Снять с публикации" is offered: the source can do it, the viewer is the initiator and the
+ *  project is not unpublished yet; a project of an unknown status is offered too
  */
 @Immutable
 data class ProjectDetails(
@@ -89,7 +91,7 @@ data class ProjectDetails(
     val title: String,
     val type: ProjectType?,
     val status: ProjectStatus?,
-    val sphere: String,
+    val sphere: String?,
     val problem: String,
     val goal: String,
     val tags: List<String>,
@@ -140,8 +142,8 @@ data class ProjectManagementUiState(
  * The server's "no such project" ([LoadResult.NotFound], or [ProjectNotFoundException] when adding a role) is the
  * screen "Проект не найден".
  *
- * **What the server cannot do** is not offered: "Снять с публикации" only with [ProjectsCapabilities.canUnpublish]
- * (API-GAP G42) and a recruiting project (API-GAP G41: with an unknown status there is no action).
+ * **What the source cannot do** is not offered: "Снять с публикации" only with [ProjectsCapabilities.canUnpublish], to
+ * the initiator, and while the project is not [ProjectStatus.Unpublished]: an unknown status does not hide the action.
  *
  * **Guards.** Unpublishing and adding a role cannot start twice: [onUnpublishConfirm] works only for the open dialog
  * and not while a request is on its way, [onRoleSave] only for the open sheet and not while it is saving.
@@ -287,7 +289,7 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
     title = title,
     type = type,
     status = status,
-    sphere = sphere.name,
+    sphere = sphere?.name,
     problem = problem,
     goal = goal,
     tags = tags,
@@ -302,7 +304,6 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
             members = role.members.map { member ->
                 RoleMemberItem(
                     name = member.user.name,
-                    isVerified = member.user.isVerified,
                     avatarKey = member.user.id.value,
                     rating = member.rating,
                     completedProjects = member.completedProjects,
@@ -314,6 +315,7 @@ internal fun Project.toDetails(capabilities: ProjectsCapabilities) = ProjectDeta
     },
     occupiedPlaces = occupiedPlaces,
     totalPlaces = totalPlaces,
-    // API-GAP G41, G42: with an unknown status, or a server that cannot unpublish, there is no action.
-    canUnpublish = capabilities.canUnpublish && status == ProjectStatus.Recruiting,
+    // A source that cannot unpublish, a viewer who is not the initiator and a project that is unpublished already have no
+    // action; an unknown status is not a reason to hide it (docs/api-values.md).
+    canUnpublish = capabilities.canUnpublish && viewerIsInitiator && status != ProjectStatus.Unpublished,
 )

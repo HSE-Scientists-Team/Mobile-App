@@ -35,9 +35,9 @@ import org.matchlab.academic_net.utils.withoutTag
  * draft only; the applied filters change on "Применить". The sphere choice is a second sheet the
  * screen opens on [onSphereFieldClick].
  *
- * The groups of chips are drawn only as far as the server can filter by them: "Тип проекта" with
- * [ProjectFiltersSheetState.typeFilter] (API-GAP G40), "Сроки" with [ProjectFiltersSheetState.durationFilter]
- * (API-GAP G45). The sphere and the keywords (sent as tags) are always there.
+ * The groups of chips are drawn only as far as the source can filter by them: "Тип проекта" with
+ * [ProjectFiltersSheetState.typeFilter], "Сроки" with [ProjectFiltersSheetState.durationFilter]. The sphere and the
+ * keywords (sent as tags) are always there.
  */
 @Composable
 internal fun ProjectFiltersSheet(

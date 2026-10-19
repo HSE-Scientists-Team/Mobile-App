@@ -38,11 +38,15 @@ import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
  *
  * Any other status, and every failure of the network, is thrown as the `RemoteFailure` it is.
  *
+ * **The project types** of a profile are the codes of `ProjectType` (`docs/api-values.md`): they are read through
+ * `ProjectType.fromCode` (an entry the app has no code for does not get into the model) and written as codes. A save
+ * sends back, next to the chosen types, the entries of the server's `project_types` that the app does not know, as they
+ * came, so the data of other clients is not lost ([withSelectedTypes]).
+ *
  * **What it does not do, because the API does not define it.** API-GAP G12: the `status` of a record is not read, so
  * every status is `null`, and [capabilities] says so. API-GAP G13: the role of the author of a review is not read.
- * API-GAP G10: `study_level` is a free text, read and written as it is. API-GAP G11: the `project_types` of a profile are
- * not read and not written: a save sends back what the server had ([ProfilesApi.updateMyProfile]), and the capability is
- * off. API-GAP G18, G17: no avatars, and the proof of a document is the public `url`. API-GAP G55: the schema does not
+ * docs/api-values.md: `study_level` is a free text, read and written as it is. API-GAP G18, G17: no avatars, and the proof of a
+ * document is the public `url`. API-GAP G55: the schema does not
  * require the `id` of a record, so a work, a document or a review that came without one is left out (a page of reviews
  * that lost a record is shorter than the server's page, and the repository reads a short page as the last one).
  *
@@ -56,9 +60,10 @@ class GatewayProfileDataSource(
     private val users: UserDirectory,
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) : ProfileDataSource {
-    // API-GAP G12 (the states of a record) and G11 (the project types of a profile) are not closed: both are off.
+    // API-GAP G12 (the states of a record) is not closed: the server writes them and the app cannot define them, so they
+    // are off. The project types are the app's own codes (docs/api-values.md): on.
     override val capabilities: ProfileCapabilities =
-        ProfileCapabilities(verificationStatuses = false, interestTypes = false)
+        ProfileCapabilities(verificationStatuses = false, interestTypes = true)
 
     override suspend fun getProfile(id: UserId): ProfileRecord? = users.profile(id.value)?.toRecord()
 

@@ -57,11 +57,11 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_add_role
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_back
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_recruiting
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_status_unknown
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_banner_unpublished
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_cancel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_conflict
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_load_project_error
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_empty
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_manage
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_overview
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_manage_tab_roles
@@ -76,8 +76,8 @@ import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
  * "07 Управление проектом" for the initiator. Editing the project and the lifecycle actions
- * (start, finish, cancel) of the design belong to later sprints and are not shown. What the server does not tell or
- * cannot do (API-GAP G41, G42, G43, G52) is left out, see [ProjectManagementViewModel].
+ * (start, finish, cancel) of the design belong to later sprints and are not shown. What the app does not know about the
+ * project (`docs/api-values.md`) or the source cannot do (API-GAP G52) is left out, see [ProjectManagementViewModel].
  */
 @Composable
 fun ProjectManagementRoute(
@@ -213,7 +213,7 @@ internal fun ProjectManagementScreen(
 private fun roleFailureText(cause: Throwable): String =
     if (cause is ProjectConflictException) stringResource(Res.string.projects_conflict) else failureText(cause)
 
-/** "07 … Обзор". The chips of the type and the status and the card of the months are drawn for what is known. */
+/** "07 … Обзор". The chips of the type, the status and the sphere, and the card of the months, are drawn when known. */
 @Composable
 private fun ColumnScope.OverviewTab(project: ProjectDetails) {
     ProjectHeader(project.title, project.type, project.status, project.sphere)
@@ -273,20 +273,18 @@ private fun RolesTab(
 }
 
 /**
- * "07c … Управление": only "Снять с публикации" belongs to the first sprint, and only when the server can do it and
- * the project is recruiting (API-GAP G42). API-GAP G41: with an unknown status the banner says so.
+ * "07c … Управление": only "Снять с публикации" belongs to the first sprint, and only when the source can do it and the
+ * project is not unpublished yet ([ProjectDetails.canUnpublish]; a project of an unknown status is offered too). The
+ * banner tells the status only when it is known; a tab that has neither a banner nor an action says so.
  */
 @Composable
 private fun ManageTab(project: ProjectDetails, isUnpublishing: Boolean, onUnpublishClick: () -> Unit) {
-    InfoBanner(
-        text = stringResource(
-            when (project.status) {
-                ProjectStatus.Recruiting -> Res.string.projects_banner_recruiting
-                ProjectStatus.Unpublished -> Res.string.projects_banner_unpublished
-                null -> Res.string.projects_banner_status_unknown
-            },
-        ),
-    )
+    val banner = when (project.status) {
+        ProjectStatus.Recruiting -> Res.string.projects_banner_recruiting
+        ProjectStatus.Unpublished -> Res.string.projects_banner_unpublished
+        null -> null
+    }
+    if (banner != null) InfoBanner(text = stringResource(banner))
     if (project.canUnpublish) {
         ActionListItem(
             title = stringResource(Res.string.projects_action_unpublish),
@@ -294,6 +292,13 @@ private fun ManageTab(project: ProjectDetails, isUnpublishing: Boolean, onUnpubl
             icon = AppIcons.EyeOff,
             // A tap while the request is in flight would only open a second dialog.
             onClick = { if (!isUnpublishing) onUnpublishClick() },
+        )
+    }
+    if (banner == null && !project.canUnpublish) {
+        Text(
+            text = stringResource(Res.string.projects_manage_empty),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -304,6 +309,5 @@ private fun RoleMemberItem.toCardUiModel(roleTitle: String): PersonCardUiModel =
     name = name,
     subtitle = roleTitle,
     avatar = AppAvatars.forKey(avatarKey),
-    isVerified = isVerified,
     stats = personStatsText(rating, completedProjects),
 )

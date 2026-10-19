@@ -16,7 +16,6 @@ import org.matchlab.academic_net.feature.profile.domain.PortfolioWork
 import org.matchlab.academic_net.feature.profile.domain.ProfileDocument
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraft
 import org.matchlab.academic_net.feature.profile.domain.ProfileDraftError
-import org.matchlab.academic_net.feature.profile.domain.ProfileLimits
 import org.matchlab.academic_net.feature.profile.domain.toDraft
 import org.matchlab.academic_net.feature.profile.domain.usecase.ObserveMyProfileUseCase
 import org.matchlab.academic_net.feature.profile.domain.usecase.UpdateProfileUseCase
@@ -49,7 +48,7 @@ data class EditProfileUiState(
 )
 
 /**
- * "10b Редактирование профиля": the name, the university, the study (the level as a free text, API-GAP G10, and the
+ * "10b Редактирование профиля": the name, the university, the study (the level as a free text, docs/api-values.md, and the
  * year), the field, the text about the person, the interests and the skills. Documents and works are added and
  * edited on their own screens and appear in the lists here as the profile changes; "Сохранить" saves the form. A new
  * account (API-GAP G19) has no name: the form starts empty, and its first save creates the profile.
@@ -87,13 +86,11 @@ class EditProfileViewModel(
 
     fun onUniversityChange(university: String) = editDraft { it.copy(university = university) }
 
-    /** The level of study, as the person writes it (API-GAP G10: a free text, there is no list to choose from). */
+    /** The level of study, as the person writes it (docs/api-values.md: a free text, there is no list to choose from). */
     fun onStudyLevelChange(level: String) = editDraft { it.copy(studyLevel = level) }
 
-    /** The year of study; only digits are taken, and no more than the largest year has. */
-    fun onStudyYearChange(year: String) = editDraft {
-        it.copy(studyYear = year.filter(Char::isDigit).take(MaxStudyYearDigits))
-    }
+    /** The year of study; only digits are taken. How large the year may be is the server's to judge. */
+    fun onStudyYearChange(year: String) = editDraft { it.copy(studyYear = year.filter(Char::isDigit)) }
 
     fun onFieldChange(field: String) = editDraft { it.copy(field = field) }
 
@@ -169,10 +166,5 @@ class EditProfileViewModel(
                 saveFailed = false,
             )
         }
-    }
-
-    private companion object {
-        /** The year of study has as many digits as the largest one: "6" is one. */
-        val MaxStudyYearDigits = ProfileLimits.MaxStudyYear.toString().length
     }
 }

@@ -16,7 +16,11 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.matchlab.academic_net.common.model.Project
+import kotlinx.datetime.YearMonth
 import org.matchlab.academic_net.common.model.ProjectId
+import org.matchlab.academic_net.common.model.ProjectPeriod
+import org.matchlab.academic_net.common.model.ProjectStatus
+import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.Role
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.Sphere
@@ -62,19 +66,23 @@ class ProjectDetailsViewModelTest {
         university: String = "МГУ",
         rating: Double? = 4.5,
         completed: Int = 3,
+        sphere: Sphere? = Sphere("7", "Биология"),
+        type: ProjectType? = null,
+        status: ProjectStatus? = null,
+        period: ProjectPeriod? = null,
     ) = ProjectDetails(
         project = Project(
             id = ProjectId("p1"),
             title = "AI-навигация",
-            type = null,
-            sphere = Sphere("Biology", "Biology"),
+            type = type,
+            sphere = sphere,
             problem = "Проблема",
             goal = "Цель",
             tags = listOf("ML", "Robotics"),
             initiator = UserSummary(UserId("owner-1"), "Елена", isVerified = true),
             roles = roles,
-            status = null,
-            period = null,
+            status = status,
+            period = period,
             viewerIsInitiator = viewerIsInitiator,
         ),
         initiator = InitiatorInfo(university, rating, completed),
@@ -96,10 +104,35 @@ class ProjectDetailsViewModelTest {
         assertEquals(listOf(ProjectId("p1")), repository.asked)
         with(viewModel.content) {
             assertEquals("AI-навигация", title)
-            assertEquals("Biology", sphere)
+            assertEquals("Биология", sphere)
             assertEquals("Проблема", problem)
             assertEquals("Цель", goal)
             assertEquals(listOf("ML", "Robotics"), tags)
+        }
+    }
+
+    @Test
+    fun aProjectOfUnknownValuesIsShownWithoutThem() {
+        repository.answer = details(sphere = null, type = null, status = null, period = null)
+
+        with(viewModel().content) {
+            assertNull(sphere)
+            assertNull(type)
+            assertNull(status)
+            assertNull(period)
+            assertEquals("AI-навигация", title)
+        }
+    }
+
+    @Test
+    fun theKnownValuesOfAProjectReachThePage() {
+        val period = ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3))
+        repository.answer = details(type = ProjectType.Scientific, status = ProjectStatus.Unpublished, period = period)
+
+        with(viewModel().content) {
+            assertEquals(ProjectType.Scientific, type)
+            assertEquals(ProjectStatus.Unpublished, status)
+            assertEquals(period, this.period)
         }
     }
 

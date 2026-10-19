@@ -46,7 +46,6 @@ class ChatViewModelTest {
         assertFalse(state.isLoading)
         val peer = assertNotNull(state.peer)
         assertEquals("Проф. Елена Васкес", peer.name)
-        assertTrue(peer.isVerified)
         // The header of the chat leads to this person's profile.
         assertEquals(UserId("user-elena"), peer.userId)
         assertEquals(listOf(false, false, true, false), state.messages.map { it.isOutgoing })

@@ -13,7 +13,7 @@ import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjec
  * What the screens of the projects feature need from the outside; the app creates it once and hands it to every
  * `…Route`.
  *
- * @param capabilities what the server behind the projects can do (API-GAP G40-G44). Without
+ * @param capabilities what the source of the data can do (see `docs/api-values.md`). Without
  *  [ProjectsCapabilities.canListMine] "Я инициатор" shows a message instead of the list, without
  *  [ProjectsCapabilities.canCreate] there is no "Создать проект", without [ProjectsCapabilities.canUnpublish] 07c has
  *  no "Снять с публикации".

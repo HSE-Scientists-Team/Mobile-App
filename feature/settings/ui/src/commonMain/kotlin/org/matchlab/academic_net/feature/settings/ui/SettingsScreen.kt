@@ -185,5 +185,7 @@ private fun OpenToCollaborationToggle(state: SettingsUiState.Content, onToggle: 
             if (hasProfile) Res.string.settings_open_to_collaboration_hint else Res.string.settings_profile_missing_hint,
         ),
         enabled = hasProfile && !state.isSaving,
+        // The text is dimmed only without a profile; while the value is being saved only the switch is.
+        dimText = !hasProfile,
     )
 }

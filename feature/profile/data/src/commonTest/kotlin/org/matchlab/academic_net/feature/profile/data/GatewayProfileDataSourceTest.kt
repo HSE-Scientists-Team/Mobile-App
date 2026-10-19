@@ -65,11 +65,30 @@ class GatewayProfileDataSourceTest {
     // ---- what it can do ----
 
     @Test
-    fun theStatesOfRecordsAndTheProjectTypesAreOff() = runTest {
+    fun theProjectTypesAreOnAndTheStatesOfRecordsStayOff() = runTest {
         val capabilities = rig().source.capabilities
 
-        assertFalse(capabilities.verificationStatuses)
-        assertFalse(capabilities.interestTypes)
+        assertFalse(capabilities.verificationStatuses, "the server writes the states and the app cannot define them")
+        assertTrue(capabilities.interestTypes)
+    }
+
+    @Test
+    fun savingTheChosenTypesWritesTheirCodesNextToTheUnknownEntriesOfTheServer() = runTest {
+        val rig = rig()
+        rig.profiles.stored = profileDto(userId = ViewerRaw, name = "Старое", projectTypes = listOf("unknown-value", "1"))
+
+        val record = rig.source.updateMyProfile(ProfileDraft(name = "Новое", interestTypes = setOf(ProjectType.Practical)))
+
+        assertEquals(listOf("unknown-value", "2"), rig.profiles.updates.single().projectTypes)
+        assertEquals(setOf(ProjectType.Practical), record.interests.projectTypes)
+    }
+
+    @Test
+    fun myProfileShowsTheTypesWhoseCodesTheServerHolds() = runTest {
+        val rig = rig()
+        rig.profiles.onMyProfile = { profileDto(userId = ViewerRaw, name = "Я", projectTypes = listOf("2", "unknown-value")) }
+
+        assertEquals(setOf(ProjectType.Practical), rig.source.getMyProfile()?.interests?.projectTypes)
     }
 
     // ---- other people's profiles ----

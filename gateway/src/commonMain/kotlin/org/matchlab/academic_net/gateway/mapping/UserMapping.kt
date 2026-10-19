@@ -23,7 +23,7 @@ fun UserProfileDto.toUserSummary(): UserSummary =
 
 /**
  * The person as a possible collaborator and as the top of a profile page: the university, the study and the field
- * of study (the API calls it `specialization`). API-GAP G10: the study level is the text the server has, as it is,
+ * of study (the API calls it `specialization`). docs/api-values.md: the study level is the text the server has, as it is,
  * with a blank one left out; a year of 0 or less means "not given".
  */
 fun UserProfileDto.toCollaborator(): Collaborator =
@@ -36,7 +36,7 @@ fun UserProfileDto.toCollaborator(): Collaborator =
 
 /**
  * The study of a person from the two fields the API has for it, in a profile and in a row of the people search alike.
- * API-GAP G10: [level] is the text the server has, with its outer spaces cut and a blank one left out (`null`); a
+ * docs/api-values.md: [level] is the text the server has, with its outer spaces cut and a blank one left out (`null`); a
  * [year] of 0 or less (protobuf JSON leaves a zero out) or a missing one is "not given" (`null`).
  */
 internal fun studyOf(level: String?, year: Int?): Study =

@@ -93,7 +93,7 @@ fun CollaboratorSearchRoute(
     state.filtersSheet?.let { sheet ->
         CollaboratorFiltersSheet(
             state = sheet,
-            // API-GAP G11: the server cannot filter by the type of a person's works, so the group is not offered.
+            // The group "Тип работы" is offered only when the source can filter by the type of a person's works.
             showWorkTypes = dependencies.capabilities.projectTypeFilter,
             onDraftChange = viewModel::onFiltersDraftChange,
             onReset = viewModel::onFiltersReset,
@@ -211,7 +211,6 @@ private fun ResultsList(
                         name = person.user.name,
                         subtitle = person.collaborator.subtitleText(),
                         avatar = AppAvatars.forKey(person.user.id.value),
-                        isVerified = person.user.isVerified,
                     ),
                     onClick = { onCollaboratorClick(person.user) },
                     outlined = true,

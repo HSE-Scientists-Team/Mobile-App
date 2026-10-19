@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 // The shapes of the people calls of docs/openapi.yaml (schemas Person, PeopleList). Only the server sends them, so every
 // field is not null and defaults to zero: protobuf JSON leaves zeros out, and a `null` is coerced to the default.
-// API-GAP G10: `study_level` is a free text. API-GAP G18: `avatar_file_id` is not shown (no Media yet).
+// docs/api-values.md: `study_level` is a free text. API-GAP G18: `avatar_file_id` is not shown (no Media yet).
 // API-GAP G30: there is no `review_count`, so `rating` cannot tell "no reviews" from a low rating; it is not read.
 
 /** `Person`: one person of the search or of the recommendations. */

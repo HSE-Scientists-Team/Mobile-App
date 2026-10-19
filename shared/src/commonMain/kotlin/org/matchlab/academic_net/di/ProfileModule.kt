@@ -43,7 +43,7 @@ internal interface ProfileModule {
     @Provides
     fun myProfileRepository(impl: ProfileRepositoryImpl): MyProfileRepository = impl
 
-    /** The screens read `capabilities` to hide what the Gateway cannot give yet (API-GAP G11, G12). */
+    /** The screens read `capabilities` to hide what the Gateway cannot give yet (API-GAP G12: the states of records). */
     @Provides
     fun profileUiDependencies(
         profiles: ProfileRepository,

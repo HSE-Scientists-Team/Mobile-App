@@ -3,7 +3,6 @@ package org.matchlab.academic_net.components
 import academicnet.components.generated.resources.Res
 import academicnet.components.generated.resources.components_accept
 import academicnet.components.generated.resources.components_decline
-import academicnet.components.generated.resources.components_verified
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -126,44 +125,30 @@ fun AcceptDeclineActions(
     }
 }
 
-/** Verification mark next to a name: shield with a check. */
-@Composable
-fun VerifiedBadge(modifier: Modifier = Modifier, size: Dp = 16.dp) {
-    AppIcon(
-        icon = AppIcons.ShieldCheck,
-        contentDescription = stringResource(Res.string.components_verified),
-        modifier = modifier,
-        size = size,
-        tint = MaterialTheme.colorScheme.primary,
-    )
-}
-
 /**
- * One-line name followed by the [VerifiedBadge] when [verified]. An empty or blank [name] is shown as
+ * The name of a person on one line, ellipsized when it does not fit. An empty or blank [name] is shown as
  * "Без имени" (see [nameOrPlaceholder]), so every card that has a person on it handles a missing name alike.
+ *
+ * A person has no verification mark next to the name: trust is shown on the separate parts of a profile (a work, a
+ * document), not on the person.
+ *
+ * @param style the text style of the card the name stands on, e.g. `titleMedium`
+ * @param modifier given to the text itself, so a caller in a `Row` may pass `Modifier.weight(1f)`
  */
 @Composable
 fun PersonName(
     name: String,
-    verified: Boolean,
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = nameOrPlaceholder(name),
-            modifier = Modifier.weight(1f, fill = false),
-            style = style,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (verified) VerifiedBadge()
-    }
+    Text(
+        text = nameOrPlaceholder(name),
+        modifier = modifier,
+        style = style,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /** "Card/Info": icon with a value such as dates, place or format. */

@@ -51,8 +51,9 @@ import org.matchlab.academic_net.feature.projectdetails.ui.generated.resources.p
 /**
  * "04 Проект": the page of a published project of someone else, to decide whether to join it.
  * Read-only: applying to a role ("Откликнуться"), sharing and reporting belong to later stories.
- * What the server does not tell (API-GAP G40, G41, G43) is left out: no chips of the type and the status, no card of
- * the months. The counter of the roles counts places, and a role of several places says how many are taken.
+ * What the app does not know about the project (`docs/api-values.md`) is left out: no chips of the type, the status and
+ * the sphere, no card of the months. The counter of the roles counts places, and a role of several places says how
+ * many are taken.
  *
  * @param onNavigateBack the back arrow of the app bar
  * @param onInitiatorClick the initiator card itself, which leads to the initiator's profile
@@ -178,7 +179,6 @@ private fun InitiatorUiModel.toCardUiModel(): PersonCardUiModel = PersonCardUiMo
         stringResource(Res.string.projectdetails_initiator_subtitle, university)
     },
     avatar = AppAvatars.forKey(avatarKey),
-    isVerified = user.isVerified,
     stats = personStatsText(rating, completedProjects),
     showChatButton = canContact,
     chatContentDescription = stringResource(Res.string.projectdetails_message_initiator),

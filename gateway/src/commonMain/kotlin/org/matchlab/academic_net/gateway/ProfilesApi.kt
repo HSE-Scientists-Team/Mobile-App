@@ -24,8 +24,8 @@ interface ProfilesApi {
      * fails, when [change] throws, or when the result has a blank `display_name` (an `IllegalArgumentException`:
      * the API requires it). After the 200 the viewer's entry in [UserDirectory] is dropped.
      *
-     * [change] should copy what it does not mean to change (`details.copy(about = ...)`): the avatar, the
-     * contacts and the strings the app does not understand (`project_types`) go back untouched this way.
+     * [change] should copy what it does not mean to change (`details.copy(about = ...)`): the avatar and the
+     * contacts go back untouched this way, and so do the entries of `project_types` that [change] keeps.
      */
     suspend fun updateMyProfile(change: (UserProfileInputDto) -> UserProfileInputDto): UserProfileDto
 }

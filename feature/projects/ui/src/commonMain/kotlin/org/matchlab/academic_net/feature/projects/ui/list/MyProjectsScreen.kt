@@ -30,6 +30,7 @@ import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
+import org.matchlab.academic_net.components.format.failureText
 import org.matchlab.academic_net.components.project.projectCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
@@ -42,13 +43,16 @@ import org.matchlab.academic_net.feature.projects.ui.generated.resources.project
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_my_title
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_participant_empty_text
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_participant_empty_title
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_retry
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_tab_initiator
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_tab_participant
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_you_initiator
 
 /**
- * "06 Мои проекты": the root screen of the "Проекты" tab. What the server cannot do (API-GAP G40, G43, G44) is not
- * offered: without a list of the user's projects the tab says so, without creating there is no "Создать проект".
+ * "06 Мои проекты": the root screen of the "Проекты" tab. The tab "Я инициатор" lists every project of the user, drawing
+ * of each what the app knows (see `docs/api-values.md`); a failure to read the list has "Повторить". What the source of
+ * the data switches off is not offered: without a list of the user's projects the tab says so, without creating there
+ * is no "Создать проект".
  */
 @Composable
 fun MyProjectsRoute(
@@ -59,7 +63,7 @@ fun MyProjectsRoute(
 ) {
     val viewModel = viewModel { MyProjectsViewModel(dependencies.observeMyProjects, dependencies.capabilities) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    MyProjectsScreen(state, onCreateProject, onProjectClick, modifier)
+    MyProjectsScreen(state, onCreateProject, onProjectClick, viewModel::onRetry, modifier)
 }
 
 @Composable
@@ -67,6 +71,7 @@ internal fun MyProjectsScreen(
     state: MyProjectsUiState,
     onCreateProject: () -> Unit,
     onProjectClick: (ProjectId) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(InitiatorTab) }
@@ -94,13 +99,18 @@ internal fun MyProjectsScreen(
                     title = stringResource(Res.string.projects_participant_empty_title),
                     text = stringResource(Res.string.projects_participant_empty_text),
                 )
-                // API-GAP G44: the server has no list of the user's projects; G40, G43: nor can it create one.
+                // The source of the data cannot list the user's projects (and, maybe, cannot create one).
                 state.isListUnavailable -> MessageState(
                     title = stringResource(Res.string.projects_list_unavailable),
                     text = if (state.canCreate) null else stringResource(Res.string.projects_create_unavailable),
                 )
                 state.isLoading -> LoadingState()
-                state.hasError -> MessageState(title = stringResource(Res.string.projects_load_error))
+                state.hasError -> MessageState(
+                    title = stringResource(Res.string.projects_load_error),
+                    text = failureText(state.error),
+                    actionText = stringResource(Res.string.projects_retry),
+                    onAction = onRetry,
+                )
                 state.projects.isEmpty() -> MessageState(
                     title = stringResource(Res.string.projects_empty_title),
                     text = stringResource(Res.string.projects_empty_text),
@@ -108,7 +118,7 @@ internal fun MyProjectsScreen(
                 else -> ProjectList(state.projects, onProjectClick)
             }
         }
-        // API-GAP G40, G43: without creating on the server there is nothing for the button to open.
+        // Without creating in the source of the data there is nothing for the button to open.
         if (selectedTab == InitiatorTab && state.canCreate) {
             AppFab(
                 onClick = onCreateProject,
@@ -138,7 +148,6 @@ private fun MyProjectItem.toCardUiModel(): ProjectCardUiModel = projectCardUiMod
     title = title,
     author = stringResource(Res.string.projects_you_initiator),
     avatarKey = avatarKey,
-    isAuthorVerified = isInitiatorVerified,
     type = type,
     status = status,
     sphere = sphere,

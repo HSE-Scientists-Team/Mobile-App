@@ -24,8 +24,10 @@ import org.matchlab.academic_net.gateway.mapping.pageOf
  * (API-GAP G53: the API does not describe what the search includes, its order, or the stability of `offset` between two
  * pages).
  *
- * What it does not send, because the API does not define it: API-GAP G40, the types of the projects, and G45, their
- * durations ([capabilities] has both filters off), and G41 `status`, G44 `mine` and `profile_user_id`.
+ * What it sends: `q`, the sphere as its code in `field`, the keywords as `tag`, and the type and the duration as their
+ * codes in `type` and `duration`, each only when exactly one chip of its group is chosen (the parameters hold one value:
+ * none or several chips send nothing). The codes are the app's own (`docs/api-values.md`, [capabilities] has both filters
+ * on). It never sends `status`, `mine` and `profile_user_id`.
  *
  * @param assembler turns the server's projects into the app's, with their owners.
  */
@@ -33,9 +35,8 @@ class GatewayProjectSearchDataSource(
     private val api: ProjectCatalogApi,
     private val assembler: ProjectAssembler,
 ) : ProjectSearchDataSource {
-    // API-GAP G40 (type) and G45 (duration) are not closed: both filters are off.
     override val capabilities: ProjectSearchCapabilities =
-        ProjectSearchCapabilities(typeFilter = false, durationFilter = false)
+        ProjectSearchCapabilities(typeFilter = true, durationFilter = true)
 
     override suspend fun search(query: ProjectQuery, page: PageRequest): Page<FoundProject> {
         val answer = api.search(query.toParams(), page)
@@ -47,11 +48,15 @@ class GatewayProjectSearchDataSource(
 
 /**
  * What the query asks for, as the parameters of the project search; a value that restricts nothing is left out.
- * API-GAP G53: `q` goes as typed (only the outer spaces are cut), commas and all. API-GAP G46: the sphere goes as its
- * name, in `field`. The keywords go as `tag`. API-GAP G40, G45: `filters.types` and `filters.durations` are never sent.
+ * API-GAP G53: `q` goes as typed (only the outer spaces are cut), commas and all. The sphere goes as its code in `field`,
+ * the keywords as `tag`. The type and the duration go as their codes only when exactly one is chosen: `type` and
+ * `duration` hold one value, so two chips of a group (and none) send nothing, and the server answers for any value
+ * (`docs/api-values.md`, §3).
  */
 internal fun ProjectQuery.toParams(): ProjectSearchParams = ProjectSearchParams(
     q = text.trim().ifEmpty { null },
-    field = filters.sphere?.name?.trim()?.ifEmpty { null }, // API-GAP G46
+    type = filters.types.singleOrNull()?.code,
+    field = filters.sphere?.id?.trim()?.ifEmpty { null },
+    duration = filters.durations.singleOrNull()?.code,
     tags = filters.keywords.map(String::trim).filter(String::isNotEmpty),
 )

@@ -30,10 +30,11 @@ import org.matchlab.academic_net.feature.projectsearch.domain.ProjectQuery
  * @property initiatorAvatarKey stands in for the initiator's picture until profiles carry images
  * @property isOwnProject the viewer's own project (API-GAP G53: the search may include it): the author line says
  *  "Вы инициатор" instead of the name
- * @property type `null` when the server gives none (API-GAP G40): the card has no type chip
- * @property status `null` when the server gives none (API-GAP G41): the card has no status tag
+ * @property type `null` when unknown (`docs/api-values.md`): the card has no type chip; the project is listed anyway
+ * @property status `null` when unknown: the card has no status tag
+ * @property sphere the name of the sphere, `null` when unknown: the card has no sphere tag
  * @property rolesCount how many roles the project has: the "4 роли" of the footer
- * @property period `null` when the server gives none (API-GAP G43): the footer of the card has no months
+ * @property period `null` when unknown: the footer of the card has no months
  */
 @Immutable
 data class ProjectSearchItem(
@@ -42,11 +43,10 @@ data class ProjectSearchItem(
     val initiatorName: String,
     val initiatorUniversity: String,
     val initiatorAvatarKey: String,
-    val isInitiatorVerified: Boolean,
     val isOwnProject: Boolean,
     val type: ProjectType?,
     val status: ProjectStatus?,
-    val sphere: String,
+    val sphere: String?,
     val rolesCount: Int,
     val period: ProjectPeriod?,
 )
@@ -55,8 +55,10 @@ data class ProjectSearchItem(
  * The open filters sheet: the filters being edited. They are a copy of the applied ones and only
  * replace them on "Применить". [isSpherePickerOpen] shows the sphere choice over the sheet.
  *
- * @property typeFilter the group "Тип проекта" is offered: the server can filter by the type (API-GAP G40)
- * @property durationFilter the group "Сроки" is offered: the server can filter by the duration (API-GAP G45)
+ * @property typeFilter the group "Тип проекта" is offered: the source can filter by the type
+ *  (`ProjectSearchCapabilities.typeFilter`)
+ * @property durationFilter the group "Сроки" is offered: the source can filter by the duration
+ *  (`ProjectSearchCapabilities.durationFilter`)
  */
 @Immutable
 data class ProjectFiltersSheetState(
@@ -124,8 +126,8 @@ data class ProjectSearchUiState(
  * for the end of the typing counts), after a failure (only [onRetryLoadMore] asks again), and once the list is over. The
  * pages are joined by project id: a project that the server's list shifted onto the next page is shown once.
  *
- * **The filters sheet** offers the groups of types and durations only as far as the server can filter by them
- * ([ProjectSearchUiDependencies.capabilities], API-GAP G40, G45); the flags are in [ProjectFiltersSheetState].
+ * **The filters sheet** offers the groups of types and durations only as far as the source can filter by them
+ * ([ProjectSearchUiDependencies.capabilities]); the flags are in [ProjectFiltersSheetState].
  *
  * @param pageSize how many projects one page asks for, 1..[PageRequest.MaxLimit]
  */
@@ -371,11 +373,10 @@ private fun FoundProject.toItem() = ProjectSearchItem(
     initiatorName = project.initiator.name,
     initiatorUniversity = initiatorUniversity,
     initiatorAvatarKey = project.initiator.id.value,
-    isInitiatorVerified = project.initiator.isVerified,
     isOwnProject = project.viewerIsInitiator,
     type = project.type,
     status = project.status,
-    sphere = project.sphere.name,
+    sphere = project.sphere?.name,
     rolesCount = project.roles.size,
     period = project.period,
 )
