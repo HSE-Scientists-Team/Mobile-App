@@ -23,7 +23,7 @@ data class ChatItem(
     val lastMessage: String,
     /** Which day the last message belongs to; the text of it depends on the app language. */
     val time: ChatListTime,
-    /** Key of the peer's avatar illustration. */
+    /** Key of the peer's picture: the user id. */
     val avatarKey: String,
     val unreadCount: Int,
 )

@@ -24,10 +24,10 @@ import org.matchlab.academic_net.common.model.ProjectJoinId
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.LoadingState
@@ -208,7 +208,7 @@ private fun CandidateList(
                 model = CandidateCardUiModel(
                     name = person?.user?.name.orEmpty(),
                     subtitle = person?.subtitleText().orEmpty(),
-                    avatar = person?.let { AppAvatars.forKey(it.user.id.value) },
+                    avatar = person?.let { AvatarSource(it.user.id.value, it.user.name) } ?: AvatarSource.None,
                     note = item.daysAgo?.let { candidateAppliedAgoText(it) },
                     tags = if (person != null) candidate.skills else emptyList(),
                     status = joinStatusChip(item.join.type, item.join.status),

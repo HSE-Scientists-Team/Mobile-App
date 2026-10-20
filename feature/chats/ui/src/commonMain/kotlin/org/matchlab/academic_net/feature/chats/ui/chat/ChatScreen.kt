@@ -34,12 +34,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserId
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppBottomSheet
 import org.matchlab.academic_net.components.AppIconButton
 import org.matchlab.academic_net.components.AppIcon
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonName
@@ -270,7 +270,7 @@ private fun ChatTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Avatar(AppAvatars.forKey(peer.avatarKey), contentDescription = null, size = 40.dp)
+                Avatar(AvatarSource(peer.avatarKey, peer.name), contentDescription = null, size = 40.dp)
                 PersonName(
                     name = nameOrPlaceholder(peer.name),
                     style = MaterialTheme.typography.titleMedium,

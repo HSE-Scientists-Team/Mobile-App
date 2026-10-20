@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.matchlab.academic_net.common.model.Collaborator
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedPeopleUseCase
+import org.matchlab.academic_net.feature.feed.domain.usecase.ObserveViewerNameUseCase
 
 /** What the search bar and the list of the feed are about (the "search-scope" of the design). */
 enum class FeedScope { Projects, People }
@@ -47,14 +49,15 @@ sealed interface FeedPeopleState {
 }
 
 /**
- * @property viewerAvatarKey the key of the viewer's avatar illustration: the id of the signed-in user (API-GAP G18: no
- * avatars yet)
+ * @property viewerAvatarKey the key of the viewer's picture: the id of the signed-in user
+ * @property viewerName the name of the signed-in user for the initials of their avatar; empty while it is not known
  * @property scope the mode of the search bar and of the list
  * @property people the recommended people of the "Люди" scope
  */
 @Immutable
 data class FeedUiState(
     val viewerAvatarKey: String,
+    val viewerName: String = "",
     val scope: FeedScope = FeedScope.Projects,
     val people: FeedPeopleState = FeedPeopleState.NotLoaded,
 )
@@ -71,14 +74,25 @@ data class FeedUiState(
  *
  * API-GAP G32: the server recommends random people open to collaboration, not people for the viewer's projects.
  *
- * @param viewerId the signed-in user; the header draws their avatar by the id, so no request is needed for it
+ * @param viewerId the signed-in user; the header asks for their picture by the id
+ * @param observeViewerName the name of the signed-in user: the header shows their initials until the picture is there. A
+ * name that cannot be read leaves the header without initials, the feed itself goes on
  */
 class FeedViewModel(
     viewerId: UserId,
+    observeViewerName: ObserveViewerNameUseCase,
     private val getRecommendedPeople: GetRecommendedPeopleUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow(FeedUiState(viewerAvatarKey = viewerId.value))
     val uiState: StateFlow<FeedUiState> = state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            observeViewerName()
+                .catch { /* The avatar of the header keeps no initials; nothing else depends on the name. */ }
+                .collect { name -> state.update { it.copy(viewerName = name) } }
+        }
+    }
 
     /** Switches the scope; the first time [FeedScope.People] is shown it asks for the recommended people. */
     fun onScopeSelect(scope: FeedScope) {

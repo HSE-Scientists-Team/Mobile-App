@@ -298,6 +298,7 @@ private fun InvitationItem(
         title = project.title,
         author = nameOrPlaceholder(project.initiator.name),
         avatarKey = project.initiator.id.value,
+        avatarName = project.initiator.name,
         type = project.type,
         // A decided record has its own chip instead of the status of the project.
         status = if (chip == null) project.status else null,

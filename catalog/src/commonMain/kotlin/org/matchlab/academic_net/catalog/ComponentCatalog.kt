@@ -53,7 +53,6 @@ import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.components.ActionListItem
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.AppBadgeCount
 import org.matchlab.academic_net.components.AppBadgeDot
@@ -78,7 +77,6 @@ import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.AppSelectField
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppStatusChipTone
-import org.matchlab.academic_net.components.UnknownAvatar
 import org.matchlab.academic_net.components.AppSwitch
 import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTagChip
@@ -203,8 +201,12 @@ fun ComponentCatalog() {
 }
 
 private val NoInsets = WindowInsets(0)
-private val Elena = AvatarSource("catalog-elena", AppAvatars.Elena)
-private val Arjun = AvatarSource("catalog-arjun", AppAvatars.Arjun)
+// The catalog has no pictures of people, so these are drawn as the initials of the name: "ЕВ" and "АМ".
+private val Elena = AvatarSource("catalog-elena", "Елена Васкес")
+private val Arjun = AvatarSource("catalog-arjun", "Арджун Мехта")
+
+/** Another person of the catalog: the picture would be asked for by the key, the initials are drawn from the [name]. */
+private fun catalogAvatar(name: String) = AvatarSource("catalog-$name", name)
 
 private val Initiator = PersonCardUiModel(
     name = "Проф. Елена Васкес",
@@ -533,19 +535,23 @@ private fun SharedFeatureComponents() {
     Section(":components — общие для фич") {
         // With the chat button and the rating line; without them; a long name and a long subtitle.
         PersonCard(Initiator)
-        PersonCard(PersonCardUiModel(name = "Даниил Крюков", subtitle = "ИТМО", avatar = Elena))
-        // A person whose profile is not known: the neutral avatar, no stats, no chat ("Без имени" of "Команда" on 04).
-        PersonCard(PersonCardUiModel(name = "Без имени", subtitle = "Data Analyst", avatar = null))
+        PersonCard(PersonCardUiModel(name = "Даниил Крюков", subtitle = "ИТМО", avatar = catalogAvatar("Даниил Крюков")))
+        // A person whose profile is not known: an empty disc, no stats, no chat ("Без имени" of "Команда" on 04).
+        PersonCard(PersonCardUiModel(name = "Без имени", subtitle = "Data Analyst", avatar = AvatarSource.None))
+        // The avatar without a picture: the initials of two words, of one word, of three words (the first and the last), and
+        // the empty disc of a person with no name.
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            UnknownAvatar(size = 64.dp)
-            UnknownAvatar(size = 40.dp)
-            UnknownAvatar(size = 24.dp)
+            Avatar(AvatarSource("catalog-two", "Анна Кузнецова"), null, size = 64.dp)
+            Avatar(AvatarSource("catalog-one", "Арджун"), null, size = 48.dp)
+            Avatar(AvatarSource("catalog-three", "Мария Ивановна Петрова"), null, size = 40.dp)
+            Avatar(AvatarSource("catalog-latin", "sam smith"), null, size = 32.dp)
+            Avatar(AvatarSource.None, null, size = 24.dp)
         }
         PersonCard(
             PersonCardUiModel(
                 name = "Александра Константинопольская-Вишневецкая",
                 subtitle = "Московский государственный университет имени М. В. Ломоносова · аспирантка · биоинформатика",
-                avatar = Arjun,
+                avatar = catalogAvatar("Александра Константинопольская-Вишневецкая"),
                 stats = "★ 4.9 · 12 завершённых проектов",
                 showChatButton = true,
             ),
@@ -581,7 +587,7 @@ private fun SharedFeatureComponents() {
             ProjectCardUiModel(
                 title = "AI-навигация по кампусу",
                 author = "Проф. Елена Васкес · Stanford",
-                authorAvatar = Arjun,
+                authorAvatar = catalogAvatar("Проф. Елена Васкес"),
                 type = "Научный",
                 footer = "4 места в команде · окт 2026 — мар 2027",
                 tags = listOf("Поиск соавторов", "Computer Science"),
@@ -594,7 +600,7 @@ private fun SharedFeatureComponents() {
             ProjectCardUiModel(
                 title = "AI-навигация по кампусу",
                 author = "Вы инициатор",
-                authorAvatar = Arjun,
+                authorAvatar = Elena,
                 type = "Научный",
                 footer = "4 роли · окт 2026 — мар 2027",
                 statusChip = StatusChipUiModel("Опубликован", AppStatusChipTone.Success),
@@ -605,7 +611,7 @@ private fun SharedFeatureComponents() {
             ProjectCardUiModel(
                 title = "Обнаружение аномалий в МРТ",
                 author = "Д-р Анна Петрова",
-                authorAvatar = Elena,
+                authorAvatar = catalogAvatar("Д-р Анна Петрова"),
                 type = "Научный",
                 footer = "3 роли · ноя 2026 — май 2027",
                 tags = listOf("Медицина"),
@@ -618,7 +624,7 @@ private fun SharedFeatureComponents() {
             ProjectCardUiModel(
                 title = "Кампусный AR-гид",
                 author = "Иван Орлов",
-                authorAvatar = Arjun,
+                authorAvatar = catalogAvatar("Иван Орлов"),
                 type = "Проектный",
                 footer = "3 роли · янв 2027 — июл 2027",
                 showInvitationActions = true,
@@ -630,7 +636,7 @@ private fun SharedFeatureComponents() {
             ProjectCardUiModel(
                 title = "Цифровой двойник лаборатории",
                 author = "Иван Орлов",
-                authorAvatar = Arjun,
+                authorAvatar = catalogAvatar("Иван Орлов"),
                 type = "Проектный",
                 footer = "2 роли",
                 statusChip = StatusChipUiModel("Принято", AppStatusChipTone.Success),
@@ -643,6 +649,7 @@ private fun SharedFeatureComponents() {
                 title = "Обнаружение аномалий в МРТ",
                 author = "Д-р Анна Петрова · Сеченовский",
                 avatarKey = "u-anna",
+                avatarName = "Анна Петрова",
                 type = ProjectType.Scientific,
                 status = ProjectStatus.Recruiting,
                 sphere = "Медицина",
@@ -663,6 +670,7 @@ private fun SharedFeatureComponents() {
                     title = title,
                     author = "Вы инициатор",
                     avatarKey = "u-anna",
+                    avatarName = "Анна Петрова",
                     type = ProjectType.Practical,
                     status = status,
                     sphere = "IoT",
@@ -679,6 +687,7 @@ private fun SharedFeatureComponents() {
                 title = "Анализ научных публикаций",
                 author = "Вы инициатор",
                 avatarKey = "u-anna",
+                avatarName = "Анна Петрова",
                 type = null,
                 status = null,
                 sphere = "Computer Science",
@@ -692,6 +701,7 @@ private fun SharedFeatureComponents() {
                 title = "Проект без сферы и срока",
                 author = "Вы инициатор",
                 avatarKey = "u-anna",
+                avatarName = "Анна Петрова",
                 type = null,
                 status = null,
                 sphere = null,
@@ -767,7 +777,9 @@ private fun ReviewComponents() {
         // A person whose name is empty gets "Без имени" instead of an empty line, on every card.
         PersonName("", style = MaterialTheme.typography.titleMedium)
         PersonName("   ", style = MaterialTheme.typography.titleMedium)
-        PersonCard(PersonCardUiModel(name = "", subtitle = "Stanford University", avatar = Arjun, showChatButton = true))
+        PersonCard(
+            PersonCardUiModel(name = "", subtitle = "Stanford University", avatar = AvatarSource("catalog-nameless", ""), showChatButton = true),
+        )
     }
 }
 
@@ -874,7 +886,7 @@ private fun ProjectPageComponents() {
             PersonCardUiModel(
                 name = "Даниил Крюков",
                 subtitle = "Инициатор · ИТМО",
-                avatar = Arjun,
+                avatar = catalogAvatar("Даниил Крюков"),
                 stats = personStatsText(rating = null, completedProjects = 1),
             ),
         )
@@ -1049,7 +1061,7 @@ private fun ProfileComponents() {
             ProfileHeaderCardUiModel(
                 name = student.user.name,
                 subtitle = student.subtitleText(),
-                avatar = Elena,
+                avatar = AvatarSource(student.user.id.value, student.user.name),
                 showChatButton = true,
             ),
         )
@@ -1058,7 +1070,7 @@ private fun ProfileComponents() {
             ProfileHeaderCardUiModel(
                 name = "Алексей Морозов",
                 subtitle = student.subtitleText(),
-                avatar = Arjun,
+                avatar = catalogAvatar("Алексей Морозов"),
             ),
         )
         // The text column is narrow next to the icon: a long name takes two lines, the subtitle wraps.
@@ -1071,14 +1083,14 @@ private fun ProfileComponents() {
                     study = Study(level = "Аспирантура"),
                     field = "биоинформатика",
                 ).subtitleText(),
-                avatar = Elena,
+                avatar = catalogAvatar("Александра"),
                 // The chips under the first row, for a status the profile has to say (the design's "Открыт к сотрудничеству").
                 statuses = listOf(ProfileStatusUiModel("Открыт к сотрудничеству", AppStatusChipTone.Success)),
                 showChatButton = true,
             ),
         )
         // A new account: no name, no study: the header says so and the line under the name is not drawn.
-        ProfileHeaderCard(ProfileHeaderCardUiModel(name = "Имя не указано", subtitle = "", avatar = Arjun))
+        ProfileHeaderCard(ProfileHeaderCardUiModel(name = "Имя не указано", subtitle = "", avatar = AvatarSource("catalog-new", "")))
         // The three marks: confirmed, being checked (only the owner sees it) and not confirmed.
         EducationCard(EducationCardUiModel("B.S. Computer Science", "Stanford University · выпуск 2027", VerificationMark.Verified))
         EducationCard(EducationCardUiModel("Сертификат Deep Learning", "Coursera · 2025", VerificationMark.Pending))
@@ -1149,7 +1161,7 @@ private fun ProfileComponents() {
             ReviewCardUiModel(
                 authorName = "Лина Ковач",
                 authorLine = "AI-навигация по кампусу",
-                authorAvatar = Arjun,
+                authorAvatar = catalogAvatar("Лина Ковач"),
                 title = "Помогал команде с данными",
                 rating = 4,
                 date = null,
@@ -1166,7 +1178,7 @@ private fun ProfileComponents() {
             ReviewCardUiModel(
                 authorName = "Без имени",
                 authorLine = "AI-навигация по кампусу",
-                authorAvatar = Arjun,
+                authorAvatar = catalogAvatar(""),
                 title = "Помогал команде с данными",
                 rating = 4,
                 date = null,
@@ -1246,7 +1258,7 @@ private fun ResponsesComponents() {
             CandidateCardUiModel(
                 name = "Арджун Мехта",
                 subtitle = "Stanford · 3 курс бакалавриата · Computer Science",
-                avatar = Elena,
+                avatar = Arjun,
                 note = "Отклик 2 дня назад",
                 tags = listOf("Python", "TensorFlow"),
                 showActions = true,
@@ -1257,7 +1269,7 @@ private fun ResponsesComponents() {
             CandidateCardUiModel(
                 name = "Мария Соколова",
                 subtitle = "МГУ · аспирантка · биоинформатика",
-                avatar = Arjun,
+                avatar = catalogAvatar("Мария Соколова"),
                 note = "Отклик сегодня",
                 tags = listOf("Python", "Statistics"),
                 showActions = true,
@@ -1269,7 +1281,7 @@ private fun ResponsesComponents() {
             CandidateCardUiModel(
                 name = "Мария Соколова",
                 subtitle = "МГУ · аспирантка · биоинформатика",
-                avatar = Arjun,
+                avatar = catalogAvatar("Мария Соколова"),
                 showActions = true,
                 showChat = true,
                 acceptEnabled = false,
@@ -1280,7 +1292,7 @@ private fun ResponsesComponents() {
             CandidateCardUiModel(
                 name = "Арджун Мехта",
                 subtitle = "Stanford · 3 курс бакалавриата · Computer Science",
-                avatar = Elena,
+                avatar = Arjun,
                 note = "Отклик 2 дня назад",
                 status = StatusChipUiModel("Принят", AppStatusChipTone.Success),
                 showChat = true,
@@ -1290,7 +1302,7 @@ private fun ResponsesComponents() {
             CandidateCardUiModel(
                 name = "",
                 subtitle = "",
-                avatar = null,
+                avatar = AvatarSource.None,
                 status = StatusChipUiModel("Отклонён", AppStatusChipTone.Cancelled),
             ),
         )

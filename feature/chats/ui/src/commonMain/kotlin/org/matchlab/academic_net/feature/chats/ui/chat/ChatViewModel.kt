@@ -39,7 +39,7 @@ data class ChatPeer(
     /** Whose profile a tap on the header of the chat opens. */
     val userId: UserId,
     val name: String,
-    /** Key of the peer's avatar illustration. */
+    /** Key of the peer's picture: the user id. */
     val avatarKey: String,
 )
 

@@ -22,10 +22,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppIcon
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonCard
@@ -129,8 +129,7 @@ private fun ColumnScope.ReviewContent(
             model = PersonCardUiModel(
                 name = review.author.name,
                 subtitle = review.authorLine(),
-                // API-GAP G18: no real avatars yet.
-                avatar = AppAvatars.forKey(review.author.id.value),
+                avatar = AvatarSource(review.author.id.value, review.author.name),
                 // API-GAP G55: an author the server gave no id for has no profile to open and nobody to message.
                 showChatButton = review.canMessageAuthor,
                 chatContentDescription = stringResource(Res.string.profile_message_author),

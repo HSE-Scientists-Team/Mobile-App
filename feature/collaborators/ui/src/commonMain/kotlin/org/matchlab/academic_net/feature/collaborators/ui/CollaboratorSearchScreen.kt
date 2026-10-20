@@ -29,9 +29,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppSearchBar
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.FiltersButton
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
@@ -210,7 +210,7 @@ private fun ResultsList(
                     model = PersonListItemUiModel(
                         name = person.user.name,
                         subtitle = person.collaborator.subtitleText(),
-                        avatar = AppAvatars.forKey(person.user.id.value),
+                        avatar = AvatarSource(person.user.id.value, person.user.name),
                     ),
                     onClick = { onCollaboratorClick(person.user) },
                     outlined = true,

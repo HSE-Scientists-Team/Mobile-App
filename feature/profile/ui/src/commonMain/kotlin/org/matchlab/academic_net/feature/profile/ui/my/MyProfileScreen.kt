@@ -24,12 +24,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppIcon
 import org.matchlab.academic_net.components.AppIconButton
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.NotificationListItem
@@ -243,8 +243,7 @@ private fun ProfileHeader(state: MyProfileUiState.Content) {
             // API-GAP G19: a new account has no name until the form is saved with one.
             name = if (state.needsName) stringResource(Res.string.profile_name_missing) else profile.user.name,
             subtitle = profile.person.subtitleText(),
-            // API-GAP G18: no real avatars yet, an illustration chosen by the id.
-            avatar = AppAvatars.forKey(profile.user.id.value),
+            avatar = AvatarSource(profile.user.id.value, profile.user.name),
             statuses = profile.headerStatuses(),
         ),
     )

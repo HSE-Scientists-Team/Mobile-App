@@ -23,12 +23,12 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppConfirmDialog
 import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.LoadingState
@@ -266,7 +266,7 @@ private fun ColumnScope.TeamSection(
 private fun TeamMemberUiModel.toCardUiModel(): PersonCardUiModel = PersonCardUiModel(
     name = user.name,
     subtitle = if (isInitiator) stringResource(Res.string.projectdetails_initiator) else roleTitle,
-    avatar = if (hasProfile) AppAvatars.forKey(avatarKey) else null,
+    avatar = if (hasProfile) AvatarSource(avatarKey, user.name) else AvatarSource.None,
     stats = if (hasProfile) personStatsText(rating, completedProjects) else null,
     showChatButton = canContact,
     chatContentDescription = stringResource(Res.string.projectdetails_message_member, nameOrPlaceholder(user.name)),
@@ -339,7 +339,8 @@ private fun InitiatorUiModel.toCardUiModel(): PersonCardUiModel = PersonCardUiMo
     } else {
         stringResource(Res.string.projectdetails_initiator_subtitle, university)
     },
-    avatar = AppAvatars.forKey(avatarKey),
+    // The initials come from the name as the server has it, not from the text that stands in for a missing one.
+    avatar = AvatarSource(avatarKey, user.name),
     stats = personStatsText(rating, completedProjects),
     showChatButton = canContact,
     chatContentDescription = stringResource(Res.string.projectdetails_message_initiator),

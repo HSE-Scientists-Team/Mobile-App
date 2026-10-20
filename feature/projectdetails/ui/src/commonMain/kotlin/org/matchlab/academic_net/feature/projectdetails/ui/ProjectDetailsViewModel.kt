@@ -30,7 +30,7 @@ import org.matchlab.academic_net.feature.projectdetails.domain.ProjectDetailsRes
 @Immutable
 data class InitiatorUiModel(
     val user: UserSummary,
-    /** Stands in for the initiator's picture until profiles carry images. */
+    /** The key of the initiator's picture: the user id. */
     val avatarKey: String,
     /** As the server wrote it; may be blank. */
     val university: String,
@@ -44,12 +44,12 @@ data class InitiatorUiModel(
 /**
  * A person of "Команда" as the card shows them.
  *
- * @property avatarKey stands in for the person's picture until profiles carry images; unused without a profile
+ * @property avatarKey the key of the person's picture (the user id); unused without a profile
  * @property roleTitle the role the person works on, empty when unknown. The initiator's card has none: the screen
  *  writes "Инициатор" there ([isInitiator])
  * @property rating average of reviews, `null` while there are none or without a profile
- * @property hasProfile `false`: the profile could not be read, the card says "Без имени", has the neutral avatar, no
- *  stats line, no chat and is not clickable (04f)
+ * @property hasProfile `false`: the profile could not be read, the card says "Без имени", has an empty disc for the
+ *  avatar, no stats line, no chat and is not clickable (04f)
  * @property canContact the chat button is offered: the person has a profile, is not the viewer and has an id
  */
 @Immutable

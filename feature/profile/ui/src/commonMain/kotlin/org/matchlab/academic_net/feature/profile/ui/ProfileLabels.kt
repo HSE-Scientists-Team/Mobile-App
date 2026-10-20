@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
-import org.matchlab.academic_net.components.AppAvatars
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.StatusBannerStatus
 import org.matchlab.academic_net.components.format.yearMonthText
 import org.matchlab.academic_net.components.person.nameOrPlaceholder
@@ -141,8 +141,8 @@ internal fun Review.authorLine(): String =
 internal fun Review.toCardUiModel(withDate: Boolean): ReviewCardUiModel = ReviewCardUiModel(
     authorName = nameOrPlaceholder(author.name),
     authorLine = authorLine(),
-    // API-GAP G18: no real avatars yet, an illustration chosen by the id of the author.
-    authorAvatar = AppAvatars.forKey(author.id.value),
+    // The initials come from the name as the server has it, not from the text that stands in for a missing one.
+    authorAvatar = AvatarSource(author.id.value, author.name),
     title = title,
     rating = rating,
     date = if (withDate) projectFinished?.let { yearMonthText(it) } else null,

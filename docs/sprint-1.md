@@ -252,7 +252,8 @@ iOS — только компиляция Kotlin.
 - **Английские тексты (наш перевод):** "The server can't list your projects yet", "The server can't create projects yet" (оба — для источника с выключенной возможностью), "No management
   actions are available for this project", "The project has changed on the server: check it and try again", "Couldn't load the project",
   "%1$d of %2$d spot filled" / "spots filled".
-- **Аватары.** Пока нет загрузки изображений, у каждого пользователя одна из двух иллюстраций
+- **Аватары.** (Устарело, 2026-10-20: иллюстраций нет, фото загружается с сервера, без него показываются инициалы имени,
+  см. `docs/sprint-2.md`, T14.) Пока нет загрузки изображений, у каждого пользователя одна из двух иллюстраций
   (`AppAvatars.forKey(userId)`).
 - **Иконка действия** в `List item/Action` (`ActionListItem`) в коде синяя, в макете 07c тёмно-серая.
   Расхождение компонента из прошлых итераций, не менял.

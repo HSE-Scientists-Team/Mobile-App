@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import org.matchlab.academic_net.theme.extendedColors
 
 /** "Badge/Dot": 6dp primary dot in a 2dp surface ring (10dp overall). */
@@ -71,8 +70,9 @@ fun Avatar(
 }
 
 /**
- * [Avatar] of a person: the picture they uploaded when the app has it ([LocalAvatarImages]), otherwise the
- * illustration of [source]. The illustration is shown while the picture loads and when there is none or it fails.
+ * [Avatar] of a person: the picture they uploaded when the app has it ([LocalAvatarImages]), otherwise the initials of
+ * their name ([rememberInitialsPainter]). The initials are shown while the picture loads and when there is none or it
+ * fails. A person with no [AvatarSource.key] ([AvatarSource.None]) has no picture to ask for: the initials only.
  */
 @Composable
 fun Avatar(
@@ -81,10 +81,10 @@ fun Avatar(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
 ) {
-    val illustration = painterResource(source.illustration)
+    val initials = rememberInitialsPainter(source.name)
     val images = LocalAvatarImages.current
-    if (images == null) {
-        Avatar(illustration, contentDescription, modifier, size)
+    if (images == null || source.key.isBlank()) {
+        Avatar(initials, contentDescription, modifier, size)
         return
     }
     AsyncImage(
@@ -92,38 +92,11 @@ fun Avatar(
         contentDescription = contentDescription,
         imageLoader = images.imageLoader,
         modifier = modifier.size(size).clip(CircleShape),
-        placeholder = illustration,
-        error = illustration,
-        fallback = illustration,
+        placeholder = initials,
+        error = initials,
+        fallback = initials,
         contentScale = ContentScale.Crop,
     )
-}
-
-/** [Avatar] for an image from resources: the illustrations of the catalog. */
-@Composable
-fun Avatar(
-    image: DrawableResource,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
-) {
-    Avatar(painterResource(image), contentDescription, modifier, size)
-}
-
-/**
- * "Avatar" (`person=unknown`) of a person the app knows nothing about (no readable profile, no picture): a round
- * `surfaceContainerHigh` disc with the [AppIcons.User] icon in `onSurfaceVariant`, the icon half the size of the disc.
- * The design draws it at 64dp (`md`) and 40dp (`sm`).
- */
-@Composable
-fun UnknownAvatar(modifier: Modifier = Modifier, size: Dp = 48.dp) {
-    val colors = MaterialTheme.colorScheme
-    Box(
-        modifier = modifier.size(size).clip(CircleShape).background(colors.surfaceContainerHigh),
-        contentAlignment = Alignment.Center,
-    ) {
-        AppIcon(AppIcons.User, contentDescription = null, size = size / 2, tint = colors.onSurfaceVariant)
-    }
 }
 
 /** How an [InfoBanner] speaks: a quiet note, or a problem that the user has to deal with. */

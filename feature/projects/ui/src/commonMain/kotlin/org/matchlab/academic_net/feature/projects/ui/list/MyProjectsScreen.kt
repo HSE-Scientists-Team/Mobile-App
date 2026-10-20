@@ -204,6 +204,7 @@ private fun MyProjectItem.toCardUiModel(byInitiator: Boolean): ProjectCardUiMode
     // The viewer's own project says "Вы инициатор"; one the viewer takes part in names its initiator.
     author = if (byInitiator) nameOrPlaceholder(initiatorName) else stringResource(Res.string.projects_you_initiator),
     avatarKey = avatarKey,
+    avatarName = initiatorName,
     type = type,
     status = status,
     sphere = sphere,

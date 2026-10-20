@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppFilterChip
@@ -41,6 +40,7 @@ import org.matchlab.academic_net.components.AppTagsField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.format.failureText
@@ -279,7 +279,7 @@ private fun EditForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        AvatarEditor(state.avatar, onChangePhotoClick)
+        AvatarEditor(state.avatar, name = draft.name, onChangePhotoClick = onChangePhotoClick)
         AppTextField(
             value = draft.name,
             onValueChange = onNameChange,
@@ -440,11 +440,18 @@ private fun SectionTitle(text: String) {
 
 /**
  * The photo of the profile with "Изменить фото" under it. With a profile the photo is changed at once, not with
- * "Сохранить"; on the first fill (no profile yet) it waits for "Сохранить" and is uploaded after the profile. While the new one is uploaded the button turns; a failure is
- * written under it and the old photo stays.
+ * "Сохранить"; on the first fill (no profile yet) it waits for "Сохранить" and is uploaded after the profile. While the new
+ * one is uploaded the button turns; a failure is written under it and the old photo stays.
+ *
+ * Where the person has no photo the avatar shows the initials of [name], the name as it is typed in the form.
  */
 @Composable
-private fun AvatarEditor(avatar: AvatarState, onChangePhotoClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun AvatarEditor(
+    avatar: AvatarState,
+    name: String,
+    onChangePhotoClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val userKey = avatar.userKey
     if (userKey == null) return
     Column(
@@ -457,7 +464,7 @@ private fun AvatarEditor(avatar: AvatarState, onChangePhotoClick: () -> Unit, mo
         if (chosen != null) {
             Avatar(BitmapPainter(chosen), contentDescription = null, size = 96.dp)
         } else {
-            Avatar(AppAvatars.forKey(userKey), contentDescription = null, size = 96.dp)
+            Avatar(AvatarSource(userKey, name), contentDescription = null, size = 96.dp)
         }
         AppButton(
             text = stringResource(Res.string.profile_avatar_change),

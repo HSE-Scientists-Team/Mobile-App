@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.LoadingState
 import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.format.chatListTimeText
@@ -68,7 +68,7 @@ internal fun ChatsScreen(
                             name = nameOrPlaceholder(chat.name),
                             lastMessage = chat.lastMessage,
                             time = chatListTimeText(chat.time),
-                            avatar = AppAvatars.forKey(chat.avatarKey),
+                            avatar = AvatarSource(chat.avatarKey, chat.name),
                             unreadCount = chat.unreadCount,
                         ),
                         onClick = { onChatClick(chat.id) },

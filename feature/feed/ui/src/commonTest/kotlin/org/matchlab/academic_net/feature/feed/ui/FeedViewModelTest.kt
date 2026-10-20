@@ -3,6 +3,10 @@ package org.matchlab.academic_net.feature.feed.ui
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -11,6 +15,7 @@ import org.matchlab.academic_net.common.model.Study
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.feed.domain.FeedRepository
+import org.matchlab.academic_net.feature.feed.domain.ViewerNameSource
 import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedPeopleUseCase
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -18,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertSame
+import org.matchlab.academic_net.feature.feed.domain.usecase.ObserveViewerNameUseCase
 
 /** The recommendations behind the feed: how many times they were asked, what they answer, and a gate to hold the answer back. */
 private class FakeFeedRepository : FeedRepository {
@@ -31,6 +37,17 @@ private class FakeFeedRepository : FeedRepository {
         gate?.await()
         failure?.let { throw it }
         return people
+    }
+}
+
+/** The name of the viewer as the profile has it: it can change while the feed is shown, or fail to be read. */
+private class FakeViewerNames : ViewerNameSource {
+    val name = MutableStateFlow("")
+    var failure: Throwable? = null
+
+    override fun observeName(): Flow<String> = flow {
+        failure?.let { throw it }
+        emitAll(name)
     }
 }
 
@@ -51,10 +68,11 @@ class FeedViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private val repository = FakeFeedRepository()
+    private val names = FakeViewerNames()
     private val viewer = UserId("viewer-1")
     private val cause = IllegalStateException("no network")
 
-    private fun viewModel() = FeedViewModel(viewer, GetRecommendedPeopleUseCase(repository))
+    private fun viewModel() = FeedViewModel(viewer, ObserveViewerNameUseCase(names), GetRecommendedPeopleUseCase(repository))
 
     private val FeedViewModel.state get() = uiState.value
 
@@ -69,6 +87,31 @@ class FeedViewModelTest {
             FeedUiState(viewerAvatarKey = "viewer-1", scope = FeedScope.Projects, people = FeedPeopleState.NotLoaded),
             viewModel.state,
         )
+    }
+
+    @Test
+    fun theAvatarGetsTheNameOfTheViewerForItsInitialsAndFollowsItsChanges() {
+        names.name.value = "Арджун Мехта"
+        val viewModel = viewModel()
+
+        assertEquals("Арджун Мехта", viewModel.state.viewerName)
+        assertEquals("viewer-1", viewModel.state.viewerAvatarKey)
+
+        names.name.value = "Арджун"
+
+        assertEquals("Арджун", viewModel.state.viewerName, "a changed name of the profile reaches the header")
+    }
+
+    @Test
+    fun aNameThatCannotBeReadLeavesTheHeaderWithoutInitialsAndTheFeedWorks() {
+        names.failure = cause
+        repository.people = listOf(person("a"))
+        val viewModel = viewModel()
+
+        assertEquals("", viewModel.state.viewerName)
+        viewModel.onScopeSelect(FeedScope.People)
+
+        assertIs<FeedPeopleState.Loaded>(viewModel.state.people)
     }
 
     @Test

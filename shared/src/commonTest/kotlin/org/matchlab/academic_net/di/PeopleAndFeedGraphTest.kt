@@ -8,6 +8,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.Backend
 import org.matchlab.academic_net.common.model.ProjectType
@@ -87,6 +88,24 @@ class PeopleAndFeedGraphTest {
         val graph = Graph { error("No request is expected") }
 
         assertEquals(viewer, graph.component.dependencies.feed.viewerId)
+    }
+
+    @Test
+    fun theFeedKnowsTheNameOfTheViewerFromTheirProfileForTheInitialsOfTheAvatar() = runTest {
+        val graph = Graph { request ->
+            val body = if (request.url.encodedPath == "/api/v1/users/me/profile") {
+                """{"user_id":"user-me","details":{"display_name":"Арджун Мехта"}}"""
+            } else {
+                """{"items":[],"total":"0"}"""
+            }
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+
+        val name = graph.component.dependencies.feed.observeViewerName().first()
+
+        assertEquals("Арджун Мехта", name)
+        val profile = graph.requests.first { it.url.encodedPath == "/api/v1/users/me/profile" }
+        assertEquals(listOf("Bearer $token"), profile.headers.getAll(HttpHeaders.Authorization))
     }
 
     // ---- the calls ----

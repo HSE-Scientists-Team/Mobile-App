@@ -17,8 +17,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectPeriod
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.ProjectType
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppStatusChipTone
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.StatusChipUiModel
 import org.matchlab.academic_net.components.format.monthRangeText
@@ -94,8 +94,9 @@ fun projectCardFooter(rolesCount: Int, period: ProjectPeriod?): String {
  * The project itself is always drawn.
  *
  * @param author the author line, e.g. "Проф. Елена Васкес · Stanford" or "Вы инициатор"
- * @param avatarKey stands in for the author's picture until profiles carry images
- *  (see [AppAvatars.forKey])
+ * @param avatarKey the key of the author's picture (the user id)
+ * @param avatarName the author's name as the server has it, for the initials shown until the picture is there; not the
+ *  text that stands in for a missing name
  * @param type the project type, `null` when unknown
  * @param status the project status, `null` when unknown
  * @param sphere the name of the project's sphere, `null` when unknown
@@ -108,6 +109,7 @@ fun projectCardUiModel(
     title: String,
     author: String,
     avatarKey: String,
+    avatarName: String,
     type: ProjectType?,
     status: ProjectStatus?,
     sphere: String?,
@@ -117,7 +119,7 @@ fun projectCardUiModel(
 ): ProjectCardUiModel = ProjectCardUiModel(
     title = title,
     author = author,
-    authorAvatar = AppAvatars.forKey(avatarKey),
+    authorAvatar = AvatarSource(avatarKey, avatarName),
     type = type?.label(),
     footer = projectCardFooter(rolesCount, period),
     statusChip = if (statusAsChip) status?.chip() else null,

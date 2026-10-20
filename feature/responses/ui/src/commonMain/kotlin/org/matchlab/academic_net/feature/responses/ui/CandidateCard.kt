@@ -22,14 +22,14 @@ import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.ChatIconButton
 import org.matchlab.academic_net.components.PersonName
 import org.matchlab.academic_net.components.StatusChipUiModel
-import org.matchlab.academic_net.components.UnknownAvatar
 
 /**
  * What [CandidateCard] shows.
  *
  * @property name the candidate's name; an empty one is shown as "Без имени" (see [PersonName])
  * @property subtitle the line under the name, e.g. "Stanford · 3 курс бакалавриата · CS"; not drawn while blank
- * @property avatar the picture; `null` draws the neutral avatar of a person whose profile is unknown
+ * @property avatar the picture or the initials of the name; [AvatarSource.None] (a person whose profile is unknown) is an
+ *  empty disc
  * @property note highlighted line, e.g. "Отклик 2 дня назад"; `null` for none
  * @property tags the candidate's skills as chips
  * @property status the decision on the record as a "Chip/Status" without an icon ("Принят", "Отклонён") at the start of
@@ -43,7 +43,7 @@ import org.matchlab.academic_net.components.UnknownAvatar
 data class CandidateCardUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: AvatarSource?,
+    val avatar: AvatarSource,
     val note: String? = null,
     val tags: List<String> = emptyList(),
     val status: StatusChipUiModel? = null,
@@ -66,11 +66,7 @@ fun CandidateCard(
     val colors = MaterialTheme.colorScheme
     AppCard(modifier, onClick = onClick, spacing = 12.dp) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (model.avatar != null) {
-                Avatar(model.avatar, contentDescription = null, size = 48.dp)
-            } else {
-                UnknownAvatar(size = 48.dp)
-            }
+            Avatar(model.avatar, contentDescription = null, size = 48.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 PersonName(model.name, MaterialTheme.typography.titleMedium)
                 if (model.subtitle.isNotBlank()) {

@@ -14,12 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.components.AvatarSource
 
 /**
  * What [PersonCard] and [PersonSummary] show about a person.
  *
- * @property avatar the picture of the person; `null` draws the [UnknownAvatar] (a person whose profile is not known)
+ * @property avatar the picture of the person, or their initials; [AvatarSource.None] (a person whose profile is not known)
+ * is an empty disc
  * @property subtitle the line under the name, e.g. "Инициатор · Stanford University"; it wraps, and it is not drawn while
  * it is blank
  * @property stats extra line under the subtitle, e.g. "★ 4.9 · 12 завершённых проектов"
@@ -31,7 +31,7 @@ import org.matchlab.academic_net.components.AvatarSource
 data class PersonCardUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: AvatarSource?,
+    val avatar: AvatarSource,
     val stats: String? = null,
     val showChatButton: Boolean = false,
     val chatContentDescription: String? = null,
@@ -88,11 +88,7 @@ fun PersonSummary(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = verticalAlignment,
     ) {
-        if (model.avatar != null) {
-            Avatar(model.avatar, contentDescription = null, size = avatarSize)
-        } else {
-            UnknownAvatar(size = avatarSize)
-        }
+        Avatar(model.avatar, contentDescription = null, size = avatarSize)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             PersonName(model.name, MaterialTheme.typography.titleMedium)
             // A person without a subtitle (a team member whose role is unknown) has no empty line under the name.

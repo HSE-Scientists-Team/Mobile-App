@@ -32,7 +32,6 @@ import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.ActionListItem
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppConfirmDialog
@@ -41,6 +40,7 @@ import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppStatusChip
 import org.matchlab.academic_net.components.AppTabs
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.LoadingState
@@ -583,7 +583,7 @@ private fun ActionErrorText(text: String) {
 private fun RoleMemberItem.toCardUiModel(roleTitle: String): PersonCardUiModel = PersonCardUiModel(
     name = name,
     subtitle = roleTitle,
-    // A person whose profile could not be read has the neutral avatar and no numbers ("Без имени", 04f).
-    avatar = if (hasProfile) AppAvatars.forKey(avatarKey) else null,
+    // A person whose profile could not be read has an empty disc for the avatar and no numbers ("Без имени", 04f).
+    avatar = if (hasProfile) AvatarSource(avatarKey, name) else AvatarSource.None,
     stats = if (hasProfile) personStatsText(rating, completedProjects) else null,
 )

@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppSearchBarButton
@@ -70,7 +69,8 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_title
  *
  * The "Люди" scope shows the people the server recommends (API-GAP G32: random people open to collaboration): a tap on
  * one calls [onPersonClick]; when there are none, "Найти людей" calls [onSearchPeopleClick] too. The header draws the
- * avatar of the signed-in user (`dependencies.viewerId`), which opens the profile ([onProfileClick]).
+ * avatar of the signed-in user (`dependencies.viewerId`, with the initials of their name until the picture is there),
+ * which opens the profile ([onProfileClick]).
  */
 @Composable
 fun FeedRoute(
@@ -81,7 +81,7 @@ fun FeedRoute(
     modifier: Modifier = Modifier,
     onSearchProjectsClick: (() -> Unit)? = null,
 ) {
-    val viewModel = viewModel { FeedViewModel(dependencies.viewerId, dependencies.getRecommendedPeople) }
+    val viewModel = viewModel { FeedViewModel(dependencies.viewerId, dependencies.observeViewerName, dependencies.getRecommendedPeople) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     FeedScreen(
         state = state,
@@ -108,7 +108,7 @@ internal fun FeedScreen(
 ) {
     val colors = MaterialTheme.colorScheme
     Column(modifier.fillMaxSize()) {
-        FeedHeader(state.viewerAvatarKey, onProfileClick)
+        FeedHeader(AvatarSource(state.viewerAvatarKey, state.viewerName), onProfileClick)
         // The top edge meets the header, the bottom one is rounded like cards and the navigation bar.
         Column(
             Modifier
@@ -153,7 +153,7 @@ internal fun FeedScreen(
 
 /** "header": the app name and the viewer's avatar, which opens the profile. */
 @Composable
-private fun FeedHeader(avatarKey: String, onProfileClick: () -> Unit) {
+private fun FeedHeader(avatar: AvatarSource, onProfileClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -178,7 +178,7 @@ private fun FeedHeader(avatarKey: String, onProfileClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Avatar(
-                source = AppAvatars.forKey(avatarKey),
+                source = avatar,
                 contentDescription = stringResource(Res.string.feed_profile),
                 size = 32.dp,
             )
@@ -236,7 +236,7 @@ private fun PeopleContent(
                         model = PersonListItemUiModel(
                             name = person.user.name,
                             subtitle = person.collaborator.subtitleText(),
-                            avatar = AppAvatars.forKey(person.user.id.value),
+                            avatar = AvatarSource(person.user.id.value, person.user.name),
                         ),
                         onClick = { onPersonClick(person.user) },
                         outlined = true,

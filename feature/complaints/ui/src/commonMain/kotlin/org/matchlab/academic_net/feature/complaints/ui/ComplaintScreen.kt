@@ -23,11 +23,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.components.AppAvatars
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppCard
 import org.matchlab.academic_net.components.AppMultilineField
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.InfoBanner
 import org.matchlab.academic_net.components.InfoBannerTone
 import org.matchlab.academic_net.components.PersonCard
@@ -184,7 +184,7 @@ private fun SubjectCard(subject: ComplaintSubject) {
             PersonCardUiModel(
                 name = nameOrPlaceholder(subject.person.user.name),
                 subtitle = subject.person.subtitleText(),
-                avatar = AppAvatars.forKey(subject.person.user.id.value),
+                avatar = AvatarSource(subject.person.user.id.value, subject.person.user.name),
             ),
         )
         is ComplaintSubject.ProjectSubject -> AppCard(spacing = 8.dp) {

@@ -14,7 +14,7 @@ data class AvatarPicture(val userKey: String, val revision: Int)
 /**
  * The pictures that people uploaded, as [Avatar] asks for them. The components do not know where they come from: the app
  * gives them an [imageLoader] that can read an [AvatarPicture] (a Coil loader with a fetcher of the app) through
- * [LocalAvatarImages]. Without one, or for a person with no picture, [Avatar] draws the illustration.
+ * [LocalAvatarImages]. Without one, or for a person with no picture, [Avatar] draws the initials of the name.
  */
 @Stable
 class AvatarImages(
@@ -25,5 +25,5 @@ class AvatarImages(
     val revision: Int get() = revisionState.value
 }
 
-/** The pictures of the app; `null` where nothing provides them (previews, the catalog): the illustrations are shown. */
+/** The pictures of the app; `null` where nothing provides them (previews, the catalog): the initials are shown. */
 val LocalAvatarImages = staticCompositionLocalOf<AvatarImages?> { null }
