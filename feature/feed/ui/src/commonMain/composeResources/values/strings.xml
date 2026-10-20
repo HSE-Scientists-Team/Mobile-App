@@ -12,5 +12,9 @@
     <string name="feed_people_error">Could not load recommendations</string>
     <string name="feed_retry">Retry</string>
     <string name="feed_projects_title">Project recommendations</string>
-    <string name="feed_projects_text">A selection of projects will appear here later</string>
+    <string name="feed_projects_empty_title">No recommendations yet</string>
+    <string name="feed_projects_empty_text">Projects that suit you will appear here</string>
+    <string name="feed_projects_find">Find projects</string>
+    <string name="feed_projects_error">Could not load recommendations</string>
+    <string name="feed_you_initiator">You're the initiator</string>
 </resources>

@@ -304,6 +304,8 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         onSearchPeopleClick = { navController.navigateSingleTop(entry, Routes.PeopleSearch) },
                         onSearchProjectsClick = { navController.navigateSingleTop(entry, Routes.ProjectSearch) },
                         onPersonClick = { user -> openProfile(entry, user.id) },
+                        // A recommended project is somebody else's (or the viewer's own, which the page 04 shows as theirs).
+                        onProjectClick = { id -> navController.navigateOnce(entry, Routes.projectDetails(id)) },
                     )
                     TopLevelDestination.Projects -> MyProjectsRoute(
                         dependencies = dependencies.projects,

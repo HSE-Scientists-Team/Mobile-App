@@ -12,5 +12,9 @@
     <string name="feed_people_error">Не удалось загрузить рекомендации</string>
     <string name="feed_retry">Повторить</string>
     <string name="feed_projects_title">Рекомендации проектов</string>
-    <string name="feed_projects_text">Подборка проектов появится здесь позже</string>
+    <string name="feed_projects_empty_title">Пока нет рекомендаций</string>
+    <string name="feed_projects_empty_text">Здесь появятся проекты, подходящие вам</string>
+    <string name="feed_projects_find">Найти проекты</string>
+    <string name="feed_projects_error">Не удалось загрузить рекомендации</string>
+    <string name="feed_you_initiator">Вы инициатор</string>
 </resources>

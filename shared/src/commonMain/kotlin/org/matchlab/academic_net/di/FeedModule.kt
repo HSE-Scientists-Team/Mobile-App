@@ -8,6 +8,7 @@ import org.matchlab.academic_net.feature.feed.data.FeedRepositoryImpl
 import org.matchlab.academic_net.feature.feed.domain.FeedRepository
 import org.matchlab.academic_net.feature.feed.domain.ViewerNameSource
 import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedPeopleUseCase
+import org.matchlab.academic_net.feature.feed.domain.usecase.GetRecommendedProjectsUseCase
 import org.matchlab.academic_net.feature.feed.domain.usecase.ObserveViewerNameUseCase
 import org.matchlab.academic_net.feature.feed.ui.FeedUiDependencies
 
@@ -31,5 +32,6 @@ internal interface FeedModule {
         viewerId = session.userId,
         observeViewerName = ObserveViewerNameUseCase(viewerName),
         getRecommendedPeople = GetRecommendedPeopleUseCase(repository),
+        getRecommendedProjects = GetRecommendedProjectsUseCase(repository),
     )
 }

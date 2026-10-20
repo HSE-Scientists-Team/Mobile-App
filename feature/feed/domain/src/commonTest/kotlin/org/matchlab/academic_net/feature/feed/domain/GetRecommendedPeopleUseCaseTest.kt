@@ -23,6 +23,9 @@ private class StubFeedRepository : FeedRepository {
         calls++
         return answer()
     }
+
+    override suspend fun getRecommendedProjects(): List<RecommendedProject> =
+        throw AssertionError("The people block never asks for the projects")
 }
 
 private fun person(id: String) = Collaborator(UserSummary(UserId(id), "Имя $id"), "МГУ", Study("магистратура", 2), "physics")

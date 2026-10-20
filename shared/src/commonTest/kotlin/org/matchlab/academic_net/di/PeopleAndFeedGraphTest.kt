@@ -108,6 +108,32 @@ class PeopleAndFeedGraphTest {
         assertEquals(listOf("Bearer $token"), profile.headers.getAll(HttpHeaders.Authorization))
     }
 
+    @Test
+    fun theFeedShowsTheProjectsTheServerRecommendsWithTheUniversityOfTheirInitiators() = runTest {
+        val graph = Graph { request ->
+            val body = when (request.url.encodedPath) {
+                "/api/v1/recommendations/projects" ->
+                    """{"items":[{"id":"p-1","owner_user_id":"owner-1","details":{"title":"AI-навигация","type":"scientific","field":"Computer Science"},"status":"recruiting","revision":1,"roles":[{"id":"r-1","title":"ML","slots":2,"occupied":1}]},{"id":"p-2","owner_user_id":"user-me","details":{"title":"Мой проект"},"revision":1}],"total":"2","recommendation":{"model":"m"}}"""
+                "/api/v1/users/owner-1/profile" ->
+                    """{"user_id":"owner-1","details":{"display_name":"Елена Васкес","university":" Stanford "}}"""
+                else -> """{"items":[],"total":"0"}"""
+            }
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+
+        val projects = graph.component.dependencies.feed.getRecommendedProjects().getOrThrow()
+
+        assertEquals(listOf("p-1", "p-2"), projects.map { it.project.id.value })
+        assertEquals("Елена Васкес", projects[0].project.initiator.name)
+        assertEquals("Stanford", projects[0].initiatorUniversity)
+        assertFalse(projects[0].project.viewerIsInitiator)
+        assertTrue(projects[1].project.viewerIsInitiator, "the viewer's own project is marked as theirs")
+        val asked = graph.requests.first { it.url.encodedPath == "/api/v1/recommendations/projects" }
+        assertEquals(HttpMethod.Get, asked.method)
+        assertEquals("10", asked.url.parameters["limit"])
+        assertEquals(listOf("Bearer $token"), asked.headers.getAll(HttpHeaders.Authorization))
+    }
+
     // ---- the calls ----
 
     @Test

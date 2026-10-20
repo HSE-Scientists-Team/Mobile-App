@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
@@ -41,9 +42,13 @@ import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.AvatarSource
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
+import org.matchlab.academic_net.components.ProjectCard
+import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.SectionHeader
 import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 import org.matchlab.academic_net.components.person.subtitleText
+import org.matchlab.academic_net.components.project.projectCardUiModel
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_empty_text
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_empty_title
@@ -51,13 +56,17 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_find
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_title
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_profile
-import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_text
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_empty_text
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_empty_title
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_error
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_find
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_title
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_retry
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_scope_people
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_scope_projects
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_search_people
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_search_projects
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_you_initiator
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_title
 
 /**
@@ -67,8 +76,9 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_title
  * for people, [onSearchProjectsClick] for projects). While [onSearchProjectsClick] is `null` the
  * bar of the "Projects" mode stays inactive.
  *
- * The "Люди" scope shows the people the server recommends (API-GAP G32: random people open to collaboration): a tap on
- * one calls [onPersonClick]; when there are none, "Найти людей" calls [onSearchPeopleClick] too. The header draws the
+ * The "Проекты" scope shows the projects the server recommends: a tap on a card calls [onProjectClick]; when there are
+ * none, "Найти проекты" calls [onSearchProjectsClick] (when it is given). The "Люди" scope shows the people the server
+ * recommends: a tap on one calls [onPersonClick]; when there are none, "Найти людей" calls [onSearchPeopleClick] too. The header draws the
  * avatar of the signed-in user (`dependencies.viewerId`, with the initials of their name until the picture is there),
  * which opens the profile ([onProfileClick]).
  */
@@ -78,10 +88,18 @@ fun FeedRoute(
     onProfileClick: () -> Unit,
     onSearchPeopleClick: () -> Unit,
     onPersonClick: (UserSummary) -> Unit,
+    onProjectClick: (ProjectId) -> Unit,
     modifier: Modifier = Modifier,
     onSearchProjectsClick: (() -> Unit)? = null,
 ) {
-    val viewModel = viewModel { FeedViewModel(dependencies.viewerId, dependencies.observeViewerName, dependencies.getRecommendedPeople) }
+    val viewModel = viewModel {
+        FeedViewModel(
+            dependencies.viewerId,
+            dependencies.observeViewerName,
+            dependencies.getRecommendedPeople,
+            dependencies.getRecommendedProjects,
+        )
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     FeedScreen(
         state = state,
@@ -90,6 +108,8 @@ fun FeedRoute(
         onSearchPeopleClick = onSearchPeopleClick,
         onSearchProjectsClick = onSearchProjectsClick,
         onPersonClick = onPersonClick,
+        onProjectClick = onProjectClick,
+        onProjectsRetry = viewModel::onProjectsRetry,
         onPeopleRetry = viewModel::onPeopleRetry,
         modifier = modifier,
     )
@@ -103,6 +123,8 @@ internal fun FeedScreen(
     onSearchPeopleClick: () -> Unit,
     onSearchProjectsClick: (() -> Unit)?,
     onPersonClick: (UserSummary) -> Unit,
+    onProjectClick: (ProjectId) -> Unit,
+    onProjectsRetry: () -> Unit,
     onPeopleRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -137,9 +159,11 @@ internal fun FeedScreen(
             }
         }
         when (state.scope) {
-            FeedScope.Projects -> CenteredMessage(
-                title = stringResource(Res.string.feed_projects_title),
-                text = stringResource(Res.string.feed_projects_text),
+            FeedScope.Projects -> ProjectsContent(
+                projects = state.projects,
+                onProjectClick = onProjectClick,
+                onRetry = onProjectsRetry,
+                onFindProjectsClick = onSearchProjectsClick,
             )
             FeedScope.People -> PeopleContent(
                 people = state.people,
@@ -185,6 +209,92 @@ private fun FeedHeader(avatar: AvatarSource, onProfileClick: () -> Unit) {
         }
     }
 }
+
+/**
+ * The projects block of "01": the title of the section and, under it, what the state says (see [FeedProjectsState]). A
+ * failure and an empty answer are drawn alike, as a message; the way out of an empty answer is the search of projects, when
+ * the screen has one ([onFindProjectsClick]).
+ */
+@Composable
+private fun ProjectsContent(
+    projects: FeedProjectsState,
+    onProjectClick: (ProjectId) -> Unit,
+    onRetry: () -> Unit,
+    onFindProjectsClick: (() -> Unit)?,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item(key = "header") {
+            SectionHeader(title = stringResource(Res.string.feed_projects_title))
+        }
+        when (projects) {
+            FeedProjectsState.Loading -> item(key = "loading") {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            is FeedProjectsState.Failed -> item(key = "error") {
+                CenteredMessage(
+                    title = stringResource(Res.string.feed_projects_error),
+                    text = failureText(projects.cause),
+                    modifier = Modifier.fillMaxWidth(),
+                    actionText = stringResource(Res.string.feed_retry),
+                    onAction = onRetry,
+                )
+            }
+            is FeedProjectsState.Loaded -> if (projects.projects.isEmpty()) {
+                item(key = "empty") {
+                    CenteredMessage(
+                        title = stringResource(Res.string.feed_projects_empty_title),
+                        text = stringResource(Res.string.feed_projects_empty_text),
+                        modifier = Modifier.fillMaxWidth(),
+                        actionText = onFindProjectsClick?.let { stringResource(Res.string.feed_projects_find) },
+                        onAction = onFindProjectsClick,
+                    )
+                }
+            } else {
+                items(projects.projects, key = { it.id.value }) { project ->
+                    ProjectCard(
+                        model = project.toCardUiModel(),
+                        onClick = { onProjectClick(project.id) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The card of a recommended project, built like the cards of the search: the type, the status and the sphere as chips, the
+ * team size and the months in the footer. The initiator's line is "Вы инициатор" on the viewer's own project, otherwise
+ * their name ("Без имени" when there is none) and the university.
+ */
+@Composable
+private fun FeedProject.toCardUiModel(): ProjectCardUiModel {
+    val project = recommended.project
+    return projectCardUiModel(
+        title = project.title,
+        author = if (project.viewerIsInitiator) {
+            stringResource(Res.string.feed_you_initiator)
+        } else {
+            authorLine(nameOrPlaceholder(project.initiator.name), recommended.initiatorUniversity)
+        },
+        avatarKey = project.initiator.id.value,
+        avatarName = project.initiator.name,
+        type = project.type,
+        status = project.status,
+        sphere = project.sphere?.name,
+        rolesCount = project.roles.size,
+        period = project.period,
+    )
+}
+
+/** The [name] and the [university] joined by " · ", the university left out when it is blank. */
+private fun authorLine(name: String, university: String): String =
+    listOf(name, university.trim()).filter { it.isNotEmpty() }.joinToString(" · ")
 
 /**
  * The people block of "01c": the title of the section and, under it, what the state says (see [FeedPeopleState]).

@@ -122,4 +122,74 @@ class RecommendationsApiTest {
         assertEquals(401, failure.status)
         assertEquals(listOf(PeopleSessionFixture.Token), server.rejected)
     }
+
+    // ---- the projects ----
+
+    private fun projectsServer(body: String = ProjectSpec.list(total = null)) = ProjectSessionFixture { json(body) }
+
+    @Test
+    fun theProjectRecommendationsAreAGetWithTheBearerTokenAndTheLimitOnly() = runTest {
+        val server = projectsServer()
+
+        server.session.recommendations.projects(10)
+
+        val request = server.requests.single()
+        assertEquals(HttpMethod.Get, request.method)
+        assertEquals("/api/v1/recommendations/projects", request.url.encodedPath)
+        assertEquals("limit=10", request.url.encodedQuery)
+        assertEquals(listOf("Bearer ${ProjectSessionFixture.Token}"), request.authorizations)
+        assertEquals("", request.bodyText())
+    }
+
+    @Test
+    fun aLimitThatAsksForNoProjectIsRefusedBeforeAnyRequest() = runTest {
+        val server = projectsServer()
+
+        assertFailsWith<IllegalArgumentException> { server.session.recommendations.projects(0) }
+        assertFailsWith<IllegalArgumentException> { server.session.recommendations.projects(-1) }
+
+        assertEquals(emptyList(), server.requests)
+    }
+
+    @Test
+    fun theProjectsAreReadInTheOrderOfTheServerAndTheRecommendationBlockIsLeftAlone() = runTest {
+        val body = """{"items":[${ProjectSpec.project("c")},${ProjectSpec.FullProject},${ProjectSpec.project("a")}],"total":"3",""" +
+            """"recommendation":{"schema_version":1,"run_id":"r","model":"m","generated_at":"2026-10-20T10:00:00Z","items":[{"id":"c","score":0.9,"factors":["skills"],"fallback":false}]}}"""
+        val server = projectsServer(body)
+
+        val answer = server.session.recommendations.projects(10)
+
+        assertEquals(listOf("c", "p-1", "a"), answer.items.map { it.id })
+        assertEquals(3L, answer.total)
+        assertEquals("AI-навигация", answer.items[1].details.title)
+    }
+
+    @Test
+    fun anEmptyObjectIsNoProject() = runTest {
+        val answer = projectsServer("{}").session.recommendations.projects(10)
+
+        assertEquals(emptyList(), answer.items)
+        assertEquals(0L, answer.total)
+    }
+
+    @Test
+    fun everyErrorStatusOfTheProjectsIsAnHttpFailureWithItsStatus() = runTest {
+        for (status in listOf(400, 403, 404, 500, 503, 504)) {
+            val server = ProjectSessionFixture { jsonError(HttpStatusCode.fromValue(status), "причина") }
+
+            val failure = failureOf<RemoteFailure.Http> { server.session.recommendations.projects(10) }
+
+            assertEquals(status, failure.status)
+        }
+    }
+
+    @Test
+    fun aRefusedTokenOnTheProjectsIsReportedExactlyOnce() = runTest {
+        val server = ProjectSessionFixture { jsonError(HttpStatusCode.Unauthorized, "expired") }
+
+        val failure = failureOf<RemoteFailure.Http> { server.session.recommendations.projects(10) }
+
+        assertEquals(401, failure.status)
+        assertEquals(listOf(ProjectSessionFixture.Token), server.rejected)
+    }
 }

@@ -12,4 +12,11 @@ interface FeedRepository {
      * repeats. API-GAP G32: the server picks random people open to collaboration, not people for the viewer's projects.
      */
     suspend fun getRecommendedPeople(): List<Collaborator>
+
+    /**
+     * "Рекомендации для вас": the projects the server recommends, in its order, without repeats. The projects the app cannot
+     * read (no id, no initiator) are left out; the server alone decides which projects are offered, nothing is filtered by
+     * status or by owner on the client (the viewer's own project is shown as such).
+     */
+    suspend fun getRecommendedProjects(): List<RecommendedProject>
 }

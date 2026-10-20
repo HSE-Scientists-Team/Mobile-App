@@ -110,13 +110,13 @@ internal interface DataSourcesModule {
         GatewayProjectSearchDataSource(gateway.projectCatalog, assembler)
 
     /**
-     * The people of the feed (01c). API-GAP G32: random people open to collaboration; G33: the viewer and the repeats
-     * are dropped.
+     * The projects (01) and the people (01c) of the feed. API-GAP G33: the viewer and the repeats among the people are
+     * dropped; the projects are read and their initiators looked up by the assembler of the session.
      */
     @Provides
     @SessionScope
-    fun feedDataSource(gateway: GatewaySession, session: Session): FeedDataSource =
-        GatewayFeedDataSource(gateway.recommendations, viewerId = session.userId)
+    fun feedDataSource(gateway: GatewaySession, assembler: ProjectAssembler, session: Session): FeedDataSource =
+        GatewayFeedDataSource(gateway.recommendations, assembler, viewerId = session.userId)
 
     /** The people search (08, 08b): `project_type` goes when one type is chosen; API-GAP G31: the role is not sent. */
     @Provides

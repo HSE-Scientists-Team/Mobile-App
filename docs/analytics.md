@@ -63,7 +63,7 @@
 
 | Источник (`source`) | Что нажали | Событие |
 |---|---|---|
-| `feed_recommendations` | карточка рекомендованного проекта на ленте (появится вместе с рекомендациями проектов) | `project_card_click` |
+| `feed_recommendations` | карточка рекомендованного проекта на ленте (рекомендации проектов сделаны 2026-10-21; колбэк `onProjectClick` ленты в `AppNavHost`) | `project_card_click` |
 | `project_search` | результат поиска проектов (02, 03) | `project_card_click` |
 | `my_projects_owner` | «Мои проекты → Я инициатор» | `project_card_click` |
 | `my_projects_member` | «Мои проекты → Я участник» | `project_card_click` |
