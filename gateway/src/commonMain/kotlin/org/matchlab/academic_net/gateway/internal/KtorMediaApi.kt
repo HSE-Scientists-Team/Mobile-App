@@ -4,6 +4,7 @@ import org.matchlab.academic_net.gateway.MediaApi
 import org.matchlab.academic_net.gateway.dto.CreateMediaUploadDto
 import org.matchlab.academic_net.gateway.dto.MediaDownloadDto
 import org.matchlab.academic_net.gateway.dto.MediaFileDto
+import org.matchlab.academic_net.gateway.dto.MediaFileResultDto
 import org.matchlab.academic_net.gateway.dto.MediaUploadDto
 
 /** [MediaApi] over the client of a session (the API) and [ExternalRequests] (the storage). */
@@ -20,7 +21,7 @@ internal class KtorMediaApi(
     }
 
     override suspend fun complete(fileId: String): MediaFileDto =
-        requests.postEmpty("media/files/${pathSegment(fileId)}/complete")
+        requests.postEmpty<MediaFileResultDto>("media/files/${pathSegment(fileId)}/complete").file
 
     override suspend fun downloadUrl(fileId: String): MediaDownloadDto =
         requests.get("media/files/${pathSegment(fileId)}/download-url")

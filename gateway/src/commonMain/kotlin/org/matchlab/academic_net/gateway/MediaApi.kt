@@ -1,5 +1,6 @@
 package org.matchlab.academic_net.gateway
 
+import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.gateway.dto.CreateMediaUploadDto
 import org.matchlab.academic_net.gateway.dto.MediaDownloadDto
 import org.matchlab.academic_net.gateway.dto.MediaFileDto
@@ -40,12 +41,13 @@ interface MediaApi {
 /**
  * Uploads [bytes] as a new file of the viewer and returns it `ready`: [MediaApi.createUpload] with the size of [bytes],
  * [MediaApi.putContent], [MediaApi.complete]. A failure of any step is thrown as it is; the pending record of a
- * failed upload is cleaned up by the server (24 hours).
+ * failed upload is cleaned up by the server (24 hours); an answer of `complete` with no file id is `RemoteFailure.Malformed`.
  *
  * @param isPublic public files (avatars) can be read by anyone; the rest only by their owner (proof of an achievement)
  */
 suspend fun MediaApi.uploadFile(name: String, contentType: String, bytes: ByteArray, isPublic: Boolean): MediaFileDto {
     val upload = createUpload(CreateMediaUploadDto(name, contentType, bytes.size.toLong(), isPublic))
     putContent(upload, bytes)
-    return complete(upload.file.id)
+    // An answer without an id is not a file: it would be written into a profile as an empty id.
+    return complete(upload.file.id).takeIf { it.id.isNotBlank() } ?: throw RemoteFailure.Malformed()
 }

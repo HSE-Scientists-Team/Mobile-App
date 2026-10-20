@@ -27,6 +27,10 @@ data class MediaFileDto(
     @SerialName("is_public") val isPublic: Boolean = false,
 )
 
+/** `MediaFileResult`: the answer of `complete`, the file is wrapped in `file` like in [MediaUploadDto]. */
+@Serializable
+data class MediaFileResultDto(val file: MediaFileDto = MediaFileDto())
+
 /** `MediaUpload`: the new (pending) [file] and the signed request that takes its bytes: [method] (`PUT`) [uploadUrl] with [headers]. */
 @Serializable
 data class MediaUploadDto(

@@ -19,7 +19,8 @@ import kotlin.test.assertTrue
 class MediaApiTest {
     private val storage = "https://storage.example/matchlab-media/users/u/file?X-Amz-Signature=sig"
     private val pending = """{"file":{"id":"f-1","owner_user_id":"u","original_name":"a.jpg","content_type":"image/jpeg","status":"pending","created_at_unix":"1","is_public":true},"upload_url":"$storage","method":"PUT","headers":{"Content-Type":"image/jpeg","Content-Length":"3","x-amz-acl":"public-read"},"expires_at_unix":"1760000900"}"""
-    private val ready = """{"id":"f-1","owner_user_id":"u","original_name":"a.jpg","content_type":"image/jpeg","size_bytes":"3","status":"ready","created_at_unix":"1","is_public":true}"""
+    // MediaFileResult: the file is inside `file`, exactly as the server answered (a flat object read as an empty file).
+    private val ready = """{"file":{"id":"f-1","owner_user_id":"u","original_name":"a.jpg","content_type":"image/jpeg","size_bytes":"3","status":"ready","created_at_unix":"1","uploaded_at_unix":"2","is_public":true}}"""
 
     private fun server() = ProjectSessionFixture { request ->
         when {
@@ -69,11 +70,27 @@ class MediaApiTest {
     }
 
     @Test
+    fun anAnswerOfCompleteWithoutAFileIsMalformedNotAnEmptyId() = runTest {
+        val server = ProjectSessionFixture { request ->
+            when {
+                request.url.host == "storage.example" -> respond("", HttpStatusCode.OK)
+                request.url.encodedPath == "/api/v1/media/files" -> json(pending, HttpStatusCode.Created)
+                else -> json("""{"id":"f-1","status":"ready"}""")
+            }
+        }
+
+        assertFailsWith<RemoteFailure.Malformed> {
+            server.session.media.uploadFile("a.jpg", "image/jpeg", byteArrayOf(1, 2, 3), isPublic = true)
+        }
+    }
+
+    @Test
     fun uploadFileDoesThreeCallsInOrderAndGivesTheReadyFile() = runTest {
         val server = server()
 
         val file = server.session.media.uploadFile("a.jpg", "image/jpeg", byteArrayOf(1, 2, 3), isPublic = true)
 
+        assertEquals("f-1", file.id, "the id is read from inside `file`: an empty one would be saved in the profile")
         assertEquals("ready", file.status)
         assertEquals(
             listOf("api.matchlab.space/api/v1/media/files", "storage.example/matchlab-media/users/u/file", "api.matchlab.space/api/v1/media/files/f-1/complete"),
