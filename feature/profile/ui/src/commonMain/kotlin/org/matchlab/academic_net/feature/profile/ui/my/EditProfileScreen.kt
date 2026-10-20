@@ -440,14 +440,14 @@ private fun SectionTitle(text: String) {
 }
 
 /**
- * The photo of the profile with "Изменить фото" under it. Only for an account that has a profile (the photo is a field
- * of it); the photo is changed at once, not with "Сохранить". While the new one is uploaded the button turns; a failure is
+ * The photo of the profile with "Изменить фото" under it. With a profile the photo is changed at once, not with
+ * "Сохранить"; on the first fill (no profile yet) it waits for "Сохранить" and is uploaded after the profile. While the new one is uploaded the button turns; a failure is
  * written under it and the old photo stays.
  */
 @Composable
 private fun AvatarEditor(avatar: AvatarState, onChangePhotoClick: () -> Unit, modifier: Modifier = Modifier) {
     val userKey = avatar.userKey
-    if (!avatar.canChange || userKey == null) return
+    if (userKey == null) return
     Column(
         modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,

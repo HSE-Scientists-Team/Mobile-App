@@ -484,25 +484,81 @@ class EditProfileViewModelTest {
     private val photo = UploadFile(byteArrayOf(1, 2), "image/jpeg", "avatar.jpg")
 
     @Test
-    fun theAvatarKnowsWhoseItIsAndAnAccountWithAProfileCanChangeIt() {
+    fun theAvatarKnowsWhoseItIsAndAnAccountWithAProfileUploadsAtOnce() {
         repository.profile.value = myProfile(person = person(name = "Арджун"))
 
         val avatar = viewModel().uiState.value.avatar
 
-        assertTrue(avatar.canChange)
+        assertTrue(avatar.hasProfile)
         assertEquals(repository.profile.value.profile.person.user.id.value, avatar.userKey)
         assertFalse(avatar.isUploading)
         assertNull(avatar.failure)
     }
 
     @Test
-    fun anAccountWithoutANameCannotChangeTheAvatarYet() {
+    fun aNewAccountCanChooseAPhotoAndItWaitsForTheFirstSave() {
         repository.profile.value = myProfile(person = person(name = ""))
         val viewModel = viewModel()
 
-        assertFalse(viewModel.uiState.value.avatar.canChange)
+        assertFalse(viewModel.uiState.value.avatar.hasProfile)
+        assertNotNull(viewModel.uiState.value.avatar.userKey, "the control is shown on the first fill")
         viewModel.onAvatarChosen(photo)
 
+        assertEquals(photo, viewModel.uiState.value.avatar.chosen, "the photo is shown at once")
+        assertFalse(viewModel.uiState.value.avatar.isUploading)
+        assertTrue(repository.changedAvatars.isEmpty(), "there is no profile to put the photo in yet")
+    }
+
+    @Test
+    fun theFirstSaveCreatesTheProfileAndThenUploadsThePhotoAndCloses() {
+        repository.profile.value = myProfile(person = person(name = ""))
+        val viewModel = viewModel()
+        viewModel.onNameChange("Арджун")
+        viewModel.onAvatarChosen(photo)
+
+        viewModel.onSaveClick()
+
+        assertEquals(listOf("updateProfile", "changeAvatar"), repository.calls.filter { it == "updateProfile" || it == "changeAvatar" })
+        assertEquals(listOf(photo), repository.changedAvatars)
+        assertTrue(viewModel.uiState.value.isSaved)
+        assertNull(viewModel.uiState.value.avatar.failure)
+    }
+
+    @Test
+    fun aPhotoThatFailsOnTheFirstSaveKeepsTheProfileSavedTheFormOpenAndIsTriedAgain() {
+        repository.profile.value = myProfile(person = person(name = ""))
+        repository.onChangeAvatar = { throw RemoteFailure.NoConnection() }
+        val viewModel = viewModel()
+        viewModel.onNameChange("Арджун")
+        viewModel.onAvatarChosen(photo)
+
+        viewModel.onSaveClick()
+
+        var state = viewModel.uiState.value
+        assertFalse(state.isSaved, "the form stays: the photo is not there yet")
+        assertFalse(state.isSaving)
+        assertIs<RemoteFailure.NoConnection>(state.avatar.failure)
+        assertEquals(photo, state.avatar.chosen, "the photo stays on the screen to be tried again")
+        assertEquals(1, repository.updatedProfiles.size)
+
+        repository.onChangeAvatar = {}
+        viewModel.onSaveClick()
+
+        state = viewModel.uiState.value
+        assertTrue(state.isSaved)
+        assertNull(state.avatar.failure)
+        assertEquals(2, repository.changedAvatars.size)
+    }
+
+    @Test
+    fun aSaveWithNoChosenPhotoUploadsNothing() {
+        repository.profile.value = myProfile(person = person(name = ""))
+        val viewModel = viewModel()
+        viewModel.onNameChange("Арджун")
+
+        viewModel.onSaveClick()
+
+        assertTrue(viewModel.uiState.value.isSaved)
         assertTrue(repository.changedAvatars.isEmpty())
     }
 

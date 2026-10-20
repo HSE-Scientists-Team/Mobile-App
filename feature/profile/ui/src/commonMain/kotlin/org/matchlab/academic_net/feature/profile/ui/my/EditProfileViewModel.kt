@@ -54,16 +54,17 @@ data class EditProfileUiState(
  * The photo of the profile on "10b".
  *
  * @property userKey the viewer, whose picture it is; `null` while the profile is loading
- * @property canChange the account has a profile (a name): only then the photo can be changed, and the control is shown
+ * @property hasProfile the account has a profile (a name). The photo is a field of the profile, so a photo chosen without
+ * one waits and is uploaded after the first save of the form
  * @property isUploading the photo is being uploaded and saved; the control waits
- * @property chosen the photo the person has just chosen, shown at once while it is uploaded and after; `null` before a
- * choice and when the upload failed (the old photo stays)
+ * @property chosen the photo the person has just chosen, shown at once, while it is uploaded and after; `null` before a
+ * choice and when the upload failed (the old photo stays). Without a profile it is the photo that waits for the save
  * @property failure why the last change failed; `null` if it did not (it is cleared by the next try)
  */
 @Immutable
 data class AvatarState(
     val userKey: String? = null,
-    val canChange: Boolean = false,
+    val hasProfile: Boolean = false,
     val isUploading: Boolean = false,
     val chosen: UploadFile? = null,
     val failure: Throwable? = null,
@@ -94,6 +95,9 @@ class EditProfileViewModel(
     private var observing: Job? = null
     private var draftTaken = false
     private var showErrors = false
+
+    // The photo chosen before the profile existed: it goes to the server after the profile is saved.
+    private var waitingPhoto: UploadFile? = null
 
     init {
         observe()
@@ -132,12 +136,20 @@ class EditProfileViewModel(
     fun onRemoveSkill(tag: String) = editDraft { it.copy(skills = it.skills.withoutTag(tag)) }
 
     /**
-     * A photo was chosen: it is uploaded and becomes the avatar at once (not with "Сохранить": the photo is not a field
-     * of the form). One change at a time; a failure is shown under the photo and the old picture stays.
+     * A photo was chosen. For an account with a profile it is uploaded and becomes the avatar at once (not with
+     * "Сохранить": the photo is not a field of the form); one change at a time, a failure is shown under the photo and
+     * the old picture stays. For an account with no profile yet (the first fill) the photo waits: "Сохранить" creates
+     * the profile first and uploads the photo after it.
      */
     fun onAvatarChosen(photo: UploadFile) {
-        val current = state.value.avatar
-        if (!current.canChange || current.isUploading) return
+        val current = state.value
+        if (current.avatar.userKey == null || current.avatar.isUploading || current.isSaving) return
+        if (!current.avatar.hasProfile) {
+            waitingPhoto = photo
+            state.update { it.copy(avatar = it.avatar.copy(chosen = photo, failure = null)) }
+            return
+        }
+        waitingPhoto = null
         state.update { it.copy(avatar = it.avatar.copy(isUploading = true, chosen = photo, failure = null)) }
         viewModelScope.launch {
             changeAvatar(photo).fold(
@@ -169,11 +181,34 @@ class EditProfileViewModel(
         viewModelScope.launch {
             when (val result = updateProfile(current.draft)) {
                 // The save is done: `isSaving` stays set, so that nothing is saved again while the screen closes.
-                is SubmitResult.Success -> state.update { it.copy(isSaved = true) }
+                is SubmitResult.Success -> uploadWaitingPhoto()
                 is SubmitResult.Invalid -> state.update { it.copy(isSaving = false, errors = result.errors) }
                 is SubmitResult.Failure -> state.update { it.copy(isSaving = false, saveFailed = true) }
             }
         }
+    }
+
+    /**
+     * The profile is saved, so the account has one: the photo chosen before that goes up now. The form closes when it is
+     * there. If it cannot be uploaded the profile stays saved, the form stays open with the cause under the photo, and
+     * the next "Сохранить" saves the profile again and tries the photo again.
+     */
+    private suspend fun uploadWaitingPhoto() {
+        val photo = waitingPhoto
+        if (photo == null) {
+            state.update { it.copy(isSaved = true) }
+            return
+        }
+        state.update { it.copy(avatar = it.avatar.copy(isUploading = true, failure = null)) }
+        changeAvatar(photo).fold(
+            onSuccess = {
+                waitingPhoto = null
+                state.update { it.copy(isSaved = true, avatar = it.avatar.copy(isUploading = false)) }
+            },
+            onFailure = { cause ->
+                state.update { it.copy(isSaving = false, avatar = it.avatar.copy(isUploading = false, failure = cause)) }
+            },
+        )
     }
 
     private fun observe() {
@@ -196,7 +231,7 @@ class EditProfileViewModel(
                             works = profile.allWorks,
                             avatar = current.avatar.copy(
                                 userKey = profile.profile.person.user.id.value,
-                                canChange = !profile.needsName,
+                                hasProfile = !profile.needsName,
                             ),
                         )
                     }
