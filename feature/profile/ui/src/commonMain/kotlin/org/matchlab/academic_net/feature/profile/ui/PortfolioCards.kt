@@ -54,16 +54,17 @@ data class WorkCardUiModel(
 /**
  * "Card/Work": scientific or practical work in the portfolio with its verification mark.
  *
+ * The card has no chevron even where it opens something (on the viewer's own profile a work opens for editing): the
+ * only thing at the end of the title row is the verification mark (decision of 2026-10-20, it differs from the
+ * `showChevron` property of "Card/Work" in Figma).
+ *
  * @param onClick the whole card; `null` leaves the card without a tap
- * @param showChevron the chevron at the end of the row, centered on the whole row: it tells the card opens something
- * (on the viewer's own profile a work opens for editing)
  */
 @Composable
 fun WorkCard(
     model: WorkCardUiModel,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    showChevron: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val icon = when (model.type) {
@@ -87,7 +88,6 @@ fun WorkCard(
                     Text(model.subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                 }
             }
-            if (showChevron) Chevron(Modifier.align(Alignment.CenterVertically))
         }
     }
 }
@@ -137,11 +137,10 @@ fun EducationCard(
 
 /** The 20dp chevron of a card that opens something; decorative, the card itself is what a screen reader tells. */
 @Composable
-private fun Chevron(modifier: Modifier = Modifier) {
+private fun Chevron() {
     AppIcon(
         icon = AppIcons.ChevronRight,
         contentDescription = null,
-        modifier = modifier,
         size = 20.dp,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
     )

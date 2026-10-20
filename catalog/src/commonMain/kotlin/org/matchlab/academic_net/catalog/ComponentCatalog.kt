@@ -1113,7 +1113,7 @@ private fun ProfileComponents() {
             ),
             onClick = {},
         )
-        // The own profile: the chevron is centered on the whole row, a long title takes two lines.
+        // The own profile: the card opens for editing and has no chevron, only the mark; a long title takes two lines.
         WorkCard(
             WorkCardUiModel(
                 title = "Localized CV Pipelines on Edge Devices",
@@ -1121,12 +1121,10 @@ private fun ProfileComponents() {
                 mark = VerificationMark.Verified,
             ),
             onClick = {},
-            showChevron = true,
         )
         WorkCard(
             WorkCardUiModel(title = "Сегментация коридоров на Raspberry Pi", subtitle = "Проектная работа · GitHub", type = ProjectType.Practical),
             onClick = {},
-            showChevron = true,
         )
         // A review in a list: with the month, the chat icon, a long text that is cut and "Читать полностью".
         ReviewCard(

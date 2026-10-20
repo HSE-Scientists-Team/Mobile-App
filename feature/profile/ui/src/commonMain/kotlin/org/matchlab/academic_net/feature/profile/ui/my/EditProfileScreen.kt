@@ -422,7 +422,6 @@ private fun EditForm(
             WorkCard(
                 model = work.toCardUiModel(listStyle = true),
                 onClick = { onEditWork(work.id) },
-                showChevron = true,
             )
         }
         AppButton(

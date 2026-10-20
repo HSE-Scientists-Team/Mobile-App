@@ -101,7 +101,6 @@ internal fun UserWorksScreen(
                                 // API-GAP G56: only a web link is opened; any other link leaves the card not a button.
                                 openableLink(work.link)?.let { link -> { onWorkLinkClick(link) } }
                             },
-                            showChevron = state.isViewer,
                         )
                     }
                 }

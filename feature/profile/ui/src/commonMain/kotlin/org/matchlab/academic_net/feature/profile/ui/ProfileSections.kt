@@ -124,7 +124,6 @@ internal fun ColumnScope.ProfileSections(
                 WorkCard(
                     model = work.toCardUiModel(listStyle = false),
                     onClick = if (isOwn || openableLink(work.link) != null) ({ onWorkClick(work) }) else null,
-                    showChevron = isOwn,
                 )
             }
         }
