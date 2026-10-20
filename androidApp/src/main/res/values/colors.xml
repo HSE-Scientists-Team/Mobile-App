@@ -1,0 +1,4 @@
+<resources>
+    <!-- The background of the launcher icon: `primary` of the "MatchLab Color" collection, as in docs/brand/matchlab-icon.svg. -->
+    <color name="ic_launcher_background">#3550DC</color>
+</resources>
