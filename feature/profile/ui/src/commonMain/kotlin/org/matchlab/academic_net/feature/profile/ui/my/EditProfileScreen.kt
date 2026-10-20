@@ -16,9 +16,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,6 +29,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.components.AppAvatars
@@ -450,7 +453,13 @@ private fun AvatarEditor(avatar: AvatarState, onChangePhotoClick: () -> Unit, mo
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Avatar(AppAvatars.forKey(userKey), contentDescription = null, size = 96.dp)
+        // The photo just chosen is drawn from its own bytes: it does not wait for the server to give the picture back.
+        val chosen = remember(avatar.chosen) { avatar.chosen?.let { runCatching { it.bytes.decodeToImageBitmap() }.getOrNull() } }
+        if (chosen != null) {
+            Avatar(BitmapPainter(chosen), contentDescription = null, size = 96.dp)
+        } else {
+            Avatar(AppAvatars.forKey(userKey), contentDescription = null, size = 96.dp)
+        }
         AppButton(
             text = stringResource(Res.string.profile_avatar_change),
             onClick = onChangePhotoClick,

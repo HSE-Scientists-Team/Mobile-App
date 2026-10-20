@@ -56,6 +56,8 @@ data class EditProfileUiState(
  * @property userKey the viewer, whose picture it is; `null` while the profile is loading
  * @property canChange the account has a profile (a name): only then the photo can be changed, and the control is shown
  * @property isUploading the photo is being uploaded and saved; the control waits
+ * @property chosen the photo the person has just chosen, shown at once while it is uploaded and after; `null` before a
+ * choice and when the upload failed (the old photo stays)
  * @property failure why the last change failed; `null` if it did not (it is cleared by the next try)
  */
 @Immutable
@@ -63,6 +65,7 @@ data class AvatarState(
     val userKey: String? = null,
     val canChange: Boolean = false,
     val isUploading: Boolean = false,
+    val chosen: UploadFile? = null,
     val failure: Throwable? = null,
 )
 
@@ -135,11 +138,13 @@ class EditProfileViewModel(
     fun onAvatarChosen(photo: UploadFile) {
         val current = state.value.avatar
         if (!current.canChange || current.isUploading) return
-        state.update { it.copy(avatar = it.avatar.copy(isUploading = true, failure = null)) }
+        state.update { it.copy(avatar = it.avatar.copy(isUploading = true, chosen = photo, failure = null)) }
         viewModelScope.launch {
             changeAvatar(photo).fold(
                 onSuccess = { state.update { it.copy(avatar = it.avatar.copy(isUploading = false)) } },
-                onFailure = { cause -> state.update { it.copy(avatar = it.avatar.copy(isUploading = false, failure = cause)) } },
+                onFailure = { cause ->
+                    state.update { it.copy(avatar = it.avatar.copy(isUploading = false, chosen = null, failure = cause)) }
+                },
             )
         }
     }

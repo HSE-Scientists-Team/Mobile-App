@@ -515,11 +515,13 @@ class EditProfileViewModelTest {
         viewModel.onAvatarChosen(photo)
         viewModel.onAvatarChosen(photo)
         assertTrue(viewModel.uiState.value.avatar.isUploading)
+        assertEquals(photo, viewModel.uiState.value.avatar.chosen, "the photo is shown while it is uploaded")
         gate.complete(Unit)
 
         assertEquals(1, repository.changedAvatars.size, "a second choice while one is on its way does nothing")
         assertFalse(viewModel.uiState.value.avatar.isUploading)
         assertNull(viewModel.uiState.value.avatar.failure)
+        assertEquals(photo, viewModel.uiState.value.avatar.chosen, "the photo stays on the screen after it is saved")
     }
 
     @Test
@@ -531,6 +533,7 @@ class EditProfileViewModelTest {
 
         assertIs<RemoteFailure.NoConnection>(viewModel.uiState.value.avatar.failure)
         assertFalse(viewModel.uiState.value.avatar.isUploading)
+        assertNull(viewModel.uiState.value.avatar.chosen, "a photo that was not saved is not shown: the old one stays")
 
         repository.onChangeAvatar = {}
         viewModel.onAvatarChosen(photo)
