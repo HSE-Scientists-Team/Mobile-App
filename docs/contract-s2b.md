@@ -1043,3 +1043,5 @@ fun projectComplaint(id: ProjectId) = "complaint/project/${id.value}"
 - «G68 — `subject` = код причины; вложений нет».
 
 Проверок не было: Gradle не запускался, на сервере ничего не проверялось, визуальная проверка на устройстве не выполнялась.
+
+> **Заменено 2026-10-21 (T27):** `ParticipationSource` и `ResponsesParticipationSource` удалены, «Я участник» читается `GET /projects?mine=participant` (G67 закрыт). Разделы выше про N+1 исторические.
