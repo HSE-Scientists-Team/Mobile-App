@@ -40,6 +40,7 @@ import org.matchlab.academic_net.components.AppSearchBarButton
 import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.AvatarSource
+import org.matchlab.academic_net.components.LocalNavigationBarOverlap
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
 import org.matchlab.academic_net.components.ProjectCard
@@ -224,7 +225,13 @@ private fun ProjectsContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        // The list reaches under the bottom bar; the same extra padding keeps the last card where it stops above the bar.
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 16.dp + LocalNavigationBarOverlap.current,
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "header") {
@@ -309,7 +316,13 @@ private fun PeopleContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        // The list reaches under the bottom bar; the same extra padding keeps the last card where it stops above the bar.
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 16.dp + LocalNavigationBarOverlap.current,
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "header") {

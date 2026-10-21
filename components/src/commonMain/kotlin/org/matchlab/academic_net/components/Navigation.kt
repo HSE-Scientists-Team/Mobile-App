@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -51,6 +52,16 @@ import org.matchlab.academic_net.components.interaction.rememberOnceClick
 
 /** Shadow of [AppNavigationBar]: it sets the bar apart from the screen content that scrolls under it. */
 private val BarElevation = 8.dp
+
+/**
+ * How far a list may reach under [AppNavigationBar]: to the middle of the 78dp bar. The screen that scrolls under the bar
+ * (the feed) gets this much more room from the tab host and adds the same to the bottom padding of its list, so the last
+ * item stops where it would without the overlap.
+ */
+val NavigationBarOverlap = 39.dp
+
+/** [NavigationBarOverlap] for the screen shown above the bar; zero when the host keeps the screen above the bar. */
+val LocalNavigationBarOverlap = compositionLocalOf { 0.dp }
 
 /**
  * "Navigation bar": 78dp bar with flush items and a 64x32 pill indicator.
