@@ -1052,7 +1052,7 @@ class GatewayProjectsDataSourceTest {
         ProjectListDto((1..100).map { projectDto("$prefix-$it", owner = owner) }, total = 100_000)
 
     @Test
-    fun theCatalogIsReadWithNoFilterAndOnlyTheViewersProjectsStay() = runTest {
+    fun theCatalogIsReadWithTheOwnerFilterAndOnlyTheViewersProjectsStay() = runTest {
         catalog.onList = { _, _ ->
             page(
                 projectDto("a", owner = TestViewer.value),
@@ -1065,7 +1065,7 @@ class GatewayProjectsDataSourceTest {
 
         assertEquals(listOf("a", "c"), mine.map { it.id.value })
         assertTrue(mine.all { it.viewerIsInitiator })
-        assertEquals(listOf(ProjectSearchParams() to org.matchlab.academic_net.common.paging.PageRequest(offset = 0, limit = 100)), catalog.lists)
+        assertEquals(listOf(ProjectSearchParams(mine = "owner") to org.matchlab.academic_net.common.paging.PageRequest(offset = 0, limit = 100)), catalog.lists)
     }
 
     @Test

@@ -58,6 +58,7 @@ class ProjectAdaptersTest {
         override suspend fun updateProject(id: ProjectId, info: ProjectInfo): Project = throw AssertionError()
         override suspend fun updateRole(projectId: ProjectId, roleId: RoleId, role: RoleDraft): Role = throw AssertionError()
         override suspend fun removeRole(projectId: ProjectId, roleId: RoleId): Project = throw AssertionError()
+        override suspend fun getParticipatingProjects(): List<Project> = throw AssertionError()
         override suspend fun getSpheres(): List<Sphere> {
             failure?.let { throw it }
             return spheres

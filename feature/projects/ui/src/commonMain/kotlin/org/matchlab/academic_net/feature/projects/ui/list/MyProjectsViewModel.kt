@@ -58,8 +58,8 @@ data class MyProjectItem(
 )
 
 /**
- * The tab "Я участник" (06b): the projects the viewer is a member of, loaded when the tab is chosen (API-GAP G67: one
- * request per project).
+ * The tab "Я участник" (06b): the projects the viewer is a member of, loaded when the tab is chosen (one list of the
+ * server, `mine=participant`).
  */
 sealed interface ParticipatingState {
     /** The tab has not been chosen yet: nothing is read. */

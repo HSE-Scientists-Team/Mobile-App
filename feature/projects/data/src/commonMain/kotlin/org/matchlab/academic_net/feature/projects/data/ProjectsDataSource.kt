@@ -94,6 +94,13 @@ interface ProjectsDataSource {
      */
     suspend fun removeMember(projectId: ProjectId, userId: UserId): Project
 
+    /**
+     * The projects the viewer takes part in without owning them (06b "Я участник"): the server's list (`mine=participant`),
+     * read afresh on every call, each project once and with its initiator. The projects are cached, so that each can be
+     * opened with [getProject]. Throws the failure of a request.
+     */
+    suspend fun getParticipatingProjects(): List<Project>
+
     /** The spheres a project can belong to: the app's own list, `Spheres.all`. */
     suspend fun getSpheres(): List<Sphere>
 }

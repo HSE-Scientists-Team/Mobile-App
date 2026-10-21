@@ -34,6 +34,7 @@ import org.matchlab.academic_net.gateway.ProjectCatalogApi
 import org.matchlab.academic_net.gateway.ProjectSearchParams
 import org.matchlab.academic_net.gateway.ProjectsApi
 import org.matchlab.academic_net.gateway.contract.ProjectActions
+import org.matchlab.academic_net.gateway.contract.ProjectMineFilter
 import org.matchlab.academic_net.gateway.dto.ProjectCreateDto
 import org.matchlab.academic_net.gateway.dto.ProjectDto
 import org.matchlab.academic_net.gateway.dto.ProjectInitialRoleDto
@@ -68,18 +69,26 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * | `removeMember` | `DELETE /projects/{id}/members/{user_id}` with the lock held; the answer is the project (the team is read after it); a 403 or 409 is [MemberNotRemovableException] after the project was read again (API-GAP G65); a 404 reads the project again: gone is [ProjectNotFoundException], still there counts as removed and the project is returned |
  * | `addRole` | `POST /projects/{id}/roles` with the cached revision (the project is read first if the cache does not have it); a 404 is [ProjectNotFoundException], a 409 is [ProjectConflictException] after the project was read again; the rest is thrown |
  * | `observeMyProjects` | the first collection reads `GET /projects` (see below); a failure of that is thrown to the collector, which asks again by collecting again |
+ * | `getParticipatingProjects` | `GET /projects?mine=participant` in the same pages (see below), afresh each time; the projects go into the cache, so that each can be opened as any other; a failure is thrown |
  * | `getSpheres` | `Spheres.all`, no request |
  *
  * **The cache** keeps each project with the `revision` it was read at, the number a change has to send back. A project
  * read at an older revision than the cached one (a slow answer that arrived after a newer one) does not replace it.
  *
- * **The list of the viewer's projects** is not a request of its own in the API (the meaning of `mine` is not described), so
- * the first collection of `observeMyProjects` reads the catalog `GET /projects` in pages of 100, at most 10 pages (1000
- * projects) and stops at the first page that is not full, keeps the projects whose `owner_user_id` is [viewerId] (only they
- * are assembled, so the owners of the others are not looked up), drops a repeat of an `id`, and puts them into the cache. The
+ * **The list of the viewer's projects** is `GET /projects?mine=owner` (`ProjectMineFilter.Owner`: only the projects the
+ * viewer owns). The first collection of `observeMyProjects` reads it in pages of 100, at most 10 pages (1000 projects) and
+ * stops at the first page that is not full; the server filters, and the projects whose `owner_user_id` is not [viewerId]
+ * are dropped anyway (only the kept ones are assembled, so the owners of the others are not looked up); a repeat of an
+ * `id` is dropped, and the projects go into the cache. The
  * list is made of the cache: the projects created in this session come first, newest first, then the ones the catalog
  * gave, in the server's order. So the list follows every change of a cached project (a project taken off publication, a
  * role added, a project that is gone) without a request.
+ *
+ * **The projects the viewer takes part in** are `GET /projects?mine=participant` (`ProjectMineFilter.Participant`: only the
+ * projects with an active participation of the viewer, without their own), read by `getParticipatingProjects` in the same
+ * pages and with the same stop. The server's statuses of the members are not read (API-GAP G52): the server decides who
+ * takes part. Every call asks again and the list is not kept; the projects are assembled with their owners (API-GAP G47),
+ * each `id` once, a project without `id` or `owner_user_id` is dropped, and they go into the cache.
  *
  * **Writes** (`createProject`, `unpublishProject`, `changeLifecycle`, `updateProject`, `updateRole`, `removeRole`, `removeMember`, `addRole`) run one after another, so that the second does not send the
  * revision the first has just made stale. The answer to a write is in the cache as soon as the API has given it; the owner
@@ -99,7 +108,7 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  *
  * @param assembler turns the server's project into the app's, with its owner.
  * @param team reads the profiles of the people of a project.
- * @param viewerId the user of the session: the projects of the catalog that are theirs are "Я инициатор".
+ * @param viewerId the user of the session: the projects of the catalog that are theirs are "Я инициатор" (the guard behind `mine=owner`).
  */
 class GatewayProjectsDataSource(
     private val api: ProjectsApi,
@@ -294,6 +303,13 @@ class GatewayProjectsDataSource(
         return newRoleOf(project, knownRoleIds, asked = role)
     }
 
+    override suspend fun getParticipatingProjects(): List<Project> {
+        val joined = readCatalog(ProjectMineFilter.Participant) { true }
+        rememberRead(joined)
+        // The cache may hold a richer copy of a project (with its team); the list shows what the cache has.
+        return joined.map { (id, entry) -> cache.value[id]?.project ?: entry.project }
+    }
+
     override suspend fun getSpheres(): List<Sphere> = Spheres.all
 
     /**
@@ -438,36 +454,53 @@ class GatewayProjectsDataSource(
             if (catalogMine.value != null) return
             val own = readCatalogMine()
             // The cache first: the list is made of it, and must not be shown with a project missing.
-            // A project the cache already has at this revision stays as it is: it may be the richer one (it has its team).
-            own.forEach { (id, entry) -> if (cache.value[id]?.let { it.revision >= entry.revision } != true) remember(id, entry) }
+            rememberRead(own)
             catalogMine.value = own.keys.toList()
         }
     }
 
-    /** The viewer's projects of the catalog, in the server's order, each once. */
-    private suspend fun readCatalogMine(): Map<ProjectId, Entry> {
-        val own = linkedMapOf<ProjectId, Entry>()
+    /**
+     * The viewer's own projects of the catalog (`mine=owner`), in the server's order, each once. The server filters; the
+     * check of `owner_user_id` is a guard against an answer that disagrees.
+     */
+    private suspend fun readCatalogMine(): Map<ProjectId, Entry> =
+        readCatalog(ProjectMineFilter.Owner) { dto -> dto.ownerUserId == viewerId.value }
+            .filterValues { it.project.viewerIsInitiator }
+
+    /**
+     * Reads `GET /projects` with `mine=[mine]` in pages of [MINE_PAGE_SIZE], at most [MINE_MAX_PAGES] pages, and stops at
+     * the first page that is not full. The projects that [accept] (and that have an `id` not seen before) are assembled,
+     * so the owners of the others are not looked up. In the server's order, each `id` once; a project the app cannot read
+     * (no `id` or `owner_user_id`) is dropped by the assembler. A failure is thrown.
+     */
+    private suspend fun readCatalog(mine: String, accept: (ProjectDto) -> Boolean): Map<ProjectId, Entry> {
+        val found = linkedMapOf<ProjectId, Entry>()
         val seen = mutableSetOf<String>()
         for (pageIndex in 0 until MINE_MAX_PAGES) {
             val page = PageRequest(offset = pageIndex * MINE_PAGE_SIZE, limit = MINE_PAGE_SIZE)
-            val answer = catalog.list(ProjectSearchParams(), page)
-            // Only the viewer's own are assembled: the owners of the others are of no interest here.
-            val ours = answer.items.filter { dto ->
-                dto.id.isNotBlank() && dto.ownerUserId == viewerId.value && seen.add(dto.id)
-            }
-            if (ours.isNotEmpty()) {
-                val byId = ours.associateBy { it.id }
-                for (assembled in assembler.assemble(ours)) {
+            val answer = catalog.list(ProjectSearchParams(mine = mine), page)
+            val wanted = answer.items.filter { dto -> dto.id.isNotBlank() && accept(dto) && seen.add(dto.id) }
+            if (wanted.isNotEmpty()) {
+                val byId = wanted.associateBy { it.id }
+                for (assembled in assembler.assemble(wanted)) {
                     val project = assembled.project
-                    if (project.viewerIsInitiator && project.id !in own) {
+                    if (project.id !in found) {
                         val dto = byId[project.id.value]
-                        own[project.id] = Entry(project, dto?.revision ?: 0, dto?.roleDescriptions().orEmpty())
+                        found[project.id] = Entry(project, dto?.revision ?: 0, dto?.roleDescriptions().orEmpty())
                     }
                 }
             }
             if (answer.items.size < MINE_PAGE_SIZE) break
         }
-        return own
+        return found
+    }
+
+    /**
+     * Puts [entries] into the cache, the way the first read of the catalog does: a project the cache already has at this
+     * revision or a newer one stays as it is (it may be the richer one: it has its team).
+     */
+    private fun rememberRead(entries: Map<ProjectId, Entry>) {
+        entries.forEach { (id, entry) -> if (cache.value[id]?.let { it.revision >= entry.revision } != true) remember(id, entry) }
     }
 
     /**

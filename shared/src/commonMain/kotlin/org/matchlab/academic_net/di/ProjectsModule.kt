@@ -1,10 +1,8 @@
 package org.matchlab.academic_net.di
 
 import me.tatarka.inject.annotations.Provides
-import org.matchlab.academic_net.ResponsesParticipationSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
 import org.matchlab.academic_net.feature.projects.data.ProjectsRepositoryImpl
-import org.matchlab.academic_net.feature.projects.domain.ParticipationSource
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
@@ -22,8 +20,7 @@ import org.matchlab.academic_net.feature.projects.domain.usecase.UpdateRoleUseCa
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 
 /**
- * The projects feature: its repository, use cases and what its screens receive. The projects the viewer joined (06b) come
- * from the responses feature through [ResponsesParticipationSource], the one adapter connecting the two.
+ * The projects feature: its repository, use cases and what its screens receive.
  */
 internal interface ProjectsModule {
     @Provides
@@ -31,13 +28,7 @@ internal interface ProjectsModule {
     fun projectsRepository(source: ProjectsDataSource): ProjectsRepository = ProjectsRepositoryImpl(source)
 
     @Provides
-    fun participationSource(adapter: ResponsesParticipationSource): ParticipationSource = adapter
-
-    @Provides
-    fun projectsUiDependencies(
-        repository: ProjectsRepository,
-        participation: ParticipationSource,
-    ): ProjectsUiDependencies = ProjectsUiDependencies(
+    fun projectsUiDependencies(repository: ProjectsRepository): ProjectsUiDependencies = ProjectsUiDependencies(
         observeMyProjects = ObserveMyProjectsUseCase(repository),
         observeProject = ObserveProjectUseCase(repository),
         loadProject = LoadProjectUseCase(repository),
@@ -50,7 +41,7 @@ internal interface ProjectsModule {
         updateRole = UpdateRoleUseCase(repository),
         removeRole = RemoveRoleUseCase(repository),
         removeMember = RemoveMemberUseCase(repository),
-        getParticipatingProjects = GetParticipatingProjectsUseCase(participation, repository),
+        getParticipatingProjects = GetParticipatingProjectsUseCase(repository),
         capabilities = repository.capabilities,
     )
 }

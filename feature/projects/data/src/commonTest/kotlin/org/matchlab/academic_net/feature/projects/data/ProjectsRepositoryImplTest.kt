@@ -66,6 +66,7 @@ class ProjectsRepositoryImplTest {
             project.also { calls += "remove-role ${projectId.value} ${roleId.value}" }
         override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project =
             project.also { calls += "remove-member ${projectId.value} ${userId.value}" }
+        override suspend fun getParticipatingProjects(): List<Project> = listOf(project).also { calls += "participating" }
         override suspend fun getSpheres(): List<Sphere> = listOfNotNull(project.sphere).also { calls += "spheres" }
     }
 
@@ -88,16 +89,54 @@ class ProjectsRepositoryImplTest {
         assertSame(source.role, repository.updateRole(id, RoleId("r1"), RoleDraft("Дев")))
         assertSame(project, repository.removeRole(id, RoleId("r1")))
         assertSame(project, repository.removeMember(id, UserId("u7")))
+        assertEquals(listOf(project), repository.getParticipatingProjects())
         assertEquals(listOf(sphere), repository.getSpheres())
         assertEquals(listOf(project), repository.observeMyProjects().first())
         assertEquals(project, repository.observeProject(id).first())
         assertEquals(
             listOf(
                 "load p1", "get p1", "create Новый", "unpublish p1", "role p1 Дизайнер",
-                "lifecycle p1 Complete", "update p1 Новое", "update-role p1 r1 Дев", "remove-role p1 r1", "remove-member p1 u7", "spheres",
+                "lifecycle p1 Complete", "update p1 Новое", "update-role p1 r1 Дев", "remove-role p1 r1", "remove-member p1 u7", "participating", "spheres",
             ),
             source.calls,
         )
+    }
+
+    @Test
+    fun theParticipatingProjectsAreTheSourcesListAsItIsAndFreshEachTime() = runTest {
+        val first = project.copy(id = ProjectId("j1"))
+        val second = project.copy(id = ProjectId("j2"))
+        val lists = ArrayDeque(listOf(listOf(first, second), emptyList()))
+        val source = object : ProjectsDataSource by RecordingSource(project) {
+            override suspend fun getParticipatingProjects(): List<Project> = lists.removeFirst()
+        }
+        val repository = ProjectsRepositoryImpl(source)
+
+        assertEquals(listOf(first, second), repository.getParticipatingProjects())
+        assertEquals(emptyList(), repository.getParticipatingProjects())
+    }
+
+    @Test
+    fun aFailureOfTheParticipatingReadReachesTheCallerUnchanged() = runTest {
+        val failure = org.matchlab.academic_net.common.result.RemoteFailure.Timeout()
+        val source = object : ProjectsDataSource by RecordingSource(project) {
+            override suspend fun getParticipatingProjects(): List<Project> = throw failure
+        }
+
+        assertSame(failure, kotlin.test.assertFailsWith<org.matchlab.academic_net.common.result.RemoteFailure> {
+            ProjectsRepositoryImpl(source).getParticipatingProjects()
+        })
+    }
+
+    @Test
+    fun aCancellationOfTheParticipatingReadPassesThrough() = runTest {
+        val source = object : ProjectsDataSource by RecordingSource(project) {
+            override suspend fun getParticipatingProjects(): List<Project> = throw kotlin.coroutines.cancellation.CancellationException("c")
+        }
+
+        kotlin.test.assertFailsWith<kotlin.coroutines.cancellation.CancellationException> {
+            ProjectsRepositoryImpl(source).getParticipatingProjects()
+        }
     }
 
     @Test

@@ -38,13 +38,12 @@ class MyProjectsViewModelTest {
     fun tearDown() = uninstallMainDispatcher()
 
     private val repository = FakeProjectsRepository(caps(canListMine = true))
-    private var joinedIds: List<ProjectId> = emptyList()
 
     private fun TestScope.viewModel(): MyProjectsViewModel {
         val viewModel = MyProjectsViewModel(
             ObserveMyProjectsUseCase(repository),
             repository.capabilities,
-            GetParticipatingProjectsUseCase({ joinedIds }, repository),
+            GetParticipatingProjectsUseCase(repository),
         )
         keepCollecting(viewModel.uiState)
         return viewModel

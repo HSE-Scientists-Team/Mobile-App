@@ -160,6 +160,12 @@ internal class FakeProjectsRepository(
     var publishGate: Gate? = null
     var publishAnswer: Project = project("new")
 
+    // ---- the projects the viewer takes part in ----
+    var participating: List<Project> = emptyList()
+    var participatingCalls = 0
+    var participatingFailure: Throwable? = null
+    var participatingGate: Gate? = null
+
     // ---- spheres ----
     var spheres: List<Sphere> = listOf(TestSphere)
     var spheresFailure: Throwable? = null
@@ -280,6 +286,13 @@ internal class FakeProjectsRepository(
         val updated = current.copy(members = current.members.filterNot { it.userId == userId })
         cache.update { it + (projectId to updated) }
         return updated
+    }
+
+    override suspend fun getParticipatingProjects(): List<Project> {
+        participatingCalls++
+        participatingGate?.await()
+        participatingFailure?.let { throw it }
+        return participating
     }
 
     override suspend fun getSpheres(): List<Sphere> {

@@ -194,6 +194,16 @@ class FakeProjectsRepository(
     /** Projects [loadProject] fails for, whatever [failure] says. */
     val loadFailures = mutableMapOf<ProjectId, Throwable>()
 
+    /** What [getParticipatingProjects] answers, and how many times it was asked. */
+    var participating: List<Project> = emptyList()
+    var participatingCalls = 0
+
+    override suspend fun getParticipatingProjects(): List<Project> {
+        participatingCalls++
+        failIfNeeded()
+        return participating
+    }
+
     override suspend fun getSpheres(): List<Sphere> {
         failIfNeeded()
         return listOf(TestSphere)

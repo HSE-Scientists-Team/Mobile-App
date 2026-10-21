@@ -10,7 +10,6 @@ import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.projects.domain.FakeProjectsRepository
 import org.matchlab.academic_net.feature.projects.domain.MemberNotRemovableException
-import org.matchlab.academic_net.feature.projects.domain.ParticipationSource
 import org.matchlab.academic_net.feature.projects.domain.ProjectNotFoundException
 import org.matchlab.academic_net.feature.projects.domain.TestUser
 import org.matchlab.academic_net.feature.projects.domain.testProject
@@ -98,89 +97,63 @@ class RemoveMemberUseCaseTest {
 }
 
 class GetParticipatingProjectsUseCaseTest {
-    private fun joined(id: String, viewer: Boolean = true, initiator: Boolean = false): Project =
-        testProject(id).copy(viewerIsInitiator = initiator, members = listOf(member("me", viewer = viewer)))
-
-    private fun useCase(repository: FakeProjectsRepository, ids: List<String>, asked: MutableList<Unit> = mutableListOf()) =
-        GetParticipatingProjectsUseCase(
-            ParticipationSource { asked += Unit; ids.map(::ProjectId) },
-            repository,
-        )
+    private fun joined(id: String): Project =
+        testProject(id).copy(viewerIsInitiator = false, members = listOf(member("me", viewer = true)))
 
     @Test
-    fun theProjectsKeepTheOrderOfTheIdsNotOfTheRepository() = runTest {
-        val repository = FakeProjectsRepository(listOf(joined("a", initiator = false), joined("b"), joined("c")))
+    fun theProjectsAreThoseOfTheRepositoryInItsOrder() = runTest {
+        val repository = FakeProjectsRepository()
+        repository.participating = listOf(joined("c"), joined("a"), joined("b"))
 
-        val result = assertIs<ParticipatingProjectsResult.Loaded>(useCase(repository, listOf("c", "a", "b"))())
+        val result = assertIs<ParticipatingProjectsResult.Loaded>(GetParticipatingProjectsUseCase(repository)())
 
         assertEquals(listOf("c", "a", "b"), result.projects.map { it.id.value })
     }
 
     @Test
-    fun onlyProjectsWhereTheViewerIsAMemberAndNotTheInitiatorStay() = runTest {
-        val repository = FakeProjectsRepository(
-            listOf(
-                joined("member"),
-                joined("left", viewer = false),
-                joined("owner", initiator = true),
-            ),
-        )
-
-        val result = assertIs<ParticipatingProjectsResult.Loaded>(useCase(repository, listOf("member", "left", "owner"))())
-
-        assertEquals(listOf("member"), result.projects.map { it.id.value })
-    }
-
-    @Test
-    fun aProjectTheViewerCannotSeeIsLeftOut() = runTest {
-        val repository = FakeProjectsRepository(listOf(joined("a")))
-
-        val result = assertIs<ParticipatingProjectsResult.Loaded>(useCase(repository, listOf("gone", "a"))())
-
-        assertEquals(listOf("a"), result.projects.map { it.id.value })
-    }
-
-    @Test
-    fun noRecordsIsAnEmptyListAndReadsNothing() = runTest {
+    fun theServersListIsNotFilteredAgainOnTheClient() = runTest {
+        // The server decides who takes part (API-GAP G52): a project the client cannot confirm is still shown.
         val repository = FakeProjectsRepository()
+        val unconfirmed = testProject("x").copy(viewerIsInitiator = false, members = emptyList())
+        repository.participating = listOf(unconfirmed, testProject("y").copy(viewerIsInitiator = true))
 
-        val result = assertIs<ParticipatingProjectsResult.Loaded>(useCase(repository, emptyList())())
+        val result = assertIs<ParticipatingProjectsResult.Loaded>(GetParticipatingProjectsUseCase(repository)())
+
+        assertEquals(listOf("x", "y"), result.projects.map { it.id.value })
+    }
+
+    @Test
+    fun noProjectsIsAnEmptyList() = runTest {
+        val result = assertIs<ParticipatingProjectsResult.Loaded>(GetParticipatingProjectsUseCase(FakeProjectsRepository())())
 
         assertTrue(result.projects.isEmpty())
-        assertTrue(repository.loaded.isEmpty())
     }
 
     @Test
-    fun everyProjectIsReadAfreshThroughLoadProject() = runTest {
-        val repository = FakeProjectsRepository(listOf(joined("a"), joined("b")))
+    fun everyCallAsksAgain() = runTest {
+        val repository = FakeProjectsRepository()
+        val useCase = GetParticipatingProjectsUseCase(repository)
 
-        useCase(repository, listOf("a", "b"))()
+        useCase()
+        useCase()
 
-        assertEquals(setOf(ProjectId("a"), ProjectId("b")), repository.loaded.toSet())
+        assertEquals(2, repository.participatingCalls)
     }
 
     @Test
-    fun oneFailedProjectFailsTheWholeList() = runTest {
-        val cause = RemoteFailure.Http(500)
-        val repository = FakeProjectsRepository(listOf(joined("a"), joined("b")))
-        repository.loadFailures[ProjectId("b")] = cause
-
-        val result = useCase(repository, listOf("a", "b"))()
-
-        assertSame(cause, assertIs<ParticipatingProjectsResult.Failure>(result).cause)
-    }
-
-    @Test
-    fun aFailureOfTheSourceIsAFailure() = runTest {
+    fun aFailureOfTheRepositoryIsAFailure() = runTest {
         val cause = RemoteFailure.NoConnection()
-        val useCase = GetParticipatingProjectsUseCase(ParticipationSource { throw cause }, FakeProjectsRepository())
+        val repository = FakeProjectsRepository()
+        repository.failure = cause
 
-        assertSame(cause, assertIs<ParticipatingProjectsResult.Failure>(useCase()).cause)
+        assertSame(cause, assertIs<ParticipatingProjectsResult.Failure>(GetParticipatingProjectsUseCase(repository)()).cause)
     }
 
     @Test
     fun aCancellationPassesThrough() = runTest {
-        val useCase = GetParticipatingProjectsUseCase(ParticipationSource { throw CancellationException("c") }, FakeProjectsRepository())
-        assertFailsWith<CancellationException> { useCase() }
+        val repository = FakeProjectsRepository()
+        repository.failure = CancellationException("c")
+
+        assertFailsWith<CancellationException> { GetParticipatingProjectsUseCase(repository)() }
     }
 }

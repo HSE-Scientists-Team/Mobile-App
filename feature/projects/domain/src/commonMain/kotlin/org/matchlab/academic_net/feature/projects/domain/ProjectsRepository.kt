@@ -114,6 +114,12 @@ interface ProjectsRepository {
      */
     suspend fun removeMember(projectId: ProjectId, userId: UserId): Project
 
+    /**
+     * The projects the viewer takes part in without owning them (06b "Я участник"), as the server lists them; read afresh
+     * on every call, each project once. They are remembered like any project read, so that [getProject] opens each.
+     */
+    suspend fun getParticipatingProjects(): List<Project>
+
     /** The spheres a project can belong to: the app's own list, `Spheres.all` (`docs/api-values.md`). */
     suspend fun getSpheres(): List<Sphere>
 }

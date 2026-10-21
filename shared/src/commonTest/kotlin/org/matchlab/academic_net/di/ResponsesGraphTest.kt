@@ -46,6 +46,7 @@ class ResponsesGraphTest {
         onOther = { arrival ->
             when (arrival.call) {
                 "GET /api/v1/project-joins" -> json("""{"items":[$joins],"total":"1"}""")
+                "GET /api/v1/projects" -> json("""{"items":[${projectJson("p-1", "owner-a", memberIsViewer = true)}],"total":"1"}""")
                 "GET /api/v1/projects/p-1" -> json(projectJson("p-1", "owner-a", memberIsViewer = true))
                 "GET /api/v1/users/owner-a/profile" -> json(ownerProfile)
                 "POST /api/v1/project-joins/j-1/decision" -> json(joinJson("j-1", status = "accepted"))
@@ -96,15 +97,69 @@ class ResponsesGraphTest {
     }
 
     @Test
-    fun theMemberTabReadsTheListAfreshAndTheProjectsOfTheAcceptedRecords() = runTest {
-        val server = server(joinJson("j-1", status = "accepted"))
+    fun theMemberTabReadsTheServersListOfTheProjectsTheViewerTakesPartIn() = runTest {
+        val server = server()
         val dependencies = graph(server).dependencies
 
         val result = dependencies.projects.getParticipatingProjects()
 
         val loaded = assertIs<ParticipatingProjectsResult.Loaded>(result)
         assertEquals(listOf("p-1"), loaded.projects.map { it.id.value })
-        assertEquals(1, server.requests("GET /api/v1/project-joins").size)
+        val request = server.requests("GET /api/v1/projects").single()
+        assertEquals(listOf("participant"), request.queryValues("mine"))
+        assertEquals(listOf("Bearer token-1"), request.authorization)
+        assertTrue(server.requests("GET /api/v1/project-joins").isEmpty(), "the records of the responses are not needed")
+    }
+
+    @Test
+    fun theMemberTabOpensAProjectOfTheListWithoutAnotherRequest() = runTest {
+        val server = server()
+        val dependencies = graph(server).dependencies
+        dependencies.projects.getParticipatingProjects()
+
+        val project = dependencies.projects.observeProject(ProjectId("p-1")).first()
+
+        assertEquals("Проект p-1", project?.title)
+        assertTrue(server.requests("GET /api/v1/projects/p-1").isEmpty(), "the list filled the cache")
+    }
+
+    @Test
+    fun theMemberTabReadsAgainOnEveryAsk() = runTest {
+        val server = server()
+        val dependencies = graph(server).dependencies
+
+        dependencies.projects.getParticipatingProjects()
+        dependencies.projects.getParticipatingProjects()
+
+        assertEquals(2, server.requests("GET /api/v1/projects").size)
+    }
+
+    @Test
+    fun aFailureOfTheServerIsAFailureOfTheMemberTab() = runTest {
+        val server = server().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "GET /api/v1/projects") jsonError(HttpStatusCode.InternalServerError, "oops") else inner(arrival)
+            }
+        }
+
+        val result = graph(server).dependencies.projects.getParticipatingProjects()
+
+        assertEquals(500, (assertIs<ParticipatingProjectsResult.Failure>(result).cause as org.matchlab.academic_net.common.result.RemoteFailure.Http).status)
+    }
+
+    @Test
+    fun anEmptyAnswerIsAnEmptyMemberTab() = runTest {
+        val server = server().apply {
+            val inner = onOther
+            onOther = { arrival ->
+                if (arrival.call == "GET /api/v1/projects") json("""{"items":[],"total":"0"}""") else inner(arrival)
+            }
+        }
+
+        val result = graph(server).dependencies.projects.getParticipatingProjects()
+
+        assertEquals(emptyList(), assertIs<ParticipatingProjectsResult.Loaded>(result).projects)
     }
 
     @Test

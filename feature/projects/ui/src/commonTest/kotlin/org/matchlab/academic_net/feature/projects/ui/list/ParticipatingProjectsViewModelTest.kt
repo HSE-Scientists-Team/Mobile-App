@@ -4,12 +4,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.matchlab.academic_net.common.model.Project
-import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectMember
 import org.matchlab.academic_net.common.model.ProjectStatus
 import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserId
-import org.matchlab.academic_net.feature.projects.domain.ParticipationSource
 import org.matchlab.academic_net.feature.projects.domain.usecase.GetParticipatingProjectsUseCase
 import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
 import org.matchlab.academic_net.feature.projects.ui.FakeProjectsRepository
@@ -37,20 +35,12 @@ class ParticipatingProjectsViewModelTest {
     fun tearDown() = uninstallMainDispatcher()
 
     private val repository = FakeProjectsRepository(caps(canListMine = true))
-    private var joinedIds: List<ProjectId> = emptyList()
-    private var joinedFailure: Throwable? = null
-    private var sourceCalls = 0
 
     private fun TestScope.viewModel(): MyProjectsViewModel {
-        val source = ParticipationSource {
-            sourceCalls++
-            joinedFailure?.let { throw it }
-            joinedIds
-        }
         val viewModel = MyProjectsViewModel(
             ObserveMyProjectsUseCase(repository),
             repository.capabilities,
-            GetParticipatingProjectsUseCase(source, repository),
+            GetParticipatingProjectsUseCase(repository),
         )
         keepCollecting(viewModel.uiState)
         return viewModel
@@ -62,8 +52,7 @@ class ParticipatingProjectsViewModelTest {
         )
 
     private fun serve(vararg projects: Project) {
-        for (project in projects) repository.server[project.id] = project
-        joinedIds = projects.map { it.id }
+        repository.participating = projects.toList()
     }
 
     @Test
@@ -73,7 +62,7 @@ class ParticipatingProjectsViewModelTest {
         val viewModel = viewModel()
 
         assertEquals(ParticipatingState.Idle, viewModel.uiState.value.participating)
-        assertEquals(0, sourceCalls)
+        assertEquals(0, repository.participatingCalls)
     }
 
     @Test
@@ -92,13 +81,13 @@ class ParticipatingProjectsViewModelTest {
     @Test
     fun theTabShowsLoadingWhileTheFirstReadRuns() = runTest {
         serve(joined("a"))
-        repository.loadGate = Gate()
+        repository.participatingGate = Gate()
         val viewModel = viewModel()
 
         viewModel.onParticipantTabShown()
 
         assertEquals(ParticipatingState.Loading, viewModel.uiState.value.participating)
-        repository.loadGate!!.open()
+        repository.participatingGate!!.open()
         assertIs<ParticipatingState.Loaded>(viewModel.uiState.value.participating)
     }
 
@@ -112,64 +101,50 @@ class ParticipatingProjectsViewModelTest {
     }
 
     @Test
-    fun aProjectTheViewerOwnsOrHasLeftIsNotListed() = runTest {
-        serve(joined("mine", initiator = true), joined("ok"))
-        repository.server[ProjectId("left")] = project("left", viewerIsInitiator = false)
-        joinedIds = listOf(ProjectId("mine"), ProjectId("left"), ProjectId("ok"))
-        val viewModel = viewModel()
-
-        viewModel.onParticipantTabShown()
-
-        val loaded = assertIs<ParticipatingState.Loaded>(viewModel.uiState.value.participating)
-        assertEquals(listOf("ok"), loaded.projects.map { it.id.value })
-    }
-
-    @Test
     fun eachChoiceOfTheTabReadsAgainAndTheOldListStaysWhileItDoes() = runTest {
         serve(joined("a", "Старый"))
         val viewModel = viewModel()
         viewModel.onParticipantTabShown()
-        repository.server[ProjectId("a")] = joined("a", "Новый")
-        repository.loadGate = Gate()
+        repository.participating = listOf(joined("a", "Новый"))
+        repository.participatingGate = Gate()
 
         viewModel.onParticipantTabShown()
 
         val during = assertIs<ParticipatingState.Loaded>(viewModel.uiState.value.participating)
         assertEquals("Старый", during.projects.single().title, "no flash of the progress indicator")
-        repository.loadGate!!.open()
+        repository.participatingGate!!.open()
         assertEquals("Новый", assertIs<ParticipatingState.Loaded>(viewModel.uiState.value.participating).projects.single().title)
-        assertEquals(2, sourceCalls)
+        assertEquals(2, repository.participatingCalls)
     }
 
     @Test
     fun aReadThatIsRunningIsNotDoubled() = runTest {
         serve(joined("a"))
-        repository.loadGate = Gate()
+        repository.participatingGate = Gate()
         val viewModel = viewModel()
 
         viewModel.onParticipantTabShown()
         viewModel.onParticipantTabShown()
         viewModel.onParticipantTabShown()
-        repository.loadGate!!.open()
+        repository.participatingGate!!.open()
 
-        assertEquals(1, sourceCalls)
-        assertEquals(1, repository.loads.size)
+        assertEquals(1, repository.participatingCalls)
     }
 
     @Test
     fun aFailureIsTheErrorAndRetryReadsAgain() = runTest {
         serve(joined("a"))
         val cause = IllegalStateException("offline")
-        joinedFailure = cause
+        repository.participatingFailure = cause
         val viewModel = viewModel()
 
         viewModel.onParticipantTabShown()
 
         assertSame(cause, assertIs<ParticipatingState.Failed>(viewModel.uiState.value.participating).cause)
-        joinedFailure = null
+        repository.participatingFailure = null
         viewModel.onParticipantRetry()
         assertIs<ParticipatingState.Loaded>(viewModel.uiState.value.participating)
-        assertEquals(2, sourceCalls)
+        assertEquals(2, repository.participatingCalls)
     }
 
     @Test
@@ -182,18 +157,7 @@ class ParticipatingProjectsViewModelTest {
         viewModel.onParticipantTabShown()
         viewModel.onParticipantRetry()
 
-        assertEquals(1, sourceCalls)
-    }
-
-    @Test
-    fun aFailureOfOneProjectFailsTheWholeTab() = runTest {
-        serve(joined("a"), joined("b"))
-        repository.loadFailure = IllegalStateException("boom")
-        val viewModel = viewModel()
-
-        viewModel.onParticipantTabShown()
-
-        assertIs<ParticipatingState.Failed>(viewModel.uiState.value.participating)
+        assertEquals(1, repository.participatingCalls)
     }
 
     @Test
@@ -213,13 +177,13 @@ class ParticipatingProjectsViewModelTest {
         serve(joined("a", "Альфа"))
         val viewModel = viewModel()
         viewModel.onParticipantTabShown()
-        joinedFailure = IllegalStateException("offline")
+        repository.participatingFailure = IllegalStateException("offline")
 
         viewModel.onParticipantTabShown()
 
         val state = assertIs<ParticipatingState.Loaded>(viewModel.uiState.value.participating)
         assertEquals(listOf("Альфа"), state.projects.map { it.title })
-        assertEquals(2, sourceCalls)
+        assertEquals(2, repository.participatingCalls)
     }
 
     // ---- the badge of 06e ----

@@ -49,5 +49,7 @@ class ProjectsRepositoryImpl(
     override suspend fun removeMember(projectId: ProjectId, userId: UserId): Project =
         dataSource.removeMember(projectId, userId)
 
+    override suspend fun getParticipatingProjects(): List<Project> = dataSource.getParticipatingProjects()
+
     override suspend fun getSpheres(): List<Sphere> = dataSource.getSpheres()
 }

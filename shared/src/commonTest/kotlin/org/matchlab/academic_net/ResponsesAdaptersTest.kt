@@ -13,11 +13,9 @@ import org.matchlab.academic_net.common.model.ProjectJoinId
 import org.matchlab.academic_net.common.model.ProjectJoinStatus
 import org.matchlab.academic_net.common.model.ProjectJoinType
 import org.matchlab.academic_net.common.model.RoleId
-import org.matchlab.academic_net.common.result.RemoteFailure
 import org.matchlab.academic_net.feature.responses.domain.MyJoinsRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.time.Instant
 
 private fun join(
@@ -49,49 +47,8 @@ private class FakeMyJoins(initial: List<ProjectJoin>? = null) : MyJoinsRepositor
     override fun markInvitationsSeen(upTo: Instant) = throw AssertionError()
 }
 
-/** The two adapters that connect the responses to the projects and to the project page. */
+/** The adapters that connect the responses to the projects and to the project page. */
 class ResponsesAdaptersTest {
-    // ---- ResponsesParticipationSource ----
-
-    @Test
-    fun theJoinedProjectsAreThoseOfAcceptedAndUnknownStatusRecordsEachOnceInTheirOrder() = runTest {
-        val joins = FakeMyJoins()
-        joins.refreshed = listOf(
-            join("a", "p3", status = ProjectJoinStatus.Accepted),
-            join("b", "p1", status = ProjectJoinStatus.Pending),
-            join("c", "p2", status = null),
-            join("d", "p3", status = ProjectJoinStatus.Accepted),
-            join("e", "p4", status = ProjectJoinStatus.Rejected),
-            join("f", "p5", status = ProjectJoinStatus.Cancelled),
-            join("g", "p6", type = ProjectJoinType.Invitation, status = ProjectJoinStatus.Accepted),
-            join("h", "p2", status = ProjectJoinStatus.Accepted),
-        )
-
-        val ids = ResponsesParticipationSource(joins).joinedProjectIds()
-
-        assertEquals(listOf("p3", "p2", "p6"), ids.map { it.value })
-    }
-
-    @Test
-    fun theJoinedProjectsReadTheListAfreshEveryTime() = runTest {
-        val joins = FakeMyJoins(listOf(join("a", status = ProjectJoinStatus.Accepted)))
-        val source = ResponsesParticipationSource(joins)
-
-        source.joinedProjectIds()
-        source.joinedProjectIds()
-
-        assertEquals(2, joins.refreshes, "the cached list is not enough: the membership may have changed")
-    }
-
-    @Test
-    fun noRecordsAreNoProjectsAndAFailureIsThrown() = runTest {
-        val joins = FakeMyJoins()
-        assertEquals(emptyList(), ResponsesParticipationSource(joins).joinedProjectIds())
-
-        joins.refreshFailure = RemoteFailure.NoConnection()
-        assertFailsWith<RemoteFailure.NoConnection> { ResponsesParticipationSource(joins).joinedProjectIds() }
-    }
-
     // ---- ResponsesAppliedRolesSource ----
 
     @Test
