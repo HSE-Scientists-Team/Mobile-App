@@ -59,6 +59,8 @@ import org.matchlab.academic_net.components.AppBadgeDot
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppCard
+import org.matchlab.academic_net.components.AppCheckbox
+import org.matchlab.academic_net.components.AppCheckboxRow
 import org.matchlab.academic_net.components.AppConfirmDialog
 import org.matchlab.academic_net.components.AppFab
 import org.matchlab.academic_net.components.AppFilterChip
@@ -315,7 +317,29 @@ private fun BaseComponents() {
             var selected by remember { mutableStateOf(true) }
             AppRadioButton(selected, { selected = !selected })
             AppRadioButton(false, {})
+            // "Checkbox": the box only draws the state (checked, empty, dimmed); the rows below are what takes taps.
+            AppCheckbox(checked = true)
+            AppCheckbox(checked = false)
+            AppCheckbox(checked = true, enabled = false)
         }
+        // The row with a checkbox: the whole line toggles it. The registration form asks "Отправлять статистику
+        // использования" this way; the second row has one line only and is centered in its 48dp touch target.
+        var shareStatistics by remember { mutableStateOf(true) }
+        AppCheckboxRow(
+            text = "Отправлять статистику использования",
+            checked = shareStatistics,
+            onCheckedChange = { shareStatistics = it },
+            note = "Можно изменить в настройках",
+        )
+        var rememberMe by remember { mutableStateOf(false) }
+        AppCheckboxRow(text = "Запомнить меня", checked = rememberMe, onCheckedChange = { rememberMe = it })
+        AppCheckboxRow(
+            text = "Недоступный вариант",
+            checked = true,
+            onCheckedChange = {},
+            note = "Строка не принимает нажатия",
+            enabled = false,
+        )
         var tab by remember { mutableIntStateOf(4) }
         AppNavigationBar(windowInsets = NoInsets) {
             listOf(
