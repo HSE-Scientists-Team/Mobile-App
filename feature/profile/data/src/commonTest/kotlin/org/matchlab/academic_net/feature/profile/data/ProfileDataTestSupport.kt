@@ -10,6 +10,7 @@ import org.matchlab.academic_net.gateway.dto.MediaFileDto
 import org.matchlab.academic_net.gateway.dto.MediaUploadDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementInputDto
+import org.matchlab.academic_net.gateway.dto.UserReviewInputDto
 import org.matchlab.academic_net.gateway.dto.UserAchievementListDto
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.dto.UserProfileInputDto
@@ -218,6 +219,9 @@ internal class FakeReviewsApi : ReviewsApi {
         calls += Triple(userId, limit, offset)
         return onUserReviews(userId, limit, offset)
     }
+
+    // Writing a review belongs to the reviews feature; the profile never calls it.
+    override suspend fun create(input: UserReviewInputDto): UserReviewDto = error("Not used by the profile")
 }
 
 /** [MediaApi] in memory: the files it was asked to make, the bytes sent to them and the files deleted. */

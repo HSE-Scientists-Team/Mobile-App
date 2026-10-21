@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.gateway.internal
 
 import org.matchlab.academic_net.gateway.ReviewsApi
+import org.matchlab.academic_net.gateway.dto.UserReviewDto
+import org.matchlab.academic_net.gateway.dto.UserReviewInputDto
 import org.matchlab.academic_net.gateway.dto.UserReviewListDto
 
 /** [ReviewsApi] over the client of a session. */
@@ -13,4 +15,6 @@ internal class KtorReviewsApi(private val requests: ApiRequests) : ReviewsApi {
             mapOf("limit" to limit.toString(), "offset" to offset.toString()),
         )
     }
+
+    override suspend fun create(input: UserReviewInputDto): UserReviewDto = requests.post("users/me/reviews", input)
 }

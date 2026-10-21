@@ -62,6 +62,8 @@ data class ProjectDto(
     val members: List<ProjectMemberDto> = emptyList(),
     /** API-GAP G61: what it counts is not described. */
     @SerialName("pending_join_count") val pendingJoinCount: Int = 0,
+    /** When the project was completed, in seconds since the epoch (int64, a string or a number); `0` when the server left it out. */
+    @SerialName("completed_at_unix") @Serializable(with = FlexibleLongSerializer::class) val completedAtUnix: Long = 0,
 )
 
 /** `ProjectList`: one page and the size of the whole list (int64, a string or a number). */

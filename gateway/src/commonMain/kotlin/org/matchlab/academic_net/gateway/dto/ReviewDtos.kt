@@ -38,3 +38,16 @@ data class UserReviewDto(
 /** `UserReviewList`: a page of reviews; the API gives no total (API-GAP G16). */
 @Serializable
 data class UserReviewListDto(val items: List<UserReviewDto> = emptyList())
+
+/**
+ * `UserReviewInput`, the body of `POST /users/me/reviews`; all five fields are required by the API. The server checks
+ * them (UUIDs, the author is not the target, a title of 1..255 and a text of 1..10000 characters, a rating of 1..5).
+ */
+@Serializable
+data class UserReviewInputDto(
+    @SerialName("project_id") val projectId: String,
+    @SerialName("target_user_id") val targetUserId: String,
+    val title: String,
+    val text: String,
+    val rating: Int,
+)

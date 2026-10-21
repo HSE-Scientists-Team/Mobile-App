@@ -42,14 +42,14 @@ internal class KtorProjectsApi(private val requests: ApiRequests) : ProjectsApi,
     override suspend fun search(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
         requests.get(
             "search/projects",
-            query = params.query(page),
+            query = params.query(page, withViewerFilters = false),
             repeatedQuery = params.repeatedQuery(),
         )
 
     override suspend fun list(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
         requests.get(
             "projects",
-            query = params.query(page),
+            query = params.query(page, withViewerFilters = true),
             repeatedQuery = params.repeatedQuery(),
         )
 
@@ -59,15 +59,20 @@ internal class KtorProjectsApi(private val requests: ApiRequests) : ProjectsApi,
 
     /**
      * The parameters with one value. `limit` and `offset` always go (the bounds are those of [PageRequest]); a text
-     * only if it is not blank. `status`, `mine` and `profile_user_id` are never among them: the app has no use for them.
+     * only if it is not blank. `mine` and `status` go only with [withViewerFilters] (the catalog list, not the search);
+     * `profile_user_id` is never among them: its meaning is not described.
      */
-    private fun ProjectSearchParams.query(page: PageRequest): Map<String, String?> = buildMap {
+    private fun ProjectSearchParams.query(page: PageRequest, withViewerFilters: Boolean): Map<String, String?> = buildMap {
         put("limit", page.limit.toString())
         put("offset", page.offset.toString())
         q?.takeIf { it.isNotBlank() }?.let { put("q", it) }
         type?.takeIf { it.isNotBlank() }?.let { put("type", it) }
         field?.takeIf { it.isNotBlank() }?.let { put("field", it) }
         duration?.takeIf { it.isNotBlank() }?.let { put("duration", it) }
+        if (withViewerFilters) {
+            mine?.takeIf { it.isNotBlank() }?.let { put("mine", it) }
+            status?.takeIf { it.isNotBlank() }?.let { put("status", it) }
+        }
     }
 
     /** The array of the query: each tag is a `tag=…` of its own, in the given order; a blank one is left out. */

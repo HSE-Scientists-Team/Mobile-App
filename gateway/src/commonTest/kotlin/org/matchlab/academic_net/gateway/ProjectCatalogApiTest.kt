@@ -14,7 +14,8 @@ import kotlin.test.assertTrue
 /**
  * `GET /api/v1/search/projects`, `GET /api/v1/projects` and `GET /api/v1/projects/{id}` as everybody's projects (02, 03,
  * 04, 06). The parameters are read back from the parsed URL of the request the engine got. `type`, `field` and `duration`
- * carry the codes of `docs/api-values.md` when set; `status`, `mine` and `profile_user_id` are never sent.
+ * carry the codes of `docs/api-values.md` when set; `profile_user_id` is never sent, `status` and `mine` only by the catalog list and only when
+ * set (see [ProjectViewerFiltersApiTest]).
  */
 class ProjectCatalogApiTest {
     private fun server(body: String = ProjectSpec.list(total = "0")) = ProjectSessionFixture { json(body) }
@@ -154,7 +155,7 @@ class ProjectCatalogApiTest {
     }
 
     @Test
-    fun theCatalogSendsTheFiltersButNeverMineOrTheProfileOrTheStatus() = runTest {
+    fun theCatalogSendsTheFiltersAndNoViewerFilterOrProfileWhenNoneIsSet() = runTest {
         val server = server()
 
         server.session.projectCatalog.list(
