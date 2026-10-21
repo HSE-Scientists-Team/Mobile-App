@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.matchlab.academic_net.feature.settings.domain.ProfileMissingException
 import org.matchlab.academic_net.feature.settings.domain.usecase.GetOpenToCollaborationUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.ObserveStatisticsUseCase
 import org.matchlab.academic_net.feature.settings.domain.usecase.SetOpenToCollaborationUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.SetStatisticsUseCase
 
 /** What the settings screen shows: the loading, the failure or the settings themselves. */
 sealed interface SettingsUiState {
@@ -41,22 +43,61 @@ sealed interface SettingsUiState {
 }
 
 /**
- * "18 Настройки · Приватность и безопасность": loads the one setting there is, "Открыт к сотрудничеству", once, when it
- * is created, and again on [onRetry]. A change is applied optimistically and saved; it goes back when saving fails.
+ * "18 Настройки": two switches that have nothing to do with each other.
  *
- * **One save at a time**: while a value is being saved the switch takes no taps ([SettingsUiState.Content.isSaving]), so
- * two saves cannot overtake each other and leave the screen with the older value.
+ * **"Открыт к сотрудничеству"** (the section "Приватность и безопасность") is on the server: it is loaded once, when the
+ * screen is created, and again on [onRetry]. A change is applied optimistically and saved; it goes back when saving
+ * fails. While a value is being saved the switch takes no taps ([SettingsUiState.Content.isSaving]), so two saves cannot
+ * overtake each other and leave the screen with the older value.
+ *
+ * **"Статистика использования"** (the section "Статистика") is a setting of the device: it is read from the store at
+ * once and never fails to load, so it does not wait for the server setting and shows in every state of it
+ * ([uiState]). Its own state is [statistics] and [statisticsFailedToSave], kept apart from [uiState] for that reason.
+ * A change is applied optimistically as well and goes back, to what is in force, when the choice could not be saved. A save takes a moment on
+ * the device, so the switch is not dimmed; instead a tap during a save is ignored, which gives the same guarantee.
  */
 class SettingsViewModel(
     private val getOpenToCollaboration: GetOpenToCollaborationUseCase,
     private val setOpenToCollaboration: SetOpenToCollaborationUseCase,
+    observeStatistics: ObserveStatisticsUseCase,
+    private val setStatistics: SetStatisticsUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<SettingsUiState>(SettingsUiState.Loading)
 
     val uiState: StateFlow<SettingsUiState> = state.asStateFlow()
 
+    private val statisticsState = MutableStateFlow(true)
+
+    /**
+     * Whether usage statistics are sent from this device, as the switch shows it. It is `true` until the setting answers
+     * (the app counts statistics as allowed until the person says otherwise), then follows the setting, and runs ahead
+     * of it while a change is being saved.
+     */
+    val statistics: StateFlow<Boolean> = statisticsState.asStateFlow()
+
+    private val statisticsFailure = MutableStateFlow(false)
+
+    /**
+     * The new value of [statistics] could not be saved and the switch went back to the old one; the screen tells the
+     * user once (with the message of the other switch, "Не удалось сохранить настройку") and calls
+     * [onStatisticsSaveFailureShown].
+     */
+    val statisticsFailedToSave: StateFlow<Boolean> = statisticsFailure.asStateFlow()
+
+    /** A change of [statistics] is being saved; taps wait out of the way until the answer comes. */
+    private var isSavingStatistics = false
+
+    /** The last value the setting itself reported, which is what is in force whatever the switch has shown meanwhile. */
+    private var reportedStatistics: Boolean? = null
+
     init {
         load()
+        viewModelScope.launch {
+            observeStatistics().collect {
+                reportedStatistics = it
+                statisticsState.value = it
+            }
+        }
     }
 
     /** "Повторить" after a failed load; a request that is still running is not doubled. */
@@ -92,6 +133,36 @@ class SettingsViewModel(
 
     /** The screen has told the user that [SettingsUiState.Content.failedToSave] failed. */
     fun onSaveFailureShown() = updateContent { it.copy(failedToSave = false) }
+
+    /**
+     * The switch "Статистика использования" was flipped: shows the new value at once and saves it. A flip while a save
+     * is on its way, or to the value the switch already has, does nothing; when saving fails the switch goes back to the
+     * value it had and [statisticsFailedToSave] is raised.
+     */
+    fun onStatisticsToggle(enabled: Boolean) {
+        val previous = statisticsState.value
+        if (isSavingStatistics || previous == enabled) return
+        isSavingStatistics = true
+        statisticsFailure.value = false
+        statisticsState.value = enabled
+        viewModelScope.launch {
+            try {
+                setStatistics(enabled).onFailure {
+                    // Back to what is in force: the old value, or the one the setting itself reported (a refusal that
+                    // could not be saved is in force all the same, see StatisticsPreference.set).
+                    statisticsState.value = reportedStatistics ?: previous
+                    statisticsFailure.value = true
+                }
+            } finally {
+                isSavingStatistics = false
+            }
+        }
+    }
+
+    /** The screen has told the user that [statisticsFailedToSave]. */
+    fun onStatisticsSaveFailureShown() {
+        statisticsFailure.value = false
+    }
 
     private fun load() {
         viewModelScope.launch {

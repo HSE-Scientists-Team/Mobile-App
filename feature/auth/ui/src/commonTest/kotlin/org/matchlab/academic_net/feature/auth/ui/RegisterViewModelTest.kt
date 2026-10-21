@@ -517,6 +517,21 @@ class RegisterViewModelTest : AuthViewModelTest() {
     }
 
     @Test
+    fun aNewAddressFromOutsideThatIsAlreadyInTheFieldTakesNothingAway() {
+        val viewModel = harness.registerViewModel(initialEmail = "first@hse.ru")
+        viewModel.fill(email = UntrustedEmail)
+        viewModel.onRegisterClick()
+        assertEquals(AuthProblem.DomainNotAllowed, viewModel.state.problem)
+
+        // The sign-in screen hands over the very address that stands in the field: that is no change, so what the server
+        // answered about it stays.
+        viewModel.onEmailSuggested(UntrustedEmail)
+
+        assertEquals(UntrustedEmail, viewModel.state.email)
+        assertEquals(AuthProblem.DomainNotAllowed, viewModel.state.problem)
+    }
+
+    @Test
     fun theSameAddressGivenAgainOrAnEmptyOneLeavesWhatTheUserTypedAlone() {
         val viewModel = harness.registerViewModel(initialEmail = "first@hse.ru")
         viewModel.onEmailChange("typed@hse.ru")
@@ -525,6 +540,281 @@ class RegisterViewModelTest : AuthViewModelTest() {
         viewModel.onEmailSuggested("")
 
         assertEquals("typed@hse.ru", viewModel.state.email)
+    }
+
+    // The statistics box: "Отправлять статистику использования"
+
+    @Test
+    fun theStatisticsBoxIsOnAtTheStart() {
+        assertTrue(RegisterUiState().shareStatistics)
+        assertTrue(harness.registerViewModel().state.shareStatistics)
+        assertTrue(harness.registerViewModel(initialEmail = TrustedEmail).state.shareStatistics)
+    }
+
+    @Test
+    fun clearingAndTickingTheBoxChangesTheStateAndWritesTheChoiceToTheSavedState() {
+        val saved = SavedStateHandle()
+        val viewModel = harness.registerViewModel(savedState = saved)
+
+        viewModel.onShareStatisticsChange(false)
+        assertFalse(viewModel.state.shareStatistics)
+        assertEquals(false, saved.get<Boolean>("shareStatistics"))
+
+        viewModel.onShareStatisticsChange(true)
+        assertTrue(viewModel.state.shareStatistics)
+        assertEquals(true, saved.get<Boolean>("shareStatistics"))
+    }
+
+    @Test
+    fun theSameChoiceGivenTwiceStaysTheSameChoice() {
+        val saved = SavedStateHandle()
+        val viewModel = harness.registerViewModel(savedState = saved)
+
+        viewModel.onShareStatisticsChange(false)
+        viewModel.onShareStatisticsChange(false)
+
+        assertFalse(viewModel.state.shareStatistics)
+        assertEquals(false, saved.get<Boolean>("shareStatistics"))
+        viewModel.onShareStatisticsChange(true)
+        viewModel.onShareStatisticsChange(true)
+        assertTrue(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun theBoxChangesNothingElseOfAFormThatHasErrors() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill(email = "nonsense", password = "short", repeated = "other")
+        viewModel.onRegisterClick()
+        val before = viewModel.state
+        assertEquals(3, before.errors.size)
+
+        viewModel.onShareStatisticsChange(false)
+
+        // The texts, the errors and the rest stay: the box is the only difference.
+        assertEquals(before.copy(shareStatistics = false), viewModel.state)
+    }
+
+    @Test
+    fun theBoxDoesNotTakeAwayTheRefusalOfTheServerEither() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill(email = UntrustedEmail)
+        viewModel.onRegisterClick()
+        assertEquals(AuthProblem.DomainNotAllowed, viewModel.state.problem)
+
+        viewModel.onShareStatisticsChange(false)
+
+        // An edit of a field takes a stale answer away; the box is no field of the form.
+        assertEquals(AuthProblem.DomainNotAllowed, viewModel.state.problem)
+        assertFalse(viewModel.state.isSubmitting)
+        assertFalse(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun typingInTheFieldsLeavesTheBoxAlone() {
+        val viewModel = harness.registerViewModel()
+        viewModel.onShareStatisticsChange(false)
+
+        viewModel.onEmailChange("typed@hse.ru")
+        viewModel.onPasswordChange(TestPassword)
+        viewModel.onRepeatedPasswordChange(TestPassword)
+
+        assertFalse(viewModel.state.shareStatistics)
+        viewModel.onShareStatisticsChange(true)
+        viewModel.onEmailChange("other@hse.ru")
+        viewModel.onPasswordChange(OtherPassword)
+        viewModel.onRepeatedPasswordChange(OtherPassword)
+        assertTrue(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun anAddressGivenFromOutsideLeavesTheBoxAlone() {
+        val viewModel = harness.registerViewModel(initialEmail = "first@hse.ru")
+        viewModel.onShareStatisticsChange(false)
+
+        viewModel.onEmailSuggested("second@hse.ru")
+
+        assertEquals("second@hse.ru", viewModel.state.email)
+        assertFalse(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun clearingTheBoxDoesNotStopTheRegistration() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill(email = "  Anna@HSE.ru ")
+        viewModel.onShareStatisticsChange(false)
+
+        viewModel.onRegisterClick()
+
+        // The letter goes as it would with the box ticked ...
+        assertEquals(TrustedEmail, viewModel.state.letterSentTo)
+        assertEquals(1, harness.source.registers)
+        assertNull(viewModel.state.problem)
+        assertTrue(viewModel.state.errors.isEmpty())
+        val pending = harness.getPendingRegistration(TrustedEmail)
+        assertNotNull(pending)
+        assertTrue(pending.hasPassword)
+        // ... and the choice is still in the state at the moment the screen takes the event, to hand it on with it.
+        assertFalse(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun aTickedBoxLetsTheLetterGoWithTheChoiceToo() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill()
+
+        viewModel.onRegisterClick()
+
+        assertEquals(TrustedEmail, viewModel.state.letterSentTo)
+        assertTrue(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun theChoiceStaysThroughTheEventOfTheLetterAndTheWayBack() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill()
+        viewModel.onShareStatisticsChange(false)
+        viewModel.onRegisterClick()
+
+        viewModel.onLetterSentHandled()
+        assertFalse(viewModel.state.shareStatistics)
+        viewModel.onReturned()
+
+        assertFalse(viewModel.state.shareStatistics)
+        assertFalse(viewModel.state.isSubmitting)
+    }
+
+    @Test
+    fun everyLetterCarriesTheBoxAsItIsWhenThatLetterIsSent() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill()
+        viewModel.onShareStatisticsChange(false)
+        viewModel.onRegisterClick()
+        assertFalse(viewModel.state.shareStatistics)
+        viewModel.onLetterSentHandled()
+        viewModel.onReturned()
+
+        // Back from the confirmation: another address, another choice, another letter.
+        viewModel.onEmailChange("other@hse.ru")
+        viewModel.onShareStatisticsChange(true)
+        viewModel.onRegisterClick()
+
+        assertEquals("other@hse.ru", viewModel.state.letterSentTo)
+        assertEquals(2, harness.source.registers)
+        assertTrue(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun theBoxTakesEveryTapWhileTheRequestIsOnItsWayAndTheLastChoiceWins() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill()
+        harness.source.hold()
+        viewModel.onRegisterClick()
+        assertTrue(viewModel.state.isSubmitting)
+
+        viewModel.onShareStatisticsChange(false)
+        assertFalse(viewModel.state.shareStatistics)
+        viewModel.onShareStatisticsChange(true)
+        assertTrue(viewModel.state.shareStatistics)
+        viewModel.onShareStatisticsChange(false)
+
+        // The taps on the box are no requests, and they neither free nor lock the form.
+        assertTrue(viewModel.state.isSubmitting)
+        assertEquals(1, harness.source.registers)
+        harness.source.release()
+
+        assertEquals(TrustedEmail, viewModel.state.letterSentTo)
+        assertEquals(1, harness.source.registers)
+        assertFalse(viewModel.state.shareStatistics, "the last choice wins")
+    }
+
+    @Test
+    fun aTapOnTheBoxAfterTheLetterWasSentChangesTheChoiceButNotTheLeavingForm() {
+        val viewModel = harness.registerViewModel()
+        viewModel.fill()
+        viewModel.onRegisterClick()
+
+        viewModel.onShareStatisticsChange(false)
+
+        assertEquals(TrustedEmail, viewModel.state.letterSentTo)
+        assertTrue(viewModel.state.isSubmitting)
+        assertFalse(viewModel.state.shareStatistics)
+        viewModel.onRegisterClick()
+        assertEquals(1, harness.source.registers)
+    }
+
+    @Test
+    fun theBoxIsTheSameAfterTheRequestFailedAndTheUserTriesAgain() {
+        harness.source.offline = true
+        val viewModel = harness.registerViewModel()
+        viewModel.fill()
+        viewModel.onShareStatisticsChange(false)
+
+        viewModel.onRegisterClick()
+
+        assertIs<AuthProblem.CallFailed>(viewModel.state.problem)
+        assertNull(viewModel.state.letterSentTo)
+        assertFalse(viewModel.state.shareStatistics)
+
+        harness.source.offline = false
+        viewModel.onRegisterClick()
+        assertEquals(TrustedEmail, viewModel.state.letterSentTo)
+        assertFalse(viewModel.state.shareStatistics)
+    }
+
+    @Test
+    fun theChoiceComesBackWithTheAddressWhenTheScreenIsMadeAgain() {
+        val saved = SavedStateHandle()
+        val first = harness.registerViewModel(initialEmail = "given@hse.ru", savedState = saved)
+        first.fill()
+        first.onShareStatisticsChange(false)
+
+        val restored = harness.registerViewModel(initialEmail = "given@hse.ru", savedState = saved)
+
+        assertFalse(restored.state.shareStatistics)
+        assertEquals(TrustedEmail, restored.state.email)
+        assertEquals("", restored.state.password)
+        assertEquals("", restored.state.repeatedPassword)
+    }
+
+    @Test
+    fun aTickedBoxIsStillTickedWhenTheScreenIsMadeAgain() {
+        val saved = SavedStateHandle()
+        val first = harness.registerViewModel(savedState = saved)
+        first.onShareStatisticsChange(false)
+        first.onShareStatisticsChange(true)
+
+        assertTrue(harness.registerViewModel(savedState = saved).state.shareStatistics)
+    }
+
+    @Test
+    fun aBoxThatWasNeverTouchedIsOnWhenTheScreenIsMadeAgain() {
+        val saved = SavedStateHandle()
+        harness.registerViewModel(initialEmail = TrustedEmail, savedState = saved).fill()
+
+        val restored = harness.registerViewModel(initialEmail = TrustedEmail, savedState = saved)
+
+        assertTrue(restored.state.shareStatistics)
+        assertNull(saved.get<Boolean>("shareStatistics"), "nothing was chosen, so nothing was saved")
+    }
+
+    @Test
+    fun aSavedChoiceWinsOverTheDefaultAlsoWhenNoAddressWasSaved() {
+        val saved = SavedStateHandle(mapOf("shareStatistics" to false))
+
+        val viewModel = harness.registerViewModel(initialEmail = TrustedEmail, savedState = saved)
+
+        assertFalse(viewModel.state.shareStatistics)
+        assertEquals(TrustedEmail, viewModel.state.email)
+    }
+
+    @Test
+    fun theChoiceOfOneScreenDoesNotLeakIntoAnotherScreenWithItsOwnSavedState() {
+        val first = harness.registerViewModel()
+        first.onShareStatisticsChange(false)
+
+        val second = harness.registerViewModel()
+
+        assertTrue(second.state.shareStatistics)
     }
 
     // What is saved
@@ -541,6 +831,28 @@ class RegisterViewModelTest : AuthViewModelTest() {
 
         assertEquals(setOf("email"), saved.keys())
         assertEquals(TrustedEmail, saved.get<String>("email"))
+        saved.keys().forEach { key ->
+            val value = saved.get<Any?>(key).toString()
+            assertFalse(TestPassword in value, "a password is in the saved state under $key")
+            assertFalse(OtherPassword in value, "a password is in the saved state under $key")
+        }
+    }
+
+    @Test
+    fun onlyTheAddressAndTheBoxAreEverSaved() {
+        val saved = SavedStateHandle()
+        val viewModel = harness.registerViewModel(savedState = saved)
+
+        viewModel.fill(password = TestPassword, repeated = TestPassword)
+        viewModel.onShareStatisticsChange(false)
+        viewModel.onRegisterClick()
+        viewModel.onPasswordChange(OtherPassword)
+        viewModel.onRepeatedPasswordChange(OtherPassword)
+        viewModel.onShareStatisticsChange(true)
+
+        assertEquals(setOf("email", "shareStatistics"), saved.keys())
+        assertEquals(TrustedEmail, saved.get<String>("email"))
+        assertEquals(true, saved.get<Boolean>("shareStatistics"))
         saved.keys().forEach { key ->
             val value = saved.get<Any?>(key).toString()
             assertFalse(TestPassword in value, "a password is in the saved state under $key")
@@ -575,6 +887,23 @@ class RegisterViewModelTest : AuthViewModelTest() {
         assertFalse(TestPassword in text, text)
         assertFalse(OtherPassword in text, text)
         assertTrue("hasEmail=true" in text, text)
+    }
+
+    @Test
+    fun stateTextTellsTheBoxAndStillHidesTheSecrets() {
+        val viewModel = harness.registerViewModel()
+        assertTrue("shareStatistics=true" in viewModel.state.toString(), viewModel.state.toString())
+
+        viewModel.fill(password = TestPassword, repeated = OtherPassword)
+        viewModel.onShareStatisticsChange(false)
+        viewModel.onRegisterClick()
+        val text = viewModel.state.toString()
+
+        assertTrue("shareStatistics=false" in text, text)
+        assertFalse(TrustedEmail in text, text)
+        assertFalse("anna" in text.lowercase(), text)
+        assertFalse(TestPassword in text, text)
+        assertFalse(OtherPassword in text, text)
     }
 
     @Test

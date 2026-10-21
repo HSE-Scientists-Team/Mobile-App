@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- The Gateway is reached over the network. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- The AppMetrica SDK declares the advertising id permission, but the app switches the collection of advertising
+         identifiers off (androidApp/.../AppMetricaAnalytics.kt) and shows no ads: without the permission the app has
+         nothing to declare about the advertising id in the store forms. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+
     <application
+        android:name=".MatchLabApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -14,6 +21,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <!-- The AppMetrica SDK declares a content provider that other apps may call to hand it the preload information of a
+             device maker. The app is not preinstalled by anyone, so the provider, which is exported without a permission,
+             is not needed. -->
+        <provider
+            android:name="io.appmetrica.analytics.internal.PreloadInfoContentProvider"
+            tools:node="remove" />
+
         <activity
             android:exported="true"
             android:name=".MainActivity"

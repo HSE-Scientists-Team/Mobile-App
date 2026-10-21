@@ -4,6 +4,10 @@
     <string name="settings_open_to_collaboration">Открыт к сотрудничеству</string>
     <string name="settings_open_to_collaboration_hint">Вас будут показывать в рекомендациях людей</string>
     <string name="settings_profile_missing_hint">Сначала заполните профиль: укажите имя</string>
+    <!-- The device setting that lets the app count taps on projects and people; also asked for on the registration screen -->
+    <string name="settings_statistics_title">Статистика</string>
+    <string name="settings_statistics">Статистика использования</string>
+    <string name="settings_statistics_hint">Помогает улучшать приложение: считаются нажатия на проекты и людей, идентификатор аккаунта и данные об устройстве. Сообщения и тексты профиля не передаются.</string>
     <string name="settings_save_error">Не удалось сохранить настройку. Попробуйте ещё раз</string>
     <string name="settings_load_error">Не удалось загрузить настройки</string>
     <string name="settings_retry">Повторить</string>

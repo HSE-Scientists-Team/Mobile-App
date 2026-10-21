@@ -40,3 +40,6 @@ replay_pid*.log
 /.claude/agents/domain-data.md
 /.claude/agents/reviewer.md
 /.claude/agents/tester.md
+
+# The AppMetrica key of the iOS app (docs/analytics.md): never committed.
+/iosApp/Configuration/Local.xcconfig

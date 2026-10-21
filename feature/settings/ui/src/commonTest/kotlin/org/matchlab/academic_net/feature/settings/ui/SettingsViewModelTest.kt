@@ -3,13 +3,18 @@ package org.matchlab.academic_net.feature.settings.ui
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.matchlab.academic_net.feature.settings.domain.ProfileMissingException
 import org.matchlab.academic_net.feature.settings.domain.SettingsRepository
+import org.matchlab.academic_net.feature.settings.domain.StatisticsSettings
 import org.matchlab.academic_net.feature.settings.domain.usecase.GetOpenToCollaborationUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.ObserveStatisticsUseCase
 import org.matchlab.academic_net.feature.settings.domain.usecase.SetOpenToCollaborationUseCase
+import org.matchlab.academic_net.feature.settings.domain.usecase.SetStatisticsUseCase
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -59,9 +64,21 @@ class SettingsViewModelTest {
 
     private val repository = FakeSettings()
 
+    /**
+     * The switch of the statistics is not under test here (it has its own tests): an always-on stand-in that accepts every
+     * write, so these tests only exercise the other switch.
+     */
+    private val statisticsSettings = object : StatisticsSettings {
+        override val enabled: Flow<Boolean> = flowOf(true)
+
+        override suspend fun setEnabled(enabled: Boolean) = Unit
+    }
+
     private fun viewModel() = SettingsViewModel(
         getOpenToCollaboration = GetOpenToCollaborationUseCase(repository),
         setOpenToCollaboration = SetOpenToCollaborationUseCase(repository),
+        observeStatistics = ObserveStatisticsUseCase(statisticsSettings),
+        setStatistics = SetStatisticsUseCase(statisticsSettings),
     )
 
     private fun SettingsViewModel.content() = assertIs<SettingsUiState.Content>(uiState.value)
@@ -90,7 +107,12 @@ class SettingsViewModelTest {
             }
         }
 
-        val viewModel = SettingsViewModel(GetOpenToCollaborationUseCase(slow), SetOpenToCollaborationUseCase(slow))
+        val viewModel = SettingsViewModel(
+            getOpenToCollaboration = GetOpenToCollaborationUseCase(slow),
+            setOpenToCollaboration = SetOpenToCollaborationUseCase(slow),
+            observeStatistics = ObserveStatisticsUseCase(statisticsSettings),
+            setStatistics = SetStatisticsUseCase(statisticsSettings),
+        )
         assertEquals(SettingsUiState.Loading, viewModel.uiState.value)
         gate.complete(Unit)
 

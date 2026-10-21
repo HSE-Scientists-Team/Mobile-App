@@ -26,6 +26,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
 import org.matchlab.academic_net.SessionDependencies
+import org.matchlab.academic_net.analytics.ClickTracker
+import org.matchlab.academic_net.analytics.ProjectSource
+import org.matchlab.academic_net.analytics.UserSource
 import org.matchlab.academic_net.avatars.rememberAvatarImages
 import org.matchlab.academic_net.components.LocalAvatarImages
 import org.matchlab.academic_net.common.model.ProjectId
@@ -159,6 +162,10 @@ private fun optionalStringArgument(name: String) = navArgument(name) {
  *
  * @param auth the sign-in of the process: the state of the session and what the sign-in screens need
  * @param sessions the graph of the signed-in user, which the root opens and closes with the state
+ * @param clicks counts the taps that open the page of a project or the profile of a person ([MainNavHost]); the screens
+ * know nothing about analytics, so the counting is done here, where the place of the tap (its `source`) is known
+ * @param onStatisticsChosen the person's choice "send usage statistics" made on the registration form ([AuthNavHost]):
+ * the app keeps it as the setting of the device
  * @param incomingLink the link the system opened in the app, if any (an App Link on Android, a universal link on iOS).
  * Only the link of the confirmation letter is taken, and only from a user who is signed out ([incomingLinkAction]):
  * the root shows the confirmation at once; if the app is signed in by it the tabs follow, otherwise the sign-in screen
@@ -170,6 +177,8 @@ private fun optionalStringArgument(name: String) = navArgument(name) {
 internal fun AppNavHost(
     auth: AuthUiDependencies,
     sessions: SessionGraphs,
+    clicks: ClickTracker,
+    onStatisticsChosen: (Boolean) -> Unit,
     incomingLink: String? = null,
     onIncomingLinkHandled: () -> Unit = {},
 ) {
@@ -221,7 +230,7 @@ internal fun AppNavHost(
                     modifier = Modifier.background(MaterialTheme.colorScheme.surface).safeDrawingPadding(),
                 )
             } else {
-                AuthNavHost(auth, screen.start, emailConfirmed = confirmedByLink)
+                AuthNavHost(auth, screen.start, onStatisticsChosen, emailConfirmed = confirmedByLink)
             }
         }
         is RootScreen.Main -> key(screen.session) {
@@ -232,6 +241,7 @@ internal fun AppNavHost(
             ) {
                 MainNavHost(
                     dependencies = dependencies,
+                    clicks = clicks,
                     signOut = { auth.signOut() },
                 )
             }
@@ -249,12 +259,19 @@ internal fun AppNavHost(
  * screen is the current one ([isCurrentEntry]): repeated taps open one screen, and an event of a
  * screen the user has already left does nothing.
  *
+ * **Taps are counted here** ([clicks]), by the place the tap came from (`source`): a tap on the card of a project in a
+ * list, which opens the page of the project, is two events ([projectTapped]); a tap on a person, which opens their
+ * profile, is one. An event is sent only when the navigation was carried out, so a burst of taps counts once and a tap
+ * of a screen the user has already left counts nothing. A page that opens by itself (the project that was just
+ * published) is not a tap and is not counted.
+ *
  * @param dependencies what the screens of the signed-in user need, from the graph of that session
+ * @param clicks counts the taps that open a project or a profile, see above
  * @param signOut ends the session ("Выйти из аккаунта" of the settings); the root swaps the graphs when the state of
  * the session changes, so the screen needs no navigation of its own
  */
 @Composable
-private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -> Unit) {
+private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker, signOut: suspend () -> Unit) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val chatOpener = remember { ExclusiveLauncher() }
@@ -262,9 +279,21 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
 
     // API-GAP G55: the server may leave out the id of a person (the author of a review). Such a person has no page,
     // and the route "profile/" matches nothing, so navigating to it would crash. The screens do not offer the tap for
-    // them; this is the last guard, for every profile that is opened from another screen.
-    val openProfile: (NavBackStackEntry, UserId) -> Unit = { from, id ->
-        if (id.value.isNotBlank()) navController.navigateOnce(from, Routes.profile(id))
+    // them; this is the last guard, for every profile that is opened from another screen. The tap is counted
+    // (`user_click` with the source of the tap) only when the profile did open.
+    val openProfile: (NavBackStackEntry, UserId, UserSource) -> Unit = { from, id, source ->
+        if (id.value.isNotBlank() && navController.navigateOnce(from, Routes.profile(id))) {
+            clicks.userClicked(id.value, source)
+        }
+    }
+    // A project card tapped in a list opens the page of the project: 04 for a project of somebody else (or the viewer
+    // as a member), 07 for the viewer's own. Counted (`project_card_click` and `project_click` with the source of the
+    // tap) only when the page did open.
+    val openProjectPage: (NavBackStackEntry, ProjectId, ProjectSource) -> Unit = { from, id, source ->
+        if (navController.navigateOnce(from, Routes.projectDetails(id))) clicks.projectTapped(id, source)
+    }
+    val openManagedProject: (NavBackStackEntry, ProjectId, ProjectSource) -> Unit = { from, id, source ->
+        if (navController.navigateOnce(from, Routes.project(id))) clicks.projectTapped(id, source)
     }
     // The chat opens after the conversation exists, so the tap has to ask first. A tap from a screen
     // that is no longer the current one, or while the previous request runs, does nothing. The answer
@@ -303,22 +332,23 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         onProfileClick = { selectTab(TopLevelDestination.Profile) },
                         onSearchPeopleClick = { navController.navigateSingleTop(entry, Routes.PeopleSearch) },
                         onSearchProjectsClick = { navController.navigateSingleTop(entry, Routes.ProjectSearch) },
-                        onPersonClick = { user -> openProfile(entry, user.id) },
+                        onPersonClick = { user -> openProfile(entry, user.id, UserSource.FeedPeople) },
                         // A recommended project is somebody else's (or the viewer's own, which the page 04 shows as theirs).
-                        onProjectClick = { id -> navController.navigateOnce(entry, Routes.projectDetails(id)) },
+                        onProjectClick = { id -> openProjectPage(entry, id, ProjectSource.FeedRecommendations) },
                     )
                     TopLevelDestination.Projects -> MyProjectsRoute(
                         dependencies = dependencies.projects,
                         onCreateProject = { navController.navigateSingleTop(entry, Routes.CreateProject) },
-                        onProjectClick = { id -> navController.navigateOnce(entry, Routes.project(id)) },
+                        // "Я инициатор": the page of management of the project (07).
+                        onProjectClick = { id -> openManagedProject(entry, id, ProjectSource.MyProjectsOwner) },
                         // A project the viewer is a member of opens as the page of the project (04 as a member, 04c).
                         onParticipatingProjectClick = { id ->
-                            navController.navigateOnce(entry, Routes.projectDetails(id))
+                            openProjectPage(entry, id, ProjectSource.MyProjectsMember)
                         },
                     )
                     TopLevelDestination.Responses -> ResponsesRoute(
                         dependencies = dependencies.responses,
-                        onProjectClick = { id -> navController.navigateOnce(entry, Routes.projectDetails(id)) },
+                        onProjectClick = { id -> openProjectPage(entry, id, ProjectSource.Responses) },
                         onContactInitiator = { user -> openChatWith(entry, user) },
                     )
                     TopLevelDestination.Chats -> ChatsRoute(
@@ -334,7 +364,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         onReviewClick = { userId, reviewId ->
                             navController.navigateOnce(entry, Routes.profileReview(userId, reviewId))
                         },
-                        onAuthorClick = { userId -> openProfile(entry, userId) },
+                        onAuthorClick = { userId -> openProfile(entry, userId, UserSource.ReviewAuthor) },
                         onAuthorChatClick = { user -> openChatWith(entry, user) },
                         onEditWork = { id -> navController.navigateOnce(entry, Routes.editWork(id)) },
                         onEditDocument = { id -> navController.navigateOnce(entry, Routes.editDocument(id)) },
@@ -346,7 +376,8 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
             CreateProjectRoute(
                 dependencies = dependencies.projects,
                 onClose = { navController.popBackStackOnce(entry) },
-                // The form is replaced by the new project, so "back" returns to the list.
+                // The form is replaced by the new project, so "back" returns to the list. The page opens by itself,
+                // not by a tap on a card, so it is not counted as a click.
                 onPublished = { id ->
                     navController.navigateOnce(entry, Routes.project(id)) {
                         popUpTo(Routes.CreateProject) { inclusive = true }
@@ -368,7 +399,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         navController.navigateOnce(entry, Routes.collaborators(projectId, roleId))
                     },
                     onEditProject = { projectId -> navController.navigateOnce(entry, Routes.editProject(projectId)) },
-                    onMemberClick = { userId -> openProfile(entry, userId) },
+                    onMemberClick = { userId -> openProfile(entry, userId, UserSource.ProjectManageTeam) },
                     onContactMember = { user -> openChatWith(entry, user) },
                     onResponsesClick = { projectId ->
                         navController.navigateOnce(entry, Routes.projectResponses(projectId))
@@ -386,7 +417,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     dependencies = dependencies.responses,
                     projectId = ProjectId(id),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
-                    onCandidateClick = { userId -> openProfile(entry, userId) },
+                    onCandidateClick = { userId -> openProfile(entry, userId, UserSource.ProjectCandidates) },
                     onContactCandidate = { user -> openChatWith(entry, user) },
                 )
             }
@@ -419,13 +450,16 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     dependencies = dependencies.collaborators,
                     role = RoleReference(ProjectId(projectId), RoleId(roleId)),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
-                    // The profile opens with the role, so "Пригласить в проект" starts with it chosen.
+                    // The profile opens with the role, so "Пригласить в проект" starts with it chosen. It is a result of
+                    // the search for people like any other, so it is counted as one (`people_search`).
                     onCollaboratorClick = { user ->
-                        if (user.id.value.isNotBlank()) {
+                        if (user.id.value.isNotBlank() &&
                             navController.navigateOnce(
                                 entry,
                                 Routes.profileForRole(user.id, ProjectId(projectId), RoleId(roleId)),
                             )
+                        ) {
+                            clicks.userClicked(user.id.value, UserSource.PeopleSearch)
                         }
                     },
                 )
@@ -438,7 +472,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                 role = null,
                 autoFocusSearch = true,
                 onNavigateBack = { navController.popBackStackOnce(entry) },
-                onCollaboratorClick = { user -> openProfile(entry, user.id) },
+                onCollaboratorClick = { user -> openProfile(entry, user.id, UserSource.PeopleSearch) },
             )
         }
         composable(Routes.ProjectSearch) { entry ->
@@ -448,7 +482,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                 dependencies = dependencies.projectSearch,
                 autoFocusSearch = true,
                 onNavigateBack = { navController.popBackStackOnce(entry) },
-                onProjectClick = { id -> navController.navigateOnce(entry, Routes.projectDetails(id)) },
+                onProjectClick = { id -> openProjectPage(entry, id, ProjectSource.ProjectSearch) },
             )
         }
         composable(
@@ -467,8 +501,8 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     projectId = ProjectId(id),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
                     onContactInitiator = { user -> openChatWith(entry, user) },
-                    onInitiatorClick = { userId -> openProfile(entry, userId) },
-                    onMemberClick = { userId -> openProfile(entry, userId) },
+                    onInitiatorClick = { userId -> openProfile(entry, userId, UserSource.ProjectInitiator) },
+                    onMemberClick = { userId -> openProfile(entry, userId, UserSource.ProjectTeam) },
                     onContactMember = { user -> openChatWith(entry, user) },
                     onApplyClick = { roleId ->
                         applyRequest += 1
@@ -515,9 +549,13 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                         val cameFromTheSameProfile = previous?.destination?.route == Routes.Profile &&
                             previous.arguments?.read { getStringOrNull(Routes.UserArgument) } == userId.value
                         if (cameFromTheSameProfile) {
-                            navController.popBackStackOnce(entry)
+                            // The profile is below, so going back shows it. It is the same tap on the person, so it
+                            // is counted all the same, once the screen was left.
+                            if (navController.popBackStackOnce(entry)) {
+                                clicks.userClicked(userId.value, UserSource.ChatHeader)
+                            }
                         } else {
-                            openProfile(entry, userId)
+                            openProfile(entry, userId, UserSource.ChatHeader)
                         }
                     },
                     onReportPeer = { userId -> navController.navigateOnce(entry, Routes.userComplaint(userId)) },
@@ -556,7 +594,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onReviewClick = { userId, reviewId ->
                         navController.navigateOnce(entry, Routes.profileReview(userId, reviewId))
                     },
-                    onAuthorClick = { authorId -> openProfile(entry, authorId) },
+                    onAuthorClick = { authorId -> openProfile(entry, authorId, UserSource.ReviewAuthor) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
                     onInviteClick = {
                         inviteRequests += 1
@@ -622,7 +660,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     onReviewClick = { userId, reviewId ->
                         navController.navigateOnce(entry, Routes.profileReview(userId, reviewId))
                     },
-                    onAuthorClick = { authorId -> openProfile(entry, authorId) },
+                    onAuthorClick = { authorId -> openProfile(entry, authorId, UserSource.ReviewAuthor) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
                 )
             }
@@ -642,7 +680,7 @@ private fun MainNavHost(dependencies: SessionDependencies, signOut: suspend () -
                     userId = UserId(userId),
                     reviewId = ReviewId(reviewId),
                     onNavigateBack = { navController.popBackStackOnce(entry) },
-                    onAuthorClick = { authorId -> openProfile(entry, authorId) },
+                    onAuthorClick = { authorId -> openProfile(entry, authorId, UserSource.ReviewAuthor) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
                 )
             }

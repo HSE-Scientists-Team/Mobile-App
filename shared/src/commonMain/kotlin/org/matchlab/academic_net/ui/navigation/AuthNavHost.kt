@@ -44,9 +44,24 @@ internal object AuthRoutes {
  * Every navigation names the entry of the screen that asks for it (`navigateSingleTop(entry, ...)`,
  * `popBackStackOnce(entry)`): see [isCurrentEntry]. A request of a screen that is no longer the current one does
  * nothing, and neither does the address it carries: the flow changes only when the navigation was carried out.
+ *
+ * **The choice about statistics.** The registration form asks "Отправлять статистику использования" (on by default).
+ * Every tick or clearing of the box goes to [onStatisticsChosen] at once, and the box as it stands goes there once more
+ * with the sent letter, before the confirmation opens (that is what keeps a box that was never touched): so the setting
+ * of the device is what the box shows from the first moment of the account's life, also when the form is left before
+ * the letter's answer comes. It is not navigation state, so it is passed on whether or not the navigation was carried
+ * out: the letter has been sent with that choice made.
+ *
+ * @param onStatisticsChosen the person's choice on the registration form, `true` to send usage statistics; the app keeps
+ * it as the setting of the device
  */
 @Composable
-internal fun AuthNavHost(dependencies: AuthUiDependencies, start: SignInStart, emailConfirmed: Boolean = false) {
+internal fun AuthNavHost(
+    dependencies: AuthUiDependencies,
+    start: SignInStart,
+    onStatisticsChosen: (Boolean) -> Unit,
+    emailConfirmed: Boolean = false,
+) {
     val navController = rememberNavController()
     var flow by rememberSaveable(stateSaver = AuthFlow.Saver) { mutableStateOf(AuthFlow(start.email, emailConfirmed)) }
 
@@ -77,7 +92,10 @@ internal fun AuthNavHost(dependencies: AuthUiDependencies, start: SignInStart, e
                 email = flow.email,
                 // The registration stays in the stack under the confirmation: "Изменить почту" returns to the form
                 // as the user left it.
-                onLetterSent = { sent ->
+                onShareStatisticsChange = onStatisticsChosen,
+                onLetterSent = { sent, shareStatistics ->
+                    // First the choice, then the next screen: see the documentation of this function.
+                    onStatisticsChosen(shareStatistics)
                     if (navController.navigateSingleTop(entry, AuthRoutes.Confirm)) {
                         flow = flow.addressChanged(sent)
                     }

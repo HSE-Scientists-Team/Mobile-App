@@ -5,11 +5,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.matchlab.academic_net.AnalyticsController
 import org.matchlab.academic_net.Backend
 import org.matchlab.academic_net.SessionDependencies
+import org.matchlab.academic_net.analytics.Analytics
+import org.matchlab.academic_net.analytics.ClickTracker
 import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.feature.auth.ui.AuthUiDependencies
 import org.matchlab.academic_net.securestore.SecureStore
+import org.matchlab.academic_net.utils.suspendRunCatching
 
 /**
  * The graph of the signed-in user, kept for as long as the session lasts. The root of the app asks it for the
@@ -73,6 +77,15 @@ internal class AppGraphs(val app: AppComponent, val sessions: SessionGraphs) {
     /** What the sign-in screens and the root need. */
     val auth: AuthUiDependencies get() = app.auth
 
+    /** Counts the taps that open a project or a person; the navigation calls it, the screens know nothing of it. */
+    val clicks: ClickTracker = ClickTracker(app.analytics)
+
+    private val analyticsController =
+        AnalyticsController(app.analytics, app.preference, app.authRepository.authState)
+
+    /** The scope given to the first [start]: the one the process's own work runs in. */
+    private var processScope: CoroutineScope? = null
+
     /**
      * Starts what the process does by itself, whatever the screens do: reads the saved session (the state leaves
      * `Restoring` at once, with the session if there is one, without waiting for the network) and then asks the
@@ -82,8 +95,32 @@ internal class AppGraphs(val app: AppComponent, val sessions: SessionGraphs) {
      *
      * Only an explicit refusal of the server ends the session; a failure to reach it does not (see
      * `AuthRepository.restoreSession`). Calling it again does nothing: the session is restored once.
+     *
+     * The analytics are started here too, by the first call and in its [scope] (see [AnalyticsController]); they follow
+     * the choice of the person and the state of the session for as long as the scope lives. The returned job is the
+     * restoring of the session only, and it ends.
      */
-    fun start(scope: CoroutineScope): Job = scope.launch { auth.restoreSession() }
+    fun start(scope: CoroutineScope): Job {
+        if (processScope == null) {
+            processScope = scope
+            analyticsController.start(scope)
+        }
+        return scope.launch { auth.restoreSession() }
+    }
+
+    /**
+     * The person's choice "send usage statistics" from the sign-up form: saves it as the choice of the device. It runs
+     * in the scope of the process, not in the form: the form is left at once, and the save must not be cut off with it.
+     * A store that cannot write is not reported (the form has nothing to say about it): a "yes" is not kept (the
+     * choice stays as it was, and the default, on while somebody is signed in, applies), and a "no" holds until the app is
+     * closed (see `StatisticsPreference.set`).
+     *
+     * Called by the screens, that is, after [start]; before it nothing is saved.
+     */
+    fun onStatisticsChosen(enabled: Boolean) {
+        val scope = processScope ?: return
+        scope.launch { suspendRunCatching { app.preference.set(enabled) } }
+    }
 }
 
 /**
@@ -98,14 +135,14 @@ internal object AppGraph {
 
     /**
      * The graphs of the process; made, and started, on the first call, from the arguments of that call. [backend] (the
-     * server the Gateway client talks to) is fixed from then on: the process does not change it, and a later call with
-     * another one gets the graphs of the first.
+     * server the Gateway client talks to) and [analytics] (the platform's SDK, or the empty one) are fixed from then
+     * on: the process does not change them, and a later call with other ones gets the graphs of the first.
      */
-    fun get(secureStore: () -> SecureStore, backend: Backend): AppGraphs =
-        instance ?: createGraphs(secureStore(), backend).also { instance = it }
+    fun get(secureStore: () -> SecureStore, backend: Backend, analytics: Analytics): AppGraphs =
+        instance ?: createGraphs(secureStore(), backend, analytics).also { instance = it }
 
-    private fun createGraphs(secureStore: SecureStore, backend: Backend): AppGraphs {
-        val app = createAppComponent(secureStore, backend)
+    private fun createGraphs(secureStore: SecureStore, backend: Backend, analytics: Analytics): AppGraphs {
+        val app = createAppComponent(secureStore, backend, analytics = analytics)
         return AppGraphs(app, ComponentSessionGraphs(app)).also { it.start(processScope) }
     }
 }

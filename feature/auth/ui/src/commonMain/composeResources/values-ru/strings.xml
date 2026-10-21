@@ -19,6 +19,9 @@
     <string name="auth_repeat_password_label">Повторите пароль</string>
     <string name="auth_register">Зарегистрироваться</string>
     <string name="auth_have_account">Уже есть аккаунт? Войти</string>
+    <!-- The box under the repeated password: on by default, and the same choice is a switch in the settings -->
+    <string name="auth_share_statistics">Отправлять статистику использования</string>
+    <string name="auth_share_statistics_note">Можно изменить в настройках</string>
 
     <!-- Email confirmation -->
     <string name="auth_confirm_title">Подтвердите почту</string>

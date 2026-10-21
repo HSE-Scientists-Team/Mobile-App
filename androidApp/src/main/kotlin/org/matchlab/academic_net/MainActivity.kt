@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
+import org.matchlab.academic_net.analytics.NoOpAnalytics
 import org.matchlab.academic_net.securestore.AndroidSecureStore
 import org.matchlab.academic_net.securestore.InMemorySecureStore
 
@@ -50,6 +51,8 @@ class MainActivity : ComponentActivity() {
                 backend = buildBackend(),
                 incomingLink = incomingLink,
                 onIncomingLinkHandled = { incomingLink = null },
+                // One per process, made by the application; empty in a build without an AppMetrica key.
+                analytics = (application as? MatchLabApplication)?.analytics ?: NoOpAnalytics,
             )
         }
     }

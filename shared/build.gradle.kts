@@ -17,6 +17,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            // The iOS app implements Analytics over its own SDK, so Swift has to see the contract.
+            export(project(":analytics"))
         }
     }
     
@@ -77,6 +79,8 @@ kotlin {
             implementation(project(":feature:settings:ui"))
             // The platform entry points hand the secure store (Keystore / Keychain) to App().
             api(project(":securestore"))
+            // ...and the analytics (AppMetrica on Android) that App() takes; the iOS framework exports the contract.
+            api(project(":analytics"))
             implementation(project(":feature:feed:ui"))
             implementation(project(":feature:feed:domain"))
             implementation(project(":feature:feed:data"))

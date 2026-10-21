@@ -33,6 +33,9 @@ import org.matchlab.academic_net.feature.auth.domain.usecase.RegisterUseCase
  * next one: the form takes no more requests in both cases
  * @property letterSentTo the address the letter was sent to, as the server has it (an event: the screen leaves
  * for the confirmation of that address and tells [RegisterViewModel.onLetterSentHandled]); `null` otherwise
+ * @property shareStatistics the box "Отправлять статистику использования": whether the person lets the app send usage
+ * statistics from this device. It is on until they clear it, it does not stand in the way of the registration, and the
+ * screen hands the value on together with the letter that was sent ([RegisterRoute])
  */
 @Immutable
 data class RegisterUiState(
@@ -43,6 +46,7 @@ data class RegisterUiState(
     val problem: AuthProblem? = null,
     val isSubmitting: Boolean = false,
     val letterSentTo: String? = null,
+    val shareStatistics: Boolean = true,
 ) {
     /**
      * What the address field tells: the problem of the address that the form has, else the refusal of the address by
@@ -72,7 +76,7 @@ data class RegisterUiState(
     override fun toString(): String =
         "RegisterUiState(hasEmail=${email.isNotEmpty()}, hasPassword=${password.isNotEmpty()}, " +
             "hasRepeatedPassword=${repeatedPassword.isNotEmpty()}, errors=$errors, problem=$problem, " +
-            "isSubmitting=$isSubmitting, letterSent=${letterSentTo != null})"
+            "isSubmitting=$isSubmitting, letterSent=${letterSentTo != null}, shareStatistics=$shareStatistics)"
 }
 
 /**
@@ -81,7 +85,12 @@ data class RegisterUiState(
  * screen.
  *
  * **What survives.** As for [SignInViewModel]: the form survives a change of the configuration, and only the
- * address comes back after the process was killed, from [savedState]; neither password is ever written there.
+ * address and the box of the statistics come back after the process was killed, from [savedState]; neither password is
+ * ever written there. The box is no secret, and a choice the person made must not turn back to "on" with the process.
+ *
+ * **The statistics box.** "Отправлять статистику использования" is on at the start ([RegisterUiState.shareStatistics])
+ * and only changes what the screen tells the app with the letter that was sent; it adds no check to the form, so
+ * clearing it never stops the registration. It is not locked while the request is on its way: the last choice wins.
  *
  * **One letter per tap.** A letter replaces the one before it (its link stops working), so the form does not take
  * a second request while one is on its way, nor after it was answered, until the user is on this screen again
@@ -91,14 +100,19 @@ data class RegisterUiState(
  *
  * @param initialEmail the address to start with (typed on the sign-in screen); an address saved in [savedState]
  * by an earlier incarnation of this screen wins over it
- * @param savedState the saved state of the screen: holds the address only
+ * @param savedState the saved state of the screen: holds the address and the box of the statistics only
  */
 class RegisterViewModel(
     initialEmail: String,
     private val register: RegisterUseCase,
     private val savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    private val state = MutableStateFlow(RegisterUiState(email = savedState.get<String>(EmailKey) ?: initialEmail))
+    private val state = MutableStateFlow(
+        RegisterUiState(
+            email = savedState.get<String>(EmailKey) ?: initialEmail,
+            shareStatistics = savedState.get<Boolean>(ShareStatisticsKey) ?: true,
+        ),
+    )
     val uiState: StateFlow<RegisterUiState> = state.asStateFlow()
 
     /** The last address the screen was given from outside, to tell a new one from the same one given again. */
@@ -136,6 +150,12 @@ class RegisterViewModel(
                 problem = it.problem.keptWhenEditingPassword(),
             )
         }
+    }
+
+    /** The box "Отправлять статистику использования" was ticked or cleared. It takes every tap, also while a request runs. */
+    fun onShareStatisticsChange(share: Boolean) {
+        savedState[ShareStatisticsKey] = share
+        state.update { it.copy(shareStatistics = share) }
     }
 
     /** "Зарегистрироваться" (and the "Done" key of the keyboard). */
@@ -194,8 +214,11 @@ class RegisterViewModel(
     }
 
     private companion object {
-        /** The only key of the saved state: there is no key for the passwords. */
+        /** The key of the address in the saved state: there is no key for the passwords. */
         const val EmailKey = "email"
+
+        /** The key of the box of the statistics; it holds a choice, not a secret. */
+        const val ShareStatisticsKey = "shareStatistics"
     }
 }
 

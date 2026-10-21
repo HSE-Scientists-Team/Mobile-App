@@ -51,16 +51,22 @@ import org.matchlab.academic_net.feature.settings.ui.generated.resources.setting
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_sign_out_confirm
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_sign_out_text
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_sign_out_title
+import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_statistics
+import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_statistics_hint
+import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_statistics_title
 import org.matchlab.academic_net.feature.settings.ui.generated.resources.settings_title
 
 /**
- * "18 Настройки · Приватность и безопасность": the one switch there is, "Открыт к сотрудничеству" (it is a field of the
- * profile: whether people can find the user in the people search and in the recommendations), and "Выйти из аккаунта",
- * which is not in the design. "Заблокированные пользователи" of the design belongs to the second and third sprints and is
- * not shown.
+ * "18 Настройки": the switch "Открыт к сотрудничеству" under "Приватность и безопасность" (it is a field of the profile:
+ * whether people can find the user in the people search and in the recommendations), the switch "Статистика
+ * использования" in a section of its own, "Статистика", and "Выйти из аккаунта". The last two are not in the design.
+ * "Заблокированные пользователи" of the design belongs to the second and third sprints and is not shown.
  *
- * An account that has not filled the profile yet has nothing to put the switch in (API-GAP G19): the switch is off and
+ * An account that has not filled the profile yet has nothing to put the first switch in (API-GAP G19): it is off and
  * cannot be switched, and the hint under it says to fill the profile first.
+ *
+ * The statistics switch is a setting of the device and does not depend on the server: it is shown, and works, also while
+ * the first setting is loading or has failed to load.
  *
  * @param onNavigateBack the back arrow of the app bar
  * @param onSignOut the user confirmed signing out; the app ends the session and leaves the screen
@@ -72,14 +78,27 @@ fun SettingsRoute(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val viewModel = viewModel { SettingsViewModel(dependencies.getOpenToCollaboration, dependencies.setOpenToCollaboration) }
+    val viewModel = viewModel {
+        SettingsViewModel(
+            getOpenToCollaboration = dependencies.getOpenToCollaboration,
+            setOpenToCollaboration = dependencies.setOpenToCollaboration,
+            observeStatistics = dependencies.observeStatistics,
+            setStatistics = dependencies.setStatistics,
+        )
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val statistics by viewModel.statistics.collectAsStateWithLifecycle()
+    val statisticsFailedToSave by viewModel.statisticsFailedToSave.collectAsStateWithLifecycle()
 
     SettingsScreen(
         state = state,
+        statistics = statistics,
+        statisticsFailedToSave = statisticsFailedToSave,
         onNavigateBack = onNavigateBack,
         onToggle = viewModel::onToggle,
+        onStatisticsToggle = viewModel::onStatisticsToggle,
         onSaveFailureShown = viewModel::onSaveFailureShown,
+        onStatisticsSaveFailureShown = viewModel::onStatisticsSaveFailureShown,
         onRetry = viewModel::onRetry,
         onSignOut = onSignOut,
         modifier = modifier,
@@ -89,9 +108,13 @@ fun SettingsRoute(
 @Composable
 internal fun SettingsScreen(
     state: SettingsUiState,
+    statistics: Boolean,
+    statisticsFailedToSave: Boolean,
     onNavigateBack: () -> Unit,
     onToggle: (Boolean) -> Unit,
+    onStatisticsToggle: (Boolean) -> Unit,
     onSaveFailureShown: () -> Unit,
+    onStatisticsSaveFailureShown: () -> Unit,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -99,18 +122,20 @@ internal fun SettingsScreen(
     val snackbars = remember { SnackbarHostState() }
     var confirmingSignOut by rememberSaveable { mutableStateOf(false) }
 
-    val failedToSave = (state as? SettingsUiState.Content)?.failedToSave == true
     val saveError = stringResource(Res.string.settings_save_error)
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(failedToSave) {
-        if (failedToSave) {
-            // The switch has already gone back; the message only explains why. The state is
-            // cleared first, and the message is shown from the scope of the screen, because
-            // clearing the state restarts this effect and would take the message away.
-            onSaveFailureShown()
-            scope.launch { snackbars.showSnackbar(saveError) }
-        }
-    }
+    SaveFailureEffect(
+        failed = (state as? SettingsUiState.Content)?.failedToSave == true,
+        onShown = onSaveFailureShown,
+        snackbars = snackbars,
+        message = saveError,
+    )
+    // One effect for each switch: a flag that is raised while the other one is still up must not be lost with it.
+    SaveFailureEffect(
+        failed = statisticsFailedToSave,
+        onShown = onStatisticsSaveFailureShown,
+        snackbars = snackbars,
+        message = saveError,
+    )
 
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.fillMaxSize()) {
@@ -138,6 +163,14 @@ internal fun SettingsScreen(
                     )
                     is SettingsUiState.Content -> OpenToCollaborationToggle(state, onToggle)
                 }
+                // A section of its own, 12dp below the end of the first one (the column puts 12dp between its parts).
+                SectionHeader(stringResource(Res.string.settings_statistics_title), Modifier.padding(top = 12.dp))
+                ToggleListItem(
+                    title = stringResource(Res.string.settings_statistics),
+                    checked = statistics,
+                    onCheckedChange = onStatisticsToggle,
+                    subtitle = stringResource(Res.string.settings_statistics_hint),
+                )
                 AppButton(
                     text = stringResource(Res.string.settings_sign_out),
                     onClick = { confirmingSignOut = true },
@@ -167,6 +200,28 @@ internal fun SettingsScreen(
             },
             onDismiss = { confirmingSignOut = false },
         )
+    }
+}
+
+/**
+ * Tells the user once that a switch could not be saved: while [failed] is up it clears the flag ([onShown]) and shows
+ * [message] in [snackbars]. The switch has already gone back to its old value, the message only explains why.
+ */
+@Composable
+private fun SaveFailureEffect(
+    failed: Boolean,
+    onShown: () -> Unit,
+    snackbars: SnackbarHostState,
+    message: String,
+) {
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(failed) {
+        if (failed) {
+            // The flag is cleared first, and the message is shown from the scope of the screen, because clearing the
+            // flag restarts this effect and would take the message away.
+            onShown()
+            scope.launch { snackbars.showSnackbar(message) }
+        }
     }
 }
 

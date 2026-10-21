@@ -10,6 +10,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import org.matchlab.academic_net.Backend
+import org.matchlab.academic_net.analytics.Analytics
+import org.matchlab.academic_net.analytics.NoOpAnalytics
 import org.matchlab.academic_net.feature.auth.domain.AuthState
 import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.gateway.Gateway
@@ -112,12 +114,17 @@ internal fun MockRequestHandleScope.json(body: String, status: HttpStatusCode = 
 internal fun MockRequestHandleScope.jsonError(status: HttpStatusCode, message: String = "refused"): HttpResponseData =
     json("""{"error":"$message"}""", status)
 
-/** A launch of the app (a process) over the server [server] and the secure store [store]: what one launch of the app builds. */
+/**
+ * A launch of the app (a process) over the server [server] and the secure store [store]: what one launch of the app builds.
+ * [analytics] is what the platform gives it; without one the process runs with the empty analytics, as it does in a build
+ * with no application key.
+ */
 internal class AppLaunch(
     val server: FakeServer = FakeServer(),
     val store: SecureStore = InMemorySecureStore(),
+    analytics: Analytics = NoOpAnalytics,
 ) {
-    val app: AppComponent = createAppComponent(store, Backend.Gateway(), server.factory)
+    val app: AppComponent = createAppComponent(store, Backend.Gateway(), server.factory, analytics)
 
     val state: AuthState get() = app.authRepository.authState.value
 

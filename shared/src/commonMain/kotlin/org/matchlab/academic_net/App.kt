@@ -1,6 +1,8 @@
 package org.matchlab.academic_net
 
 import androidx.compose.runtime.Composable
+import org.matchlab.academic_net.analytics.Analytics
+import org.matchlab.academic_net.analytics.NoOpAnalytics
 import org.matchlab.academic_net.di.AppGraph
 import org.matchlab.academic_net.securestore.SecureStore
 import org.matchlab.academic_net.theme.AcademicNetTheme
@@ -21,6 +23,9 @@ import org.matchlab.academic_net.ui.navigation.AppNavHost
  * (`https://matchlab.space/verify-email?token=…` of the confirmation letter). The app takes it when the user is signed
  * out and confirms the address with it; a link of anything else is dropped
  * @param onIncomingLinkHandled the app took the link or dropped it: the platform forgets it
+ * @param analytics the platform's analytics SDK behind the shared contract (AppMetrica on Android); the platform
+ * keeps it sending nothing until the app switches it on, after the person's choice (see [AnalyticsController]). The
+ * default sends nothing at all; fixed for the process by the first call, like [backend]
  */
 @Composable
 fun App(
@@ -28,12 +33,15 @@ fun App(
     backend: Backend = Backend.Gateway(),
     incomingLink: String? = null,
     onIncomingLinkHandled: () -> Unit = {},
+    analytics: Analytics = NoOpAnalytics,
 ) {
-    val graphs = AppGraph.get(secureStore, backend)
+    val graphs = AppGraph.get(secureStore, backend, analytics)
     AcademicNetTheme {
         AppNavHost(
             auth = graphs.auth,
             sessions = graphs.sessions,
+            clicks = graphs.clicks,
+            onStatisticsChosen = graphs::onStatisticsChosen,
             incomingLink = incomingLink,
             onIncomingLinkHandled = onIncomingLinkHandled,
         )

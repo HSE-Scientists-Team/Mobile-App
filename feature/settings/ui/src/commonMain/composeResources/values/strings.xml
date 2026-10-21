@@ -4,6 +4,10 @@
     <string name="settings_open_to_collaboration">Open to collaboration</string>
     <string name="settings_open_to_collaboration_hint">You'll appear in the people recommendations</string>
     <string name="settings_profile_missing_hint">Fill in your profile first: enter your name</string>
+    <!-- The device setting that lets the app count taps on projects and people; also asked for on the registration screen -->
+    <string name="settings_statistics_title">Statistics</string>
+    <string name="settings_statistics">Usage statistics</string>
+    <string name="settings_statistics_hint">Helps improve the app: taps on projects and people, the account id and device data are counted. Messages and profile texts are not sent.</string>
     <string name="settings_save_error">Could not save the setting. Please try again</string>
     <string name="settings_load_error">Could not load the settings</string>
     <string name="settings_retry">Retry</string>

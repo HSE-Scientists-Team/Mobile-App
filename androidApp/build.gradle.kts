@@ -1,3 +1,5 @@
+import java.io.StringReader
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -18,6 +20,26 @@ require(
     "matchlab.gatewayUrl must start with http:// or https://, not '$matchlabGatewayUrl'"
 }
 
+// The AppMetrica application key (usage analytics), chosen at build time and never committed:
+//   -Pmatchlab.appmetricaKey=<key>    or the line  matchlab.appmetricaKey=<key>  in local.properties (-P wins)
+//                                     empty (default): no analytics at all (NoOpAnalytics), the build needs no key.
+// Not in gradle.properties: that file is in git. The key is the UUID of Settings -> Main of the AppMetrica console.
+val localProperties = Properties().apply {
+    // Read through the providers, so that a change of the file invalidates the configuration cache.
+    providers.fileContents(rootProject.layout.projectDirectory.file("local.properties")).asText.orNull
+        ?.let { load(StringReader(it)) }
+}
+val matchlabAppMetricaKey: String = (
+    providers.gradleProperty("matchlab.appmetricaKey").orNull
+        ?: localProperties.getProperty("matchlab.appmetricaKey")
+        ?: ""
+    ).trim()
+// UUID.fromString is lenient ("1-2-3-4-5" passes), and the SDK would then refuse the key at the start of the app.
+val appMetricaKeyShape = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+require(matchlabAppMetricaKey.isEmpty() || appMetricaKeyShape.matches(matchlabAppMetricaKey)) {
+    "matchlab.appmetricaKey must be the application key of the AppMetrica console (a UUID); the value given is not one"
+}
+
 /** [value] as the Java string literal of a BuildConfig field. */
 fun javaString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
@@ -29,6 +51,9 @@ kotlin {
 dependencies {
     implementation(project(":shared"))
     implementation(project(":securestore"))
+    // The contract of the analytics, which AppMetricaAnalytics implements over the SDK.
+    implementation(project(":analytics"))
+    implementation(libs.appmetrica.analytics)
     // Component catalog screen (src/debug).
     debugImplementation(project(":catalog"))
 
@@ -50,6 +75,7 @@ android {
         versionName = "1.0"
 
         buildConfigField("String", "GATEWAY_URL", javaString(matchlabGatewayUrl))
+        buildConfigField("String", "APPMETRICA_API_KEY", javaString(matchlabAppMetricaKey))
     }
     packaging {
         resources {

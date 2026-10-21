@@ -19,6 +19,9 @@
     <string name="auth_repeat_password_label">Repeat password</string>
     <string name="auth_register">Sign up</string>
     <string name="auth_have_account">Already have an account? Sign in</string>
+    <!-- The box under the repeated password: on by default, and the same choice is a switch in the settings -->
+    <string name="auth_share_statistics">Send usage statistics</string>
+    <string name="auth_share_statistics_note">You can change this in settings</string>
 
     <!-- Email confirmation -->
     <string name="auth_confirm_title">Confirm your email</string>
