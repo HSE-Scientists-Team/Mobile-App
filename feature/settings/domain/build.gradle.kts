@@ -6,7 +6,8 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Settings feature, domain layer: the one switch there is ("Открыт к сотрудничеству"), the repository contract and use cases.
+// Settings feature, domain layer: the switches ("Открыт к сотрудничеству" on the server, "Статистика использования" on the device),
+// the repository contract and use cases.
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.settings.domain"

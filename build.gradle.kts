@@ -17,6 +17,7 @@ dependencies {
     kover(project(":theme"))
     kover(project(":utils"))
     kover(project(":securestore"))
+    kover(project(":analytics"))
     kover(project(":gateway"))
     kover(project(":common"))
     kover(project(":components"))
