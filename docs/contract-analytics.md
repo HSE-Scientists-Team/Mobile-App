@@ -76,13 +76,17 @@ class ClickTracker(private val analytics: Analytics) {
 /**
  * The choice "send usage statistics" of this device, kept in the [SecureStore] under the key `analytics.statistics`
  * ("1" / "0"); not a secret, the same store holds the last e-mail. Survives sign-out. Blocking store calls run on an IO
- * dispatcher. [enabled] is `null` until the person has chosen (or the app has set the default, §4).
+ * dispatcher. [enabled] is `null` until the person has chosen; the default is not written (§3).
  */
 class StatisticsPreference(store: SecureStore, io: CoroutineDispatcher = <как в AuthRepositoryImpl>) {
     val enabled: StateFlow<Boolean?>
     /** Reads the stored value once; the other calls wait for it. */
     suspend fun load()
-    /** Saves [enabled] and publishes it; throws when the store cannot write (the caller decides what to do). */
+    /**
+     * Saves [enabled] and publishes it; throws when the store cannot write. A «yes» that could not be written is not published;
+     * a «no» that could not be written is published all the same (it holds until the app is closed) and an older readable
+     * «yes» is removed from the store (best effort). Written and published under `NonCancellable`.
+     */
     suspend fun set(enabled: Boolean)
 }
 ```
@@ -92,12 +96,13 @@ class StatisticsPreference(store: SecureStore, io: CoroutineDispatcher = <как
 `internal class AnalyticsController(analytics: Analytics, preference: StatisticsPreference, authState: StateFlow<AuthState>)`
 (в `:shared`, пакет `org.matchlab.academic_net`; `AuthState` из `feature.auth.domain`), `fun start(scope: CoroutineScope)`:
 
-1. `preference.load()`; затем каждое значение `preference.enabled` → `analytics.setEnabled(value == true)`. Пока выбор не сделан
-   (`null`), отправка выключена.
-2. По `authState`: `SignedIn` → если выбора нет (`null`), **записать по умолчанию `true`** (вход в аккаунт на устройстве без выбора;
-   настройка по умолчанию включена) и `analytics.setUserProfileId(session.userId.value)`; `SignedOut` → `setUserProfileId(null)`.
-   `Restoring` ничего не делает. Решение о значении по умолчанию принимается только после `preference.load()`.
-3. Сбой записи значения не роняет приложение (проглотить, значение остаётся `null` → отправка выключена).
+1. `preference.load()`; решения принимаются только после него.
+2. Отправка: выбор `true` / `false` — как выбрано; выбора нет (`null`) — **по умолчанию включено, пока кто-то вошёл** (`SignedIn`), и
+   выключено, пока никто не вошёл (`SignedOut`, `Restoring`). Умолчание **не записывается** в хранилище (решение основной сессии
+   2026-10-21): хранилище не отличает «выбора не было» от «сейчас не читается», и записанное «да» затёрло бы скрытое сбоем
+   чтения «нет». Выбор записывает тот, кто его сделал (форма регистрации, настройки). Экран настроек показывает `null` как «включено».
+3. Профиль: `SignedIn` → `analytics.setUserProfileId(session.userId.value)` (раньше, чем включается отправка); `SignedOut` →
+   `setUserProfileId(null)`; `Restoring` ничего не делает.
 
 Подключение: `App(secureStore, backend, incomingLink, onIncomingLinkHandled, analytics: Analytics = NoOpAnalytics)`;
 `AppGraph.get(secureStore, backend, analytics)`; `AppComponent` получает `analytics` (`@get:Provides`) и отдаёт `preference`
@@ -189,7 +194,7 @@ setStatistics)`; отдельный `statistics: StateFlow<Boolean>` (значе
 ## 8. Тесты (пишет `tester`, остальные только механические правки)
 
 `ClickTracker` (имена, параметры, пустой id), `StatisticsPreference` (чтение, запись, переживает пересоздание, сбой записи),
-`AnalyticsController` (отправка выключена до выбора; вход без выбора пишет `true`; выбор `false` не затирается; профиль
+`AnalyticsController` (отправка выключена до выбора; без выбора включено, пока кто-то вошёл, и в хранилище не пишется; выбор `false` не затирается; профиль
 ставится и снимается; вход до `load()` не принимает решения), адаптер настроек, `SettingsViewModel` (переключатель, откат при сбое),
 `RegisterViewModel` (чекбокс по умолчанию включён, значение попадает в колбэк, переживает пересоздание), граф DI (`App` без
 аналитики получает пустую). Правки, нужные для тестируемости, — минимальные, с пометкой в отчёте.

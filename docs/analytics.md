@@ -1,6 +1,6 @@
-# Аналитика: Яндекс AppMetrica (план)
+# Аналитика: Яндекс AppMetrica
 
-Статус на 2026-10-21: **решения заказчика получены (§7), реализация идёт по контракту `docs/contract-analytics.md`.** Задачи — `docs/sprint-2.md`, T15–T22.
+Статус на 2026-10-21: **решения заказчика получены (§7), Android и общий код реализованы по контракту `docs/contract-analytics.md` (§8); нужны ключ приложения и подключение SDK в `iosApp/`.** Задачи — `docs/sprint-2.md`, T15–T22.
 
 ## 1. Что берём и что хотим мерить
 
@@ -92,7 +92,8 @@
   данных граждан России, в этом плане не оценено: это решает тот, кто отвечает за политику и юридическую часть.
 - Согласие/отказ (решение заказчика): переключатель «Статистика использования» в настройках и чекбокс «Отправлять статистику
   использования» при регистрации, по умолчанию включён; он задаёт начальное значение настройки. До выбора отправка выключена
-  (`withDataSendingEnabled(false)`); вход в аккаунт на устройстве без выбора записывает значение по умолчанию (включено).
+  (`withDataSendingEnabled(false)`); на устройстве без выбора отправка по умолчанию включена, пока кто-то вошёл в аккаунт (умолчание
+  не записывается в хранилище, чтобы сбой чтения не затирал сохранённое «нет»).
   В макетах регистрации (20) и настроек (18) этих элементов нет: допущение и задание дизайнеру.
 
 ## 5. Конфигурация и окружения
@@ -124,3 +125,130 @@
 4. **Одно приложение** в AppMetrica. Ключ приложения нужен от заказчика (передаётся как `-Pmatchlab.appmetricaKey`); пока его нет, аналитика
    выключена.
 Открыто: другие события (отклик на роль, создание проекта, регистрация) заказчик не запрашивал, в этот объём они не входят.
+
+## 8. Что сделано (2026-10-21) и как включить
+
+**Общий код.** Модуль `:analytics` (без SDK): `Analytics` / `NoOpAnalytics`, `AnalyticsEvents`, `ProjectSource`, `UserSource`, `ClickTracker`,
+`StatisticsPreference` (выбор «отправлять статистику» этого устройства, ключ `analytics.statistics` в `SecureStore`, переживает выход). `:shared`:
+`App(…, analytics)`, `AnalyticsController` (отправка и профиль следуют за выбором и сессией), `PreferenceStatisticsSettings` (адаптер для
+настроек). События шлёт `AppNavHost` по результату `navigateOnce` (и `popBackStackOnce` при возврате в профиль из шапки чата, `chat_header`); поиск людей под роль считается как `people_search`; `NavigationClicks.kt`. Регистрация: чекбокс «Отправлять статистику
+использования» (по умолчанию включён), его значение уходит вместе с письмом и становится выбором устройства. Настройки: раздел «Статистика» с
+переключателем. Новые компоненты: `AppCheckbox`, `AppCheckboxRow` (`:components`, есть в каталоге).
+
+**Правило включения.** До выбора и пока никто не вошёл отправка выключена. Выбор «да» или «нет» (регистрация, настройки) действует как выбран.
+Если выбора нет, отправка включена, пока кто-то вошёл в аккаунт: это умолчание настройки. Умолчание в хранилище **не записывается**:
+хранилище не отличает «выбора не было» от «сейчас не читается», и записанное «да» затёрло бы скрытое сбоем чтения «нет».
+
+**Android.**
+- SDK `io.appmetrica.analytics:analytics:8.6.0` (последняя на 2026-10-21) только в `:androidApp`.
+- Ключ — UUID из «Настройки → Основные» консоли AppMetrica: `-Pmatchlab.appmetricaKey=<ключ>` или строка `matchlab.appmetricaKey=<ключ>` в
+  `local.properties` (`-P` главнее). Пусто — `NoOpAnalytics`, сборки и тесты ключа не требуют. Не UUID — сборка падает с понятным сообщением.
+- `MatchLabApplication` активирует SDK: отправка выключена, нет геолокации, рекламных идентификаторов, отчётов о сбоях (в том числе
+  native и ANR) и автоучёта открытия по ссылке (ссылка из письма несёт одноразовый токен, он не должен уйти третьей стороне). Журнал SDK —
+  в отладочной сборке.
+- `AppMetricaAnalytics` пропускает события в SDK только когда отправка разрешена (выбор «да» или умолчание «включено», пока кто-то вошёл); события времени «нет» не копятся. Все вызовы SDK в `try/catch`.
+- Из манифеста убрано разрешение `com.google.android.gms.permission.AD_ID` (`tools:node="remove"`): SDK его добавляет сам, но сбор рекламных
+  идентификаторов выключен, рекламы нет, и в формах Google Play про рекламный идентификатор нечего заявлять. Вернуть можно, убрав одну
+  строку манифеста.
+- Что SDK добавляет в манифест сам: `ACCESS_NETWORK_STATE`, разрешение на install referrer Google Play, сервис `AppMetricaService`,
+  `queries` для сервисов рекламных идентификаторов и экспортируемый `PreloadInfoContentProvider`.
+
+**iOS (делает пользователь, `iosApp/` агенты не правят).** Общая часть готова: `MainViewController(analytics:)`, `export(project(":analytics"))`
+в `:shared`. Имена Swift-методов выведены из правил экспорта Kotlin/Native, линковка фреймворка без Xcode не проверялась.
+1. Пакет Swift Package Manager `https://github.com/appmetrica/appmetrica-sdk-ios` 7.0.0, продукт **только `AppMetricaCore`**; не подключать
+   `AppMetricaAdSupport` (IDFA, нужен App Tracking Transparency), `AppMetricaCrashes`, `AppMetricaWebKit`.
+2. Ключ: в `Config.xcconfig` строка `#include? "Local.xcconfig"`; `Local.xcconfig` (добавлен в `.gitignore`) — `APPMETRICA_API_KEY = <UUID>`; в `Info.plist`
+   ключ `AppMetricaApiKey` со значением `$(APPMETRICA_API_KEY)`. Пусто — без аналитики.
+3. Класс над SDK:
+
+```swift
+import Foundation
+import AppMetricaCore
+import Shared
+
+/// Analytics over the AppMetrica SDK; one per process (made in AppDelegate).
+final class AppMetricaAnalytics: NSObject, Analytics {
+    private let lock = NSLock()
+    private var enabled = false   // the person's choice; before it, and on "no", events are dropped
+
+    func track(event: String, params: [String: String]) {
+        lock.lock(); let isOn = enabled; lock.unlock()
+        guard isOn else { return }
+        AppMetrica.reportEvent(name: event, parameters: params, onFailure: nil)
+    }
+
+    func setUserProfileId(id: String?) { AppMetrica.userProfileID = id }
+
+    func setEnabled(enabled: Bool) {
+        lock.lock(); self.enabled = enabled; lock.unlock()
+        AppMetrica.setDataSendingEnabled(enabled)
+    }
+}
+```
+
+4. Активация в `application(_:didFinishLaunchingWithOptions:)`, с отключённой отправкой:
+
+```swift
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    static var analytics: AppMetricaAnalytics?   // nil: a build without a key
+
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        if let key = Bundle.main.object(forInfoDictionaryKey: "AppMetricaApiKey") as? String, !key.isEmpty,
+           let configuration = AppMetricaConfiguration(apiKey: key) {
+            configuration.dataSendingEnabled = false      // nothing leaves before the person's choice
+            configuration.locationTracking = false
+            configuration.appOpenTrackingEnabled = false  // the link of the letter carries a one-time token
+            #if DEBUG
+            configuration.areLogsEnabled = true
+            #endif
+            AppMetrica.activate(with: configuration)
+            AppDelegate.analytics = AppMetricaAnalytics()
+        }
+        return true
+    }
+}
+```
+
+   В `iOSApp.swift` добавить `@UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate`.
+5. В `ContentView.swift`: при `AppDelegate.analytics` вызвать `MainViewControllerKt.MainViewController(analytics: analytics)`, иначе
+   `MainViewControllerKt.MainViewController()` (пустая аналитика).
+6. App Store («Конфиденциальность приложения»): данные об использовании (нажатия), идентификатор пользователя (id аккаунта), идентификатор
+   устройства; связаны с пользователем; для отслеживания не используются, ATT не нужен.
+
+**Для политики конфиденциальности.** SDK собирает данные об устройстве и install referrer Google Play; в события уходят только идентификатор
+проекта или человека и слово `source`; идентификатор аккаунта передаётся как профиль пользователя (`setUserProfileID`); имена, почта, тексты,
+названия проектов и ссылки не передаются. Статистика включается и выключается в настройках («Статистика использования») и на регистрации.
+
+**Ограничения и непроверенное.**
+- Сбой записи выбора. «Да» из формы или настроек, которое не записалось, не публикуется (выбор остаётся прежним). «Нет» действует до
+  закрытия приложения, а прочитанное старое «да» удаляется из хранилища; нечитаемое сохранённое значение не трогается (вдруг это «нет»).
+- Выбор при регистрации сохраняется при каждом нажатии на чекбокс и ещё раз вместе с письмом (нетронутый чекбокс = «включено»).
+- `AuthRepositoryImpl` в крайнем случае стирает хранилище целиком (`wipe()` при сбое удаления сессии при выходе): выбор тогда пропадает
+  и действует умолчание.
+- Текст ошибки в настройках после неудачного «нет» («Не удалось сохранить настройку. Попробуйте ещё раз») неточен: отказ действует до закрытия
+  приложения; нужен отдельный текст (вопрос дизайнеру и текстам).
+- Модули SDK 8.6.0, попадающие в APK: `analytics-appsetid` (App Set ID из Google Play Services), `-identifiers`, `-screenshot`, `-billing`,
+  `-ad-revenue`, `-location`, плюс `queries` для install referrer (в том числе RuStore). Уходит ли App Set ID при выключенных рекламных
+  идентификаторах, не проверялось; в Google Play «Безопасность данных» указать «Device or other IDs». Исключить ненужные модули
+  (`analytics-appsetid`, `-location`) можно в Gradle, это требует проверки запуска.
+- Из манифеста убран экспортируемый `PreloadInfoContentProvider` SDK (предустановки у производителей устройств не нужны).
+- Файлы самого SDK (`metrica_client_data.db`, `metrica_aip.db`, `client.db`, `appmetrica_vital.dat`) попадают в резервную копию Android и
+  восстанавливаются на новом устройстве; правила копирования исключают только `matchlab_secure.xml`, нужно ли исключать их, не проверялось.
+- `SecureStore.read` одинаково возвращает `null` для «не выбирали» и «сейчас не читается». Редкий сбой чтения при запуске даст на этот запуск
+  умолчание «включено» вместо сохранённого «нет»; сохранённое значение при этом не затирается. Так же — при сбое записи выбора из формы.
+- Правила резервного копирования Android исключают только `matchlab_secure.xml`; нужно ли исключать данные самого AppMetrica, не проверялось.
+- Работа AppMetrica в приложении не проверена: нужен ключ и ручная проверка событий в консоли (события приходят с задержкой около 10 минут).
+- Нажатие на чекбокс регистрации в доли секунды, пока выезжает экран подтверждения, до настройки не доходит (значение уходит один раз,
+  вместе с письмом); следующее письмо передаст актуальное.
+
+**Допущения по дизайну** (в Figma нет, собрано из существующих токенов и компонентов):
+- Чекбокс: коробка 20 dp, углы 4 dp, обводка 2 dp `outline`, в включённом виде заливка `primary` и галочка `onPrimary`; выключенный — 38 %.
+- Строка с чекбоксом: зазор 12 dp, 6 dp по вертикали, текст `bodyLarge`, подпись `labelSmall` `onSurfaceVariant`, высота не меньше 48 dp, без
+  карточки; на экране 20 стоит под полем «Повторите пароль» (зазор 16 dp).
+- Настройки: существующий `ToggleListItem` с длинной подсказкой в разделе «Статистика» под «Приватностью».
+
+**Вопросы дизайнеру.** (1) Добавить в систему компонентов чекбокс (обычный, выбранный, недоступный) и решить, нужна ли строка «List item/Checkbox».
+(2) Нарисовать строку чекбокса с подписью на экране 20, в том числе с ошибкой под повтором пароля. (3) Нарисовать раздел «Статистика» с
+трёхстрочной подсказкой на экране 18 и решить, входит ли он в «Приватность и безопасность». (4) Нужна ли в тексте согласия ссылка на
+политику конфиденциальности.
