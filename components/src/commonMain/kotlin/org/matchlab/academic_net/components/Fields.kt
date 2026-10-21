@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.components.interaction.onceClickable
@@ -141,6 +142,11 @@ fun AppSearchBarButton(
  * to "Аккаунт с этой почтой уже есть". It is drawn only together with [errorText], which takes the width that
  * is left and wraps. Pass a text button; a 40dp one keeps the line as tall as the design's (a Material 3 button
  * is laid out 48dp tall unless the screen turns that off).
+ * @param required the field has to be filled: a red asterisk follows the label ("Заголовок *")
+ * @param counterText the counter at the end of the line under the box, e.g. "0 / 255"; `null` for none. The line then
+ * holds the [errorText] at its start and the counter at its end, as that of [AppMultilineField] does; a field with an
+ * [errorAction] has no counter
+ * @param counterIsError the counter is drawn in `error`: the text is over its limit
  */
 @Composable
 fun AppTextField(
@@ -157,12 +163,15 @@ fun AppTextField(
     saveState: Boolean = true,
     errorText: String? = null,
     errorAction: (@Composable () -> Unit)? = null,
+    required: Boolean = false,
+    counterText: String? = null,
+    counterIsError: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FieldLabel(label)
+        FieldLabel(label, required)
         AppBasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -188,7 +197,9 @@ fun AppTextField(
                 }
             },
         )
-        if (errorText != null) {
+        if (errorAction == null && counterText != null) {
+            ErrorAndCounterLine(errorText, counterText, counterIsError)
+        } else if (errorText != null) {
             if (errorAction == null) {
                 FieldError(errorText)
             } else {
@@ -221,6 +232,9 @@ fun AppTextField(
  * @param errorText the reason the text is not accepted (the outline turns `error`), or `null`
  * @param enabled `false` while the form that holds the field is busy: the input takes no text, the look is unchanged
  * @param maxLines how many lines the box grows to before the text scrolls
+ * @param minHeight the height of the empty box: 96dp, or less where the form wants the box as low as a one-line field
+ * and growing with the text (the comment of a review is 50dp until it is written in)
+ * @param counterIsError the counter is drawn in `error`: the text is over its limit
  */
 @Composable
 fun AppMultilineField(
@@ -234,24 +248,14 @@ fun AppMultilineField(
     errorText: String? = null,
     enabled: Boolean = true,
     maxLines: Int = 6,
+    minHeight: Dp = MultilineMinHeight,
+    counterIsError: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (required) {
-            Text(
-                text = buildAnnotatedString {
-                    append(label)
-                    append(" ")
-                    withStyle(SpanStyle(color = colors.error)) { append("*") }
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = colors.onSurfaceVariant,
-            )
-        } else {
-            FieldLabel(label)
-        }
+        FieldLabel(label, required)
         AppBasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -267,7 +271,7 @@ fun AppMultilineField(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = MultilineMinHeight)
+                        .heightIn(min = minHeight)
                         .fieldBox(focused, isError = errorText != null)
                         .padding(horizontal = 17.dp, vertical = 15.dp),
                 ) {
@@ -277,12 +281,7 @@ fun AppMultilineField(
             },
         )
         if (errorText != null || counterText != null) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.weight(1f)) { if (errorText != null) FieldError(errorText) }
-                if (counterText != null) {
-                    Text(counterText, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-                }
-            }
+            ErrorAndCounterLine(errorText, counterText, counterIsError)
         }
     }
 }
@@ -396,8 +395,16 @@ fun AppPasswordField(
 }
 
 /**
- * "Text field/Outlined" that opens a picker instead of taking input (sphere, dates): shows
- * [value], or [placeholder] while nothing is chosen. A burst of taps runs [onClick] once.
+ * "Text field/Select": a text field that opens a picker instead of taking input (sphere, dates, the project of a
+ * review): shows [value], or [placeholder] while nothing is chosen, and the chevron at the end. A burst of taps runs
+ * [onClick] once, so the picker is not opened twice.
+ *
+ * @param required the field has to be filled: a red asterisk follows the label ("Проект *")
+ * @param valueCaption a second, quieter line (`labelSmall`, `onSurfaceVariant`) under the chosen [value], e.g.
+ * "Завершён · март 2026"; it is not drawn while nothing is chosen
+ * @param errorText the reason nothing is accepted: the outline turns `error` and a line of `labelSmall` in `error`
+ * stands under the box (the design draws the state as an override of the field)
+ * @param enabled `false` while the form that holds the field is busy: the field takes no taps; its look is unchanged
  */
 @Composable
 fun AppSelectField(
@@ -407,24 +414,36 @@ fun AppSelectField(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     errorText: String? = null,
+    required: Boolean = false,
+    valueCaption: String? = null,
+    enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FieldLabel(label)
+        FieldLabel(label, required)
         Row(
             Modifier
                 .fillMaxWidth()
                 .fieldBox(focused = false, isError = errorText != null)
-                .onceClickable(role = Role.DropdownList, onClick = onClick)
-                .padding(horizontal = 17.dp, vertical = 15.dp),
+                .onceClickable(enabled = enabled, role = Role.DropdownList, onClick = onClick)
+                .padding(horizontal = 17.dp, vertical = 15.dp)
+                .semantics { if (errorText != null) error(errorText) },
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (value.isNullOrEmpty()) {
                     Placeholder(placeholder)
                 } else {
                     Text(value, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface, maxLines = 1)
+                    if (valueCaption != null) {
+                        Text(
+                            text = valueCaption,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 20.dp, tint = colors.outline)
@@ -535,9 +554,43 @@ private fun FieldHint(text: String) {
     Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
+/** The line under a box that has a counter: the error at its start (it wraps), the counter at its end. */
 @Composable
-private fun FieldLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun ErrorAndCounterLine(errorText: String?, counterText: String?, counterIsError: Boolean) {
+    val colors = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.weight(1f)) { if (errorText != null) FieldError(errorText) }
+        if (counterText != null) {
+            Text(
+                text = counterText,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (counterIsError) colors.error else colors.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * The caption above a field of the form (`labelMedium`, `onSurfaceVariant`); a [required] one is followed by a red
+ * (`error`) asterisk, "Проект *". The text fields draw it themselves; this is for a field that is not one of them, such
+ * as the stars of a review ([RatingInput]), so that it reads like its neighbours.
+ */
+@Composable
+fun FieldLabel(text: String, required: Boolean = false) {
+    val colors = MaterialTheme.colorScheme
+    if (required) {
+        Text(
+            text = buildAnnotatedString {
+                append(text)
+                append(" ")
+                withStyle(SpanStyle(color = colors.error)) { append("*") }
+            },
+            style = MaterialTheme.typography.labelMedium,
+            color = colors.onSurfaceVariant,
+        )
+    } else {
+        Text(text, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    }
 }
 
 @Composable

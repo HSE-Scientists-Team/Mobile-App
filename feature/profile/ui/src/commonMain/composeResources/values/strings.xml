@@ -32,6 +32,7 @@
     <string name="profile_reviews">Reviews</string>
     <!-- 1: the rating, already formatted: ★ 4.8 -->
     <string name="profile_reviews_rated">Reviews · %1$s</string>
+    <string name="profile_leave_review">Leave a review</string>
     <string name="profile_no_reviews">No reviews yet</string>
     <string name="profile_not_filled">Not filled in</string>
     <string name="profile_see_all">All</string>

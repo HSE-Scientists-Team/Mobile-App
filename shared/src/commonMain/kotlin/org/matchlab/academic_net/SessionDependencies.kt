@@ -12,6 +12,7 @@ import org.matchlab.academic_net.feature.projectdetails.ui.ProjectDetailsUiDepen
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projectsearch.ui.ProjectSearchUiDependencies
 import org.matchlab.academic_net.feature.responses.ui.ResponsesUiDependencies
+import org.matchlab.academic_net.feature.reviews.ui.ReviewsUiDependencies
 import org.matchlab.academic_net.feature.settings.ui.SettingsUiDependencies
 
 /**
@@ -35,6 +36,7 @@ internal class SessionDependencies(
     val settings: SettingsUiDependencies,
     val responses: ResponsesUiDependencies,
     val complaints: ComplaintsUiDependencies,
+    val reviews: ReviewsUiDependencies,
     /** The uploaded pictures of people; the avatars of every screen ask for them. */
     val avatars: AvatarDirectory,
 )

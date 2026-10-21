@@ -31,6 +31,8 @@ import org.matchlab.academic_net.utils.ChatListTime
  * @property canMessage the viewer may start a chat with the person, i.e. it is not their own page
  * @property canInvite "Пригласить в проект" is offered: the same as [canMessage], not the viewer's own page
  * @property canReport the flag of the app bar (09c): not the viewer's own page
+ * @property canLeaveReview "Оставить отзыв" is offered under the title of the reviews (09r): the same as [canMessage], not
+ *  the viewer's own page
  * @property openToCollaboration the person said they are open to collaboration: the header has the chip
  *  "Открыт к сотрудничеству" (a profile that does not say so has no chip)
  */
@@ -51,6 +53,7 @@ data class ProfileUiModel(
     val openToCollaboration: Boolean = false,
     val canInvite: Boolean = canMessage,
     val canReport: Boolean = canMessage,
+    val canLeaveReview: Boolean = canMessage,
 ) {
     val user: UserSummary get() = person.user
 }
@@ -73,6 +76,7 @@ internal fun UserProfile.toUiModel(): ProfileUiModel = ProfileUiModel(
     openToCollaboration = openToCollaboration,
     canInvite = !isViewer,
     canReport = !isViewer,
+    canLeaveReview = !isViewer,
 )
 
 /**

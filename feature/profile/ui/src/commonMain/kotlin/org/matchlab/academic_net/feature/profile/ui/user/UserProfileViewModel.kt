@@ -43,6 +43,30 @@ class UserProfileViewModel(
         load()
     }
 
+    /** The last [onReloadRequested] token that was acted on. */
+    private var handledReloadToken = 0
+
+    /**
+     * The host says the page is out of date (a review was left on it): reads the profile again when [token] is newer than
+     * the last one acted on. A page that is on the screen is read quietly: it stays until the new one comes, and a failed
+     * read leaves it as it is (the page is not wrong, only old). A page that failed is read the usual way; one that is
+     * still loading is left to that load.
+     */
+    fun onReloadRequested(token: Int) {
+        if (token <= handledReloadToken) return
+        handledReloadToken = token
+        if (state.value is UserProfileUiState.Content) {
+            viewModelScope.launch {
+                val result = getUserProfile(userId)
+                if (result is LoadResult.Found) state.value = UserProfileUiState.Content(result.value.toUiModel())
+            }
+        } else if (state.value !is UserProfileUiState.Loading) {
+            // A load that is already running reads the page as it is now.
+            state.value = UserProfileUiState.Loading
+            load()
+        }
+    }
+
     /** "Повторить" after a failed load; it does nothing in any other state. */
     fun onRetry() {
         if (state.value !is UserProfileUiState.Error) return

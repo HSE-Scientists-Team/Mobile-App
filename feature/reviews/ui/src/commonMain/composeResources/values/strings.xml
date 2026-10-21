@@ -1,0 +1,44 @@
+<resources>
+    <!-- 16: the form -->
+    <string name="reviews_title">Review</string>
+    <string name="reviews_close">Close</string>
+    <string name="reviews_project_label">Project</string>
+    <string name="reviews_project_placeholder">Choose a project</string>
+    <!-- 1: the month of the completion, e.g. "Mar 2026" -->
+    <string name="reviews_project_completed">Completed · %1$s</string>
+    <string name="reviews_rating_label">Rating</string>
+    <string name="reviews_title_label">Title</string>
+    <string name="reviews_title_hint">A few words about working together</string>
+    <string name="reviews_text_label">Comment</string>
+    <string name="reviews_text_hint">What you liked about working together…</string>
+    <!-- 1: the length typed, 2: the limit, both already grouped by the thousands with a no-break space -->
+    <string name="reviews_counter">%1$s / %2$s</string>
+    <string name="reviews_submit">Send review</string>
+
+    <!-- 16g and 16l: what is wrong with a field -->
+    <string name="reviews_error_project">Choose a project</string>
+    <string name="reviews_error_rating">Give a rating</string>
+    <string name="reviews_error_title">Enter a title</string>
+    <string name="reviews_error_title_too_long">The title is too long</string>
+    <string name="reviews_error_text">Write a comment</string>
+    <string name="reviews_error_text_too_long">The comment is too long</string>
+
+    <!-- 16i, 16j, 16k: why the review did not go through -->
+    <string name="reviews_already_reviewed">You have already reviewed this person for this project</string>
+    <string name="reviews_not_allowed">You can't leave a review: the project isn't completed or you weren't part of it</string>
+    <string name="reviews_send_failed">Couldn't send the review. Check your connection</string>
+
+    <!-- 16c-16f: the picker of the project -->
+    <string name="reviews_picker_title">Shared project</string>
+    <string name="reviews_picker_select">Choose</string>
+    <string name="reviews_picker_loading">Loading…</string>
+    <string name="reviews_picker_empty_title">No shared completed projects</string>
+    <string name="reviews_picker_empty_text">You can review someone you have completed a project with</string>
+    <string name="reviews_picker_ok">Got it</string>
+    <string name="reviews_picker_error_title">Couldn't load the projects</string>
+    <string name="reviews_picker_error_text">Check your connection and try again</string>
+    <string name="reviews_picker_retry">Retry</string>
+
+    <!-- 09s: the banner over the profile after a review -->
+    <string name="reviews_sent">Review sent</string>
+</resources>

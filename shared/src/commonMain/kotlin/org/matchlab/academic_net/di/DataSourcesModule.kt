@@ -20,6 +20,8 @@ import org.matchlab.academic_net.feature.projectsearch.data.GatewayProjectSearch
 import org.matchlab.academic_net.feature.projectsearch.data.ProjectSearchDataSource
 import org.matchlab.academic_net.feature.responses.data.GatewayResponsesDataSource
 import org.matchlab.academic_net.feature.responses.data.ResponsesDataSource
+import org.matchlab.academic_net.feature.reviews.data.GatewayReviewsDataSource
+import org.matchlab.academic_net.feature.reviews.data.ReviewsDataSource
 import org.matchlab.academic_net.feature.settings.data.GatewaySettingsDataSource
 import org.matchlab.academic_net.feature.settings.data.SettingsDataSource
 import org.matchlab.academic_net.gateway.GatewaySession
@@ -138,4 +140,13 @@ internal interface DataSourcesModule {
     @SessionScope
     fun complaintsDataSource(gateway: GatewaySession, assembler: ProjectAssembler): ComplaintsDataSource =
         GatewayComplaintsDataSource(gateway.complaints, gateway.users, gateway.projectCatalog, assembler)
+
+    /**
+     * Writing a review (16): the shared completed projects come from the viewer's catalog (`mine`, `status`) and the reviews
+     * already written about the person; the review itself goes to `POST /users/me/reviews`.
+     */
+    @Provides
+    @SessionScope
+    fun reviewsDataSource(gateway: GatewaySession, session: Session): ReviewsDataSource =
+        GatewayReviewsDataSource(gateway.projectCatalog, gateway.reviews, viewerId = session.userId)
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -64,7 +65,12 @@ import org.matchlab.academic_net.feature.profile.ui.rememberLinkOpener
  * @param onAuthorChatClick the chat icon of a review card
  * @param onInviteClick "Пригласить в проект": the host opens the sheet 09k
  * @param onReportClick the flag of the app bar: the host opens the sheet 09c
- * @param topBanner drawn above the header, e.g. "Приглашение отправлено" (09q); `null` for none
+ * @param onLeaveReviewClick "Оставить отзыв" under the title of the reviews (09r): the person whose page this is; the host
+ * opens the form of the review. Not shown on the viewer's own page
+ * @param reloadToken a number that grows when the host knows the page is out of date (a review was just left on it, 09s):
+ * every new value makes the page read the profile again, without the spinner and keeping what is on the screen until the
+ * answer comes. The host starts at 0 for a page that is just opened
+ * @param topBanner drawn above the header, e.g. "Приглашение отправлено" (09q) or "Отзыв отправлен" (09s); `null` for none
  */
 @Composable
 fun UserProfileRoute(
@@ -79,6 +85,8 @@ fun UserProfileRoute(
     onAuthorChatClick: (UserSummary) -> Unit,
     onInviteClick: () -> Unit,
     onReportClick: () -> Unit,
+    onLeaveReviewClick: (UserSummary) -> Unit,
+    reloadToken: Int = 0,
     topBanner: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -87,6 +95,7 @@ fun UserProfileRoute(
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val openLink = rememberLinkOpener()
+    LaunchedEffect(reloadToken) { viewModel.onReloadRequested(reloadToken) }
 
     UserProfileScreen(
         state = state,
@@ -102,6 +111,9 @@ fun UserProfileRoute(
         onAuthorChatClick = onAuthorChatClick,
         onInviteClick = onInviteClick,
         onReportClick = onReportClick,
+        onLeaveReviewClick = {
+            (state as? UserProfileUiState.Content)?.profile?.user?.let(onLeaveReviewClick)
+        },
         onRetry = viewModel::onRetry,
         modifier = modifier,
         topBanner = topBanner,
@@ -123,6 +135,7 @@ internal fun UserProfileScreen(
     onReportClick: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onLeaveReviewClick: () -> Unit = {},
     topBanner: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLow)) {
@@ -158,6 +171,7 @@ internal fun UserProfileScreen(
                 onAuthorClick = onAuthorClick,
                 onAuthorChatClick = onAuthorChatClick,
                 onInviteClick = onInviteClick,
+                onLeaveReviewClick = onLeaveReviewClick,
                 topBanner = topBanner,
             )
         }
@@ -175,6 +189,7 @@ private fun ColumnScope.ProfileContent(
     onAuthorClick: (UserId) -> Unit,
     onAuthorChatClick: (UserSummary) -> Unit,
     onInviteClick: () -> Unit,
+    onLeaveReviewClick: () -> Unit,
     topBanner: (@Composable () -> Unit)?,
 ) {
     Column(
@@ -217,6 +232,7 @@ private fun ColumnScope.ProfileContent(
             onReviewClick = onReviewClick,
             onAuthorClick = onAuthorClick,
             onAuthorChatClick = onAuthorChatClick,
+            onLeaveReviewClick = if (profile.canLeaveReview) onLeaveReviewClick else null,
         )
     }
 }

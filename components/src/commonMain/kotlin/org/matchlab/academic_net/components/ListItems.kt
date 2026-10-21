@@ -117,26 +117,34 @@ fun ToggleListItem(
     }
 }
 
-/** "List item/Radio": one option of a single-choice list; the whole row selects it. */
+/**
+ * "List item/Radio" and "List item/Radio two-line": one option of a single-choice list; the whole row selects it.
+ * Choosing is not an action that must not be repeated, so taps are not debounced.
+ *
+ * @param subtitle the second line under [text] (`labelSmall`, `onSurfaceVariant`), e.g. "Завершён · март 2026" under
+ * the name of a project; `null` for the one-line row
+ */
 @Composable
 fun RadioListItem(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
+    val colors = MaterialTheme.colorScheme
     OutlinedRow(
         modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
         MaterialTheme.shapes.medium,
         verticalPadding = 12.dp,
     ) {
         AppRadioButton(selected = selected, onClick = null)
-        Text(
-            text = text,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = text, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
+            if (subtitle != null) {
+                Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+            }
+        }
     }
 }
 

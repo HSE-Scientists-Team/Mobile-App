@@ -32,6 +32,7 @@
     <string name="profile_reviews">Отзывы</string>
     <!-- 1: the rating, already formatted: ★ 4.8 -->
     <string name="profile_reviews_rated">Отзывы · %1$s</string>
+    <string name="profile_leave_review">Оставить отзыв</string>
     <string name="profile_no_reviews">Отзывов пока нет</string>
     <string name="profile_not_filled">Не заполнено</string>
     <string name="profile_see_all">Все</string>

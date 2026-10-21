@@ -106,6 +106,7 @@ import org.matchlab.academic_net.components.ProjectCard
 import org.matchlab.academic_net.components.ProjectCardUiModel
 import org.matchlab.academic_net.components.StatusChipUiModel
 import org.matchlab.academic_net.components.RadioListItem
+import org.matchlab.academic_net.components.RatingInput
 import org.matchlab.academic_net.components.RatingStars
 import org.matchlab.academic_net.components.RatingStarsSize
 import org.matchlab.academic_net.components.ReportIconButton
@@ -171,6 +172,7 @@ import org.matchlab.academic_net.feature.responses.ui.ApplicationCardUiModel
 import org.matchlab.academic_net.feature.responses.ui.CandidateCard
 import org.matchlab.academic_net.feature.responses.ui.CandidateCardUiModel
 import org.matchlab.academic_net.feature.responses.ui.InvitationSentBanner
+import org.matchlab.academic_net.feature.reviews.ui.ReviewSentBanner
 import org.matchlab.academic_net.theme.AcademicNetTheme
 
 /** Every design system component, grouped by module and filled with the Figma sample data. */
@@ -198,6 +200,7 @@ fun ComponentCatalog() {
             item { ChatsComponents() }
             item { ResponsesComponents() }
             item { ComplaintsComponents() }
+            item { ReviewsComponents() }
         }
     }
 }
@@ -293,6 +296,54 @@ private fun BaseComponents() {
             onClick = {},
             errorText = "Выберите сферу",
         )
+        // "Text field/Select" of the form of a review: required, the chosen value with a second line, and the error.
+        AppSelectField(
+            label = "Проект",
+            value = "AI-навигация по кампусу",
+            placeholder = "Выберите проект",
+            onClick = {},
+            required = true,
+            valueCaption = "Завершён · мар 2026",
+        )
+        AppSelectField(
+            label = "Проект",
+            value = null,
+            placeholder = "Выберите проект",
+            onClick = {},
+            errorText = "Выберите проект",
+            required = true,
+        )
+        // "Text field/Outlined" with a required mark and a counter: the title of a review; over the limit the counter is red.
+        var reviewTitle by remember { mutableStateOf("") }
+        AppTextField(
+            value = reviewTitle,
+            onValueChange = { reviewTitle = it },
+            label = "Заголовок",
+            placeholder = "Коротко о совместной работе",
+            required = true,
+            counterText = "${reviewTitle.length} / 255",
+            counterIsError = reviewTitle.length > 255,
+        )
+        AppTextField(
+            value = "",
+            onValueChange = {},
+            label = "Заголовок",
+            placeholder = "Коротко о совместной работе",
+            errorText = "Укажите заголовок",
+            required = true,
+            counterText = "0 / 255",
+        )
+        // "Text field/Multiline" as low as a one-line field until it is written in: the comment of a review.
+        var reviewText by remember { mutableStateOf("") }
+        AppMultilineField(
+            value = reviewText,
+            onValueChange = { reviewText = it },
+            label = "Комментарий",
+            required = true,
+            placeholder = "Что понравилось в совместной работе…",
+            counterText = "${reviewText.length} / 10 000",
+            minHeight = 0.dp,
+        )
         val tags = remember { mutableStateListOf("Machine Learning", "Python") }
         AppTagsField(
             label = "Теги",
@@ -383,6 +434,9 @@ private fun BaseComponents() {
         )
         var option by remember { mutableStateOf(false) }
         RadioListItem("Вариант ответа", option, { option = !option })
+        // "List item/Radio two-line": the name of a project and when it was completed (the picker of a review).
+        RadioListItem("AI-навигация по кампусу", option, { option = !option }, subtitle = "Завершён · мар 2026")
+        RadioListItem("Цифровой двойник лаборатории", !option, { option = !option }, subtitle = "Завершён · дек 2025")
         SettingListItem("Название настройки", AppIcons.Lock, onClick = {}, subtitle = "Пояснение к настройке")
         var visible by remember { mutableStateOf(true) }
         ToggleListItem("Показывать меня в поиске", visible, { visible = it }, subtitle = "Пояснение к переключателю")
@@ -759,6 +813,13 @@ private fun ReviewComponents() {
             RatingStars(7, size = RatingStarsSize.Medium)
             RatingStars(-2)
         }
+        // "Rating/Input": the stars that take a mark; a tap on the chosen star clears it, the second one is switched off.
+        var mark by remember { mutableStateOf(0) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            RatingInput(value = mark, onValueChange = { mark = it })
+            Text("$mark", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+        }
+        RatingInput(value = 3, onValueChange = {}, enabled = false)
         // "Banner/Status", the four statuses; the rejected one with the comment of the moderator.
         StatusBanner(StatusBannerStatus.Unverified, "Не подтверждено")
         StatusBanner(StatusBannerStatus.Pending, "На проверке")
@@ -1332,6 +1393,14 @@ private fun ResponsesComponents() {
         )
         // 09q: the banner over the profile after an invitation.
         InvitationSentBanner()
+    }
+}
+
+/** The banner 09s over the profile after a review; the form and the picker of the project are screens, not components. */
+@Composable
+private fun ReviewsComponents() {
+    Section(":feature:reviews:ui") {
+        ReviewSentBanner()
     }
 }
 

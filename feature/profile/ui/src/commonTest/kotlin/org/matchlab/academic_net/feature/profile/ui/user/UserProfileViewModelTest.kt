@@ -169,4 +169,187 @@ class UserProfileViewModelTest {
         assertEquals(listOf("r1", "r2"), profile.reviews.map { it.id.value })
         assertFalse(profile.hasMoreWorks)
     }
+
+    // ---- the reading again after a review (09s) ----
+
+    private fun contentOf(viewModel: UserProfileViewModel) = assertIs<UserProfileUiState.Content>(viewModel.uiState.value)
+
+    @Test
+    fun aTokenNotAboveTheHandledOneIsIgnored() {
+        val viewModel = viewModel()
+
+        viewModel.onReloadRequested(0)
+        viewModel.onReloadRequested(-1)
+
+        assertEquals(1, repository.calls.size, "the first token is 1: zero is the screen's initial value")
+    }
+
+    @Test
+    fun aNewerTokenReadsAgainAndTheSameOrAnOlderOneDoesNot() {
+        val viewModel = viewModel()
+
+        viewModel.onReloadRequested(1)
+        assertEquals(2, repository.calls.size)
+        viewModel.onReloadRequested(1)
+        assertEquals(2, repository.calls.size, "the same token is handled once")
+        viewModel.onReloadRequested(3)
+        assertEquals(3, repository.calls.size, "a jump over a number is a newer token")
+        viewModel.onReloadRequested(2)
+        viewModel.onReloadRequested(3)
+        assertEquals(3, repository.calls.size, "an older token is ignored")
+        viewModel.onReloadRequested(4)
+        assertEquals(4, repository.calls.size)
+    }
+
+    @Test
+    fun aPageOnTheScreenIsReadQuietlyAndTheNewOneReplacesIt() {
+        repository.onGetProfile = { userProfile(person = person(name = "Елена"), isViewer = false) }
+        val viewModel = viewModel()
+        val gate = CompletableDeferred<Unit>()
+        repository.onGetProfile = {
+            gate.await()
+            userProfile(
+                person = person(name = "Елена"),
+                isViewer = false,
+                reviews = ReviewsSummary(average = 5.0, count = 1, positiveCount = 1),
+                latestReviews = listOf(review("new")),
+            )
+        }
+
+        viewModel.onReloadRequested(1)
+
+        // The old page stays while the read runs: no flash of the loading.
+        assertEquals(0, contentOf(viewModel).profile.reviewCount)
+        gate.complete(Unit)
+        assertEquals(1, contentOf(viewModel).profile.reviewCount)
+        assertEquals(listOf("new"), contentOf(viewModel).profile.reviews.map { it.id.value })
+    }
+
+    @Test
+    fun aFailedQuietReadLeavesThePageAsItWas() {
+        repository.onGetProfile = { userProfile(person = person(name = "Елена"), isViewer = false) }
+        val viewModel = viewModel()
+        val before = viewModel.uiState.value
+        repository.onGetProfile = { throw IllegalStateException("no network") }
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals(before, viewModel.uiState.value)
+        assertEquals(2, repository.calls.size)
+    }
+
+    @Test
+    fun aQuietReadThatFindsNobodyLeavesThePageAsItWas() {
+        val viewModel = viewModel()
+        val before = viewModel.uiState.value
+        repository.onGetProfile = { null }
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals(before, viewModel.uiState.value)
+    }
+
+    @Test
+    fun aTokenAfterAFailedQuietReadIsStillHandledOnceSoTheNextNewerOneReads() {
+        val viewModel = viewModel()
+        repository.onGetProfile = { throw IllegalStateException("no network") }
+        viewModel.onReloadRequested(1)
+        repository.onGetProfile = { userProfile(person = person(name = "Новая"), isViewer = false) }
+
+        viewModel.onReloadRequested(1)
+        assertEquals(2, repository.calls.size, "the failed token is not read again by itself")
+        viewModel.onReloadRequested(2)
+
+        assertEquals("Новая", contentOf(viewModel).profile.user.name)
+    }
+
+    @Test
+    fun anErrorPageIsReadTheUsualWayFromTheLoading() {
+        repository.onGetProfile = { throw IllegalStateException("no network") }
+        val viewModel = viewModel()
+        assertIs<UserProfileUiState.Error>(viewModel.uiState.value)
+        val gate = CompletableDeferred<Unit>()
+        repository.onGetProfile = { gate.await(); userProfile(isViewer = false) }
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals(UserProfileUiState.Loading, viewModel.uiState.value)
+        gate.complete(Unit)
+        contentOf(viewModel)
+        assertEquals(2, repository.calls.size)
+    }
+
+    @Test
+    fun aFailedReadFromTheErrorIsTheErrorAgain() {
+        val cause = IllegalStateException("still down")
+        repository.onGetProfile = { throw IllegalStateException("no network") }
+        val viewModel = viewModel()
+        repository.onGetProfile = { throw cause }
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals(UserProfileUiState.Error(cause), viewModel.uiState.value)
+    }
+
+    @Test
+    fun aPageStillLoadingIsLeftToTheLoadThatRuns() {
+        val gate = CompletableDeferred<Unit>()
+        repository.onGetProfile = { gate.await(); userProfile(isViewer = false) }
+        val viewModel = viewModel()
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals(UserProfileUiState.Loading, viewModel.uiState.value)
+        assertEquals(1, repository.calls.size)
+        gate.complete(Unit)
+        contentOf(viewModel)
+    }
+
+    @Test
+    fun aNotFoundPageIsReadAgainToo() {
+        repository.onGetProfile = { null }
+        val viewModel = viewModel()
+        assertEquals(UserProfileUiState.NotFound, viewModel.uiState.value)
+        repository.onGetProfile = { userProfile(person = person(name = "Нашлась"), isViewer = false) }
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals("Нашлась", contentOf(viewModel).profile.user.name)
+    }
+
+    @Test
+    fun aStaleTokenDoesNotTouchAnErrorPage() {
+        repository.onGetProfile = { throw IllegalStateException("no network") }
+        val viewModel = viewModel()
+
+        viewModel.onReloadRequested(0)
+
+        assertIs<UserProfileUiState.Error>(viewModel.uiState.value)
+        assertEquals(1, repository.calls.size)
+    }
+
+    @Test
+    fun theTokenReadsThePageOfTheSamePerson() {
+        val asked = mutableListOf<UserId>()
+        repository.onGetProfile = { id ->
+            asked += id
+            userProfile(isViewer = false)
+        }
+        val viewModel = viewModel(UserId("elena"))
+
+        viewModel.onReloadRequested(1)
+
+        assertEquals(listOf(UserId("elena"), UserId("elena")), asked)
+    }
+
+    // ---- "Оставить отзыв" (09r) ----
+
+    @Test
+    fun theReviewButtonIsOfferedOnSomebodyElsesPageOnly() {
+        repository.onGetProfile = { userProfile(isViewer = false) }
+        assertTrue(contentOf(viewModel()).profile.canLeaveReview)
+
+        repository.onGetProfile = { userProfile(isViewer = true) }
+        assertFalse(contentOf(viewModel()).profile.canLeaveReview)
+    }
 }

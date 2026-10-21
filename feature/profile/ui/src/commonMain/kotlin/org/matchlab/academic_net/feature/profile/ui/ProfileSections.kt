@@ -15,6 +15,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
+import org.matchlab.academic_net.components.AppButton
+import org.matchlab.academic_net.components.AppButtonVariant
 import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppTagChip
 import org.matchlab.academic_net.components.SectionHeader
@@ -28,6 +30,7 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_about
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_education
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_interests
+import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_leave_review
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_no_reviews
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_not_filled
 import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_portfolio
@@ -61,6 +64,8 @@ import org.matchlab.academic_net.feature.profile.ui.generated.resources.profile_
  * @param onReviewClick a review card (the review in full)
  * @param onAuthorClick the author row of a review card (the profile of the author); asked for only with an author id
  * @param onAuthorChatClick the chat icon of a review card
+ * @param onLeaveReviewClick "Оставить отзыв", an outlined button under the title of the reviews (09r); `null` for no
+ * button (the own page, where nobody reviews themselves)
  */
 @Composable
 internal fun ColumnScope.ProfileSections(
@@ -74,6 +79,7 @@ internal fun ColumnScope.ProfileSections(
     onReviewClick: (ReviewId) -> Unit,
     onAuthorClick: (UserId) -> Unit,
     onAuthorChatClick: (UserSummary) -> Unit,
+    onLeaveReviewClick: (() -> Unit)? = null,
 ) {
     val aboutTitle = stringResource(Res.string.profile_about)
     if (profile.about.isNotBlank()) {
@@ -142,6 +148,14 @@ internal fun ColumnScope.ProfileSections(
             },
             onAction = onAllReviewsClick,
         )
+        if (onLeaveReviewClick != null) {
+            AppButton(
+                text = stringResource(Res.string.profile_leave_review),
+                onClick = onLeaveReviewClick,
+                modifier = Modifier.fillMaxWidth(),
+                variant = AppButtonVariant.Outlined,
+            )
+        }
         if (profile.reviews.isEmpty()) {
             Text(
                 text = stringResource(Res.string.profile_no_reviews),

@@ -29,7 +29,7 @@ enum class RatingStarsSize(val star: Dp, val gap: Dp) {
 }
 
 /** The stars in a rating: a rating is a mark from 0 to this. */
-private const val StarCount = 5
+internal const val StarCount = 5
 
 /**
  * "Rating": the mark of a review as stars. [value] of the five are filled (`primary`, the filled

@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.ui.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -12,9 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -76,6 +80,8 @@ import org.matchlab.academic_net.feature.responses.ui.InviteToProjectSheet
 import org.matchlab.academic_net.feature.responses.ui.ProjectResponsesRoute
 import org.matchlab.academic_net.feature.responses.ui.ResponsesRoute
 import org.matchlab.academic_net.feature.responses.ui.responsesTabHasBadge
+import org.matchlab.academic_net.feature.reviews.ui.ReviewFormRoute
+import org.matchlab.academic_net.feature.reviews.ui.ReviewSentBanner
 import org.matchlab.academic_net.feature.settings.ui.SettingsRoute
 
 private object Routes {
@@ -109,6 +115,7 @@ private object Routes {
     const val ProfileWorks = "profile/{$UserArgument}/works"
     const val ProfileReviews = "profile/{$UserArgument}/reviews"
     const val ProfileReview = "profile/{$UserArgument}/reviews/{$ReviewArgument}"
+    const val Review = "review/{$UserArgument}"
     const val EditProfile = "my_profile/edit"
     const val Settings = "settings"
     const val AddWork = "my_profile/add_work"
@@ -130,11 +137,34 @@ private object Routes {
     fun profileWorks(id: UserId) = "profile/${id.value}/works"
     fun profileReviews(id: UserId) = "profile/${id.value}/reviews"
     fun profileReview(userId: UserId, reviewId: ReviewId) = "profile/${userId.value}/reviews/${reviewId.value}"
+    fun review(id: UserId) = "review/${id.value}"
     fun editWork(id: WorkId) = "my_profile/works/${id.value}"
     fun editDocument(id: DocumentId) = "my_profile/documents/${id.value}"
 }
 
 private val StringArgument = NavType.StringType
+
+/**
+ * Saves the person a review is being written about ([MainNavHost]'s `reviewTarget`) across the recreation of the
+ * activity and the death of the process: the route of the form carries the id only, the name and the picture come from here.
+ */
+private val ReviewTargetSaver = listSaver<UserSummary?, Any>(
+    save = { user ->
+        if (user == null) emptyList() else listOf(user.id.value, user.name, user.avatarUrl.orEmpty(), user.isVerified)
+    },
+    restore = { saved ->
+        if (saved.isEmpty()) {
+            null
+        } else {
+            UserSummary(
+                id = UserId(saved[0] as String),
+                name = saved[1] as String,
+                avatarUrl = (saved[2] as String).ifEmpty { null },
+                isVerified = saved[3] as Boolean,
+            )
+        }
+    },
+)
 
 /** A string argument of a route that may be left out (a query argument, `null` when it is). */
 private fun optionalStringArgument(name: String) = navArgument(name) {
@@ -276,6 +306,14 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
     val scope = rememberCoroutineScope()
     val chatOpener = remember { ExclusiveLauncher() }
     val signOutLauncher = remember { ExclusiveLauncher() }
+
+    // The review of a person (09r, 16, 09s). The form is opened from the profile, which knows the person: the form gets
+    // them from here, as its route carries the id only. A review that went through is told to the profile the form was
+    // opened from by a number that grows with every review sent (and whom the last one was about), as the profile is a
+    // screen below the form and has no other way to hear of it. All three are saved with the state of the screen.
+    var reviewTarget by rememberSaveable(stateSaver = ReviewTargetSaver) { mutableStateOf<UserSummary?>(null) }
+    var reviewsSent by rememberSaveable { mutableIntStateOf(0) }
+    var lastReviewedId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // API-GAP G55: the server may leave out the id of a person (the author of a review). Such a person has no page,
     // and the route "profile/" matches nothing, so navigating to it would crash. The screens do not offer the tap for
@@ -584,6 +622,17 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
                 var inviteRequests by rememberSaveable { mutableIntStateOf(0) }
                 var invited by rememberSaveable { mutableStateOf(false) }
                 var report by rememberSaveable { mutableStateOf(false) }
+                // The banner 09s and the new reading of the page: a review of this person that was sent after the page was
+                // opened (`reviewsSent` has grown since, and the last review is about them).
+                val reviewsSentAtOpen = rememberSaveable { reviewsSent }
+                var reviewSent by rememberSaveable { mutableStateOf(false) }
+                var reloadToken by rememberSaveable { mutableIntStateOf(0) }
+                LaunchedEffect(reviewsSent) {
+                    if (isReviewJustSentTo(id, reviewsSent, reviewsSentAtOpen, lastReviewedId)) {
+                        reviewSent = true
+                        reloadToken = reviewsSent
+                    }
+                }
                 UserProfileRoute(
                     dependencies = dependencies.profile,
                     userId = UserId(id),
@@ -601,7 +650,23 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
                         inviteRequest = inviteRequests
                     },
                     onReportClick = { report = true },
-                    topBanner = if (invited) ({ InvitationSentBanner() }) else null,
+                    onLeaveReviewClick = { user ->
+                        if (user.id.value.isNotBlank() && navController.isCurrent(entry)) {
+                            reviewTarget = user
+                            navController.navigateOnce(entry, Routes.review(user.id))
+                        }
+                    },
+                    reloadToken = reloadToken,
+                    topBanner = if (invited || reviewSent) {
+                        {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (invited) InvitationSentBanner()
+                                if (reviewSent) ReviewSentBanner()
+                            }
+                        }
+                    } else {
+                        null
+                    },
                 )
                 inviteRequest?.let { request ->
                     InviteToProjectSheet(
@@ -682,6 +747,29 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
                     onNavigateBack = { navController.popBackStackOnce(entry) },
                     onAuthorClick = { authorId -> openProfile(entry, authorId, UserSource.ReviewAuthor) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
+                )
+            }
+        }
+        composable(
+            route = Routes.Review,
+            arguments = listOf(navArgument(Routes.UserArgument) { type = StringArgument }),
+        ) { entry ->
+            val id = entry.arguments?.read { getStringOrNull(Routes.UserArgument) }
+            if (id != null) {
+                // The profile handed the person over; without them (the state was lost) the form still works, the card
+                // of the person just has no name.
+                val target = reviewTarget?.takeIf { it.id.value == id } ?: UserSummary(UserId(id), name = "")
+                ReviewFormRoute(
+                    dependencies = dependencies.reviews,
+                    target = target,
+                    onClose = { navController.popBackStackOnce(entry) },
+                    onSent = {
+                        // The review is made whether or not this screen is still the one on top, so the profile is told in
+                        // any case; only the closing is guarded.
+                        lastReviewedId = id
+                        reviewsSent += 1
+                        navController.popBackStackOnce(entry)
+                    },
                 )
             }
         }
