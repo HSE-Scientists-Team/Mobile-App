@@ -1,0 +1,19 @@
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_privacy_title">Privacy and security</string>
+    <string name="settings_open_to_collaboration">Open to collaboration</string>
+    <string name="settings_open_to_collaboration_hint">You'll appear in the people recommendations</string>
+    <string name="settings_profile_missing_hint">Fill in your profile first: enter your name</string>
+    <!-- The device setting that lets the app count taps on projects and people; also asked for on the registration screen -->
+    <string name="settings_statistics_title">Statistics</string>
+    <string name="settings_statistics">Usage statistics</string>
+    <string name="settings_statistics_hint">Helps improve the app: taps on projects and people, the account id and device data are counted. Messages and profile texts are not sent.</string>
+    <string name="settings_save_error">Could not save the setting. Please try again</string>
+    <string name="settings_load_error">Could not load the settings</string>
+    <string name="settings_retry">Retry</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_sign_out_title">Sign out?</string>
+    <string name="settings_sign_out_text">To sign in again you will need your email and password</string>
+    <string name="settings_sign_out_confirm">Sign out</string>
+    <string name="settings_sign_out_cancel">Cancel</string>
+</resources>

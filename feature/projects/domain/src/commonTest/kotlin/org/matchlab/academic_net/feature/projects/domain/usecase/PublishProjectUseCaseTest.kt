@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.feature.projects.domain.usecase
 
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -39,6 +41,11 @@ class PublishProjectUseCaseTest {
         val project = assertIs<SubmitResult.Success<*>>(result).value
         assertEquals(project, repository.projects.value.first())
         assertEquals(listOf("Python"), repository.published?.tags)
+        assertEquals(
+            ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)),
+            repository.published?.period,
+        )
+        assertEquals(repository.published?.period, repository.projects.value.first().period)
         assertEquals(listOf(RoleDraft("ML Engineer", listOf("TensorFlow"))), repository.published?.roles)
     }
 

@@ -3,10 +3,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.kover)
 }
 
-// Chats feature, data layer. There is no backend yet: the only data source is the in-memory
-// MockCollaboratorsDataSource.
+// Collaborators feature, data layer: the repository, and the one server it talks to, the Gateway
+// (GatewayCollaboratorsDataSource over the people search PeopleSearchApi).
 kotlin {
     android {
         namespace = "org.matchlab.academic_net.feature.collaborators.data"
@@ -27,6 +28,9 @@ kotlin {
         commonMain.dependencies {
             api(project(":feature:collaborators:domain"))
             implementation(project(":utils"))
+            // PeopleSearchApi and the translation of its answer for GatewayCollaboratorsDataSource; the feature never
+            // exposes them.
+            implementation(project(":gateway"))
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

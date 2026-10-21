@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.feature.chats.ui.TestGraph
@@ -16,6 +17,7 @@ import org.matchlab.academic_net.feature.chats.ui.asClock
 import org.matchlab.academic_net.feature.chats.ui.installMainDispatcher
 import org.matchlab.academic_net.feature.chats.ui.keepCollecting
 import org.matchlab.academic_net.feature.chats.ui.uninstallMainDispatcher
+import org.matchlab.academic_net.utils.ChatListTime
 
 class ChatsViewModelTest {
     @BeforeTest
@@ -44,7 +46,10 @@ class ChatsViewModelTest {
             listOf("Проф. Елена Васкес", "Мария Соколова", "Даниил Крюков"),
             state.chats.map { it.name },
         )
-        assertEquals(listOf("11:57", "Вчера", "8 сен"), state.chats.map { it.time })
+        assertEquals(
+            listOf(ChatListTime.Today("11:57"), ChatListTime.Yesterday, ChatListTime.Earlier(LocalDate(2026, 9, 8))),
+            state.chats.map { it.time },
+        )
         assertEquals("Отлично. Готовы созвониться завтра в 15:00?", state.chats.first().lastMessage)
         assertEquals(2, state.chats.first().unreadCount)
     }
@@ -65,6 +70,6 @@ class ChatsViewModelTest {
         assertEquals(4, chats.size)
         assertEquals("Новый Человек", chats.first().name)
         assertEquals("Здравствуйте!", chats.first().lastMessage)
-        assertEquals("12:00", chats.first().time)
+        assertEquals(ChatListTime.Today("12:00"), chats.first().time)
     }
 }

@@ -1,6 +1,8 @@
 package org.matchlab.academic_net.feature.projects.domain
 
 import kotlin.test.Test
+import kotlinx.datetime.YearMonth
+import org.matchlab.academic_net.common.model.ProjectPeriod
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -16,6 +18,8 @@ class ProjectDraftTest {
                 ProjectDraftError.SphereMissing,
                 ProjectDraftError.ProblemEmpty,
                 ProjectDraftError.GoalEmpty,
+                ProjectDraftError.StartMissing,
+                ProjectDraftError.EndMissing,
             ),
             ProjectDraft().validate(),
         )
@@ -43,6 +47,39 @@ class ProjectDraftTest {
         val title = "а".repeat(ProjectLimits.MaxTitleLength)
 
         assertTrue(validDraft().copy(title = title).validate().isEmpty())
+    }
+
+    @Test
+    fun bothMonthsAreRequired() {
+        assertEquals(setOf(ProjectDraftError.StartMissing), validDraft().copy(start = null).validate())
+        assertEquals(setOf(ProjectDraftError.EndMissing), validDraft().copy(end = null).validate())
+    }
+
+    @Test
+    fun projectCannotEndBeforeItStarts() {
+        val draft = validDraft().copy(start = YearMonth(2027, 3), end = YearMonth(2026, 10))
+
+        assertEquals(setOf(ProjectDraftError.EndBeforeStart), draft.validate())
+    }
+
+    @Test
+    fun oneMonthProjectIsAllowed() {
+        val draft = validDraft().copy(start = YearMonth(2026, 10), end = YearMonth(2026, 10))
+
+        assertTrue(draft.validate().isEmpty())
+    }
+
+    @Test
+    fun newProjectCarriesThePeriod() {
+        val newProject = assertNotNull(validDraft().toNewProject())
+
+        assertEquals(ProjectPeriod(YearMonth(2026, 10), YearMonth(2027, 3)), newProject.period)
+    }
+
+    @Test
+    fun toNewProjectNeedsBothMonths() {
+        assertNull(validDraft().copy(start = null).toNewProject())
+        assertNull(validDraft().copy(end = null).toNewProject())
     }
 
     @Test

@@ -33,17 +33,35 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.interaction.rememberOnceClick
+
+/** Shadow of [AppNavigationBar]: it sets the bar apart from the screen content that scrolls under it. */
+private val BarElevation = 8.dp
+
+/**
+ * How far a list may reach under [AppNavigationBar]: to the middle of the 78dp bar. The screen that scrolls under the bar
+ * (the feed) gets this much more room from the tab host and adds the same to the bottom padding of its list, so the last
+ * item stops where it would without the overlap.
+ */
+val NavigationBarOverlap = 39.dp
+
+/** [NavigationBarOverlap] for the screen shown above the bar; zero when the host keeps the screen above the bar. */
+val LocalNavigationBarOverlap = compositionLocalOf { 0.dp }
 
 /**
  * "Navigation bar": 78dp bar with flush items and a 64x32 pill indicator.
@@ -59,11 +77,17 @@ fun AppNavigationBar(
 ) {
     Row(
         modifier = modifier
+            // Above the content, so the shadow is not covered by what is drawn after the bar.
+            .zIndex(1f)
             // Insets go outside the background: in the design the area under the bar
             // (home indicator) shows the screen background, not the bar.
             .windowInsetsPadding(windowInsets)
+            // Outside the shadow and the background: the rounded bar does not touch the edges of the screen.
+            .padding(horizontal = 16.dp)
             .fillMaxWidth()
+            .shadow(BarElevation, CircleShape)
             .background(MaterialTheme.colorScheme.surface, shape = CircleShape)
+            .padding(horizontal = 8.dp)
             .selectableGroup(),
         content = content,
     )
@@ -135,6 +159,9 @@ fun RowScope.AppNavigationBarItem(
 /**
  * "App bar": back arrow (or [navigationIcon]), title with an optional subtitle and up to three
  * actions (use [AppIconButton] in [actions]). The white background extends under the status bar.
+ *
+ * A burst of taps on the arrow runs [onNavigateBack] once, so a double tap does not leave two
+ * screens at once.
  */
 @Composable
 fun AppTopBar(
@@ -167,7 +194,7 @@ fun AppTopBar(
                         interactionSource = null,
                         indication = ripple(bounded = false, radius = 20.dp),
                         role = Role.Button,
-                        onClick = onNavigateBack,
+                        onClick = rememberOnceClick(onNavigateBack),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -200,13 +227,19 @@ fun AppTopBar(
     }
 }
 
-/** "Tabs/Primary": equal-width tabs, each with a 3dp bar underneath. */
+/**
+ * "Tabs/Primary": equal-width tabs, each with a 3dp bar underneath.
+ *
+ * @param counts the number shown after the title of the tab with the same index; `null` (or a list shorter than
+ * [tabs]) shows no number, which is what a tab whose content is not known yet should do
+ */
 @Composable
 fun AppTabs(
     tabs: List<String>,
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    counts: List<Int?> = emptyList(),
 ) {
     val colors = MaterialTheme.colorScheme
     Row(modifier.fillMaxWidth().selectableGroup()) {
@@ -222,7 +255,20 @@ fun AppTabs(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(title, style = MaterialTheme.typography.titleSmall, color = textColor, maxLines = 1)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.titleSmall, color = textColor, maxLines = 1)
+                    counts.getOrNull(index)?.let { count ->
+                        Text(
+                            text = count.toString(),
+                            modifier = Modifier
+                                .background(colors.surfaceContainer, CircleShape)
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor,
+                            maxLines = 1,
+                        )
+                    }
+                }
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -234,7 +280,10 @@ fun AppTabs(
     }
 }
 
-/** "Section header": section title with an optional "see all" style action. */
+/**
+ * "Section header": section title with an optional "see all" style action. A burst of taps on the
+ * action runs [onAction] once.
+ */
 @Composable
 fun SectionHeader(
     title: String,
@@ -306,7 +355,7 @@ private fun HeaderRow(
             Text(
                 text = action,
                 modifier = if (onAction != null) {
-                    Modifier.clickable(role = Role.Button, onClick = onAction)
+                    Modifier.onceClickable(role = Role.Button, onClick = onAction)
                 } else {
                     Modifier
                 },

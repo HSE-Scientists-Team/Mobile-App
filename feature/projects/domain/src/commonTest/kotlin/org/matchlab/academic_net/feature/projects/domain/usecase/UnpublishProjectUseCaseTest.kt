@@ -37,6 +37,29 @@ class UnpublishProjectUseCaseTest {
     }
 
     @Test
+    fun aProjectWithAnUnknownStatusIsTriedAndTheServerDecides() = runTest {
+        // docs/api-values.md, section 4: only a project known to be off publication is left alone.
+        repository.projects.value += testProject("unknown", status = null)
+
+        val result = unpublish(ProjectId("unknown"))
+
+        assertEquals(ProjectStatus.Unpublished, assertIs<UnpublishProjectResult.Unpublished>(result).project.status)
+        assertEquals(
+            ProjectStatus.Unpublished,
+            repository.projects.value.first { it.id == ProjectId("unknown") }.status,
+        )
+    }
+
+    @Test
+    fun anUnpublishedProjectIsNotSentToTheRepositoryAgain() = runTest {
+        val before = repository.projects.value
+
+        unpublish(ProjectId("hidden"))
+
+        assertEquals(before, repository.projects.value)
+    }
+
+    @Test
     fun unknownProjectIsNotFound() = runTest {
         assertEquals(UnpublishProjectResult.NotFound, unpublish(ProjectId("missing")))
     }

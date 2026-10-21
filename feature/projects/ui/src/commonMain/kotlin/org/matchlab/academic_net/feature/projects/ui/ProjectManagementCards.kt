@@ -16,21 +16,32 @@ import org.matchlab.academic_net.components.PersonSummary
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_kick
 
-/** "Card/Participant manage": project member on the management screen, with chat and kick. */
+/**
+ * "Card/Participant manage": a member of the project on the management screen: the person (a 64dp avatar centered on the
+ * row, as on "Card/Person", with the chat button at its end when [PersonCardUiModel.showChatButton]) and "Выгнать" under it.
+ *
+ * @param onClick the card itself, e.g. the way to the profile of the member; `null` makes it no button (the chat and kick
+ *  buttons work on their own)
+ * @param removing the member is being removed: "Выгнать" shows an arc in the error color instead of its label and takes
+ *  no taps (the design's `showSpinner`)
+ */
 @Composable
 fun ParticipantManageCard(
     person: PersonCardUiModel,
     onKickClick: () -> Unit,
     modifier: Modifier = Modifier,
     onChatClick: () -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    removing: Boolean = false,
 ) {
-    AppCard(modifier, spacing = 12.dp) {
-        PersonSummary(person, onChatClick)
+    AppCard(modifier, onClick = onClick, spacing = 12.dp) {
+        PersonSummary(model = person, onChatClick = onChatClick)
         AppButton(
             text = stringResource(Res.string.projects_kick),
             onClick = onKickClick,
             modifier = Modifier.fillMaxWidth(),
             variant = AppButtonVariant.OutlinedError,
+            loading = removing,
         )
     }
 }

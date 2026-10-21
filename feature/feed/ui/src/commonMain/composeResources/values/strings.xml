@@ -1,0 +1,20 @@
+<resources>
+    <string name="feed_title">MatchLab</string>
+    <string name="feed_profile">Profile</string>
+    <string name="feed_scope_projects">Projects</string>
+    <string name="feed_scope_people">People</string>
+    <string name="feed_search_projects">Search projects and people</string>
+    <string name="feed_search_people">Search people by skills and interests</string>
+    <string name="feed_people_title">People for your projects</string>
+    <string name="feed_people_empty_title">No recommendations yet</string>
+    <string name="feed_people_empty_text">People open to collaboration will appear here</string>
+    <string name="feed_people_find">Find people</string>
+    <string name="feed_people_error">Could not load recommendations</string>
+    <string name="feed_retry">Retry</string>
+    <string name="feed_projects_title">Project recommendations</string>
+    <string name="feed_projects_empty_title">No recommendations yet</string>
+    <string name="feed_projects_empty_text">Projects that suit you will appear here</string>
+    <string name="feed_projects_find">Find projects</string>
+    <string name="feed_projects_error">Could not load recommendations</string>
+    <string name="feed_you_initiator">You're the initiator</string>
+</resources>

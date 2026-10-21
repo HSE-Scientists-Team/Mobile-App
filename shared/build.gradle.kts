@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -15,6 +17,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            // The iOS app implements Analytics over its own SDK, so Swift has to see the contract.
+            export(project(":analytics"))
         }
     }
     
@@ -56,6 +60,41 @@ kotlin {
             implementation(project(":feature:collaborators:ui"))
             implementation(project(":feature:collaborators:domain"))
             implementation(project(":feature:collaborators:data"))
+            implementation(project(":feature:projectsearch:domain"))
+            implementation(project(":feature:projectsearch:data"))
+            implementation(project(":feature:projectsearch:ui"))
+            implementation(project(":feature:projectdetails:domain"))
+            implementation(project(":feature:projectdetails:data"))
+            implementation(project(":feature:projectdetails:ui"))
+            implementation(project(":feature:profile:domain"))
+            implementation(project(":feature:profile:data"))
+            implementation(project(":feature:profile:ui"))
+            implementation(project(":feature:reviews:domain"))
+            implementation(project(":feature:reviews:data"))
+            implementation(project(":feature:reviews:ui"))
+            implementation(project(":feature:auth:domain"))
+            implementation(project(":feature:auth:data"))
+            implementation(project(":feature:auth:ui"))
+            // The composition root builds the Gateway client and opens the session of the signed-in user.
+            implementation(project(":gateway"))
+            implementation(project(":feature:settings:domain"))
+            implementation(project(":feature:settings:data"))
+            implementation(project(":feature:settings:ui"))
+            // The platform entry points hand the secure store (Keystore / Keychain) to App().
+            api(project(":securestore"))
+            // ...and the analytics (AppMetrica on Android) that App() takes; the iOS framework exports the contract.
+            api(project(":analytics"))
+            implementation(project(":feature:feed:ui"))
+            implementation(project(":feature:feed:domain"))
+            implementation(project(":feature:feed:data"))
+            implementation(project(":feature:responses:ui"))
+            implementation(project(":feature:responses:domain"))
+            implementation(project(":feature:responses:data"))
+            implementation(project(":feature:complaints:ui"))
+            implementation(project(":feature:complaints:domain"))
+            implementation(project(":feature:complaints:data"))
+            implementation(libs.kotlin.inject.runtime)
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -69,10 +108,17 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            // The session graph is tested over a mock engine: the sign-in, the restoring and the sign-out talk HTTP.
+            implementation(libs.ktor.client.mock)
         }
     }
 }
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+
+    // kotlin-inject generates the component per target; KSP lives only here, the features know nothing of it.
+    add("kspAndroid", libs.kotlin.inject.compiler)
+    add("kspIosArm64", libs.kotlin.inject.compiler)
+    add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
 }

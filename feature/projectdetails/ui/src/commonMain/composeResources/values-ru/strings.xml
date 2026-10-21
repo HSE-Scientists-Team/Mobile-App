@@ -1,0 +1,25 @@
+<resources>
+    <string name="projectdetails_title">Проект</string>
+    <string name="projectdetails_initiator">Инициатор</string>
+    <!-- 1: the initiator's university -->
+    <string name="projectdetails_initiator_subtitle">Инициатор · %1$s</string>
+    <string name="projectdetails_message_initiator">Написать инициатору</string>
+    <string name="projectdetails_open_roles">Вакантные роли</string>
+    <string name="projectdetails_all_roles_filled">Все роли заняты</string>
+    <string name="projectdetails_not_found_title">Проект не найден</string>
+    <string name="projectdetails_not_found_text">Возможно, его сняли с публикации</string>
+    <string name="projectdetails_error">Не удалось загрузить проект</string>
+    <string name="projectdetails_retry">Повторить</string>
+    <string name="projectdetails_team">Команда</string>
+    <!-- 1: the name of the team member -->
+    <string name="projectdetails_message_member">Написать: %1$s</string>
+
+    <!-- 04y, 04g–04i: leaving the project. 1: the title of the project -->
+    <string name="projectdetails_leave">Покинуть проект</string>
+    <string name="projectdetails_leave_dialog_title">Покинуть проект?</string>
+    <string name="projectdetails_leave_dialog_text">Вы перестанете быть участником проекта «%1$s».</string>
+    <string name="projectdetails_leave_confirm">Покинуть</string>
+    <string name="projectdetails_cancel">Отмена</string>
+    <string name="projectdetails_leave_not_allowed">Действие недоступно в текущем состоянии проекта</string>
+    <string name="projectdetails_left_banner">Вы покинули проект</string>
+</resources>

@@ -3,21 +3,22 @@ package org.matchlab.academic_net.components
 import academicnet.components.generated.resources.Res
 import academicnet.components.generated.resources.components_accept
 import academicnet.components.generated.resources.components_decline
-import academicnet.components.generated.resources.components_verified
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,10 +34,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.interaction.ClickDebouncer
+import org.matchlab.academic_net.components.interaction.onceClickable
+import org.matchlab.academic_net.components.person.nameOrPlaceholder
 
 /**
  * Base of the "Card/…" components: surface with a 1dp outline. The paddings are the Figma ones;
  * as in Figma the outline adds to the size, so 1dp is added to them.
+ *
+ * With [onClick] the whole card is clickable, and a burst of taps runs it once (see
+ * [onceClickable]): a card that opens a screen cannot open it twice.
  */
 @Composable
 fun AppCard(
@@ -72,81 +79,97 @@ fun AppCard(
             .clip(shape)
             .background(colors.surface)
             .then(outline)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.onceClickable(onClick = onClick) else Modifier)
             .padding(horizontal = horizontalPadding + 1.dp, vertical = verticalPadding + 1.dp),
         verticalArrangement = Arrangement.spacedBy(spacing),
         content = content,
     )
 }
 
-/** Accept and decline on the left, chat on the right, as on invitations and candidates. */
+/**
+ * Accept and decline on the left, chat on the right, as on invitations and candidates.
+ *
+ * The three buttons share one guard: of all the taps within a short time (see [ClickDebouncer]) only
+ * the first runs its action, so a candidate is not accepted and declined at once, nor accepted twice.
+ * That holds within the window only: the guard of the screen's view model, which refuses an action
+ * that is already done or running, is still needed.
+ *
+ * @param loading the decision is on its way: an arc (`primary`, in the place of the two buttons, as tall as they are)
+ *  stands in place of accept and decline (the design's `showSpinner`), and the chat button stays
+ * @param acceptEnabled `false` dims accept to 38% and ignores its taps, e.g. the role has no free place (07r)
+ * @param showChat `false` leaves the chat button out, e.g. for a person whose profile is unknown
+ */
 @Composable
 fun AcceptDeclineActions(
     onAcceptClick: () -> Unit,
     onDeclineClick: () -> Unit,
     onChatClick: () -> Unit,
     modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    acceptEnabled: Boolean = true,
+    showChat: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
+    val guard = remember { ClickDebouncer() }
     Row(
         modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CardIconButton(
-            AppIcons.Check,
-            stringResource(Res.string.components_accept),
-            onAcceptClick,
-            colors.tertiaryContainer,
-            colors.onTertiaryContainer,
-        )
-        CardIconButton(
-            AppIcons.X,
-            stringResource(Res.string.components_decline),
-            onDeclineClick,
-            colors.errorContainer,
-            colors.error,
-        )
+        if (loading) {
+            // The size of the two buttons together keeps the card from changing its height.
+            Box(Modifier.height(DecisionButtonSize), contentAlignment = Alignment.CenterStart) {
+                InlineSpinner(color = colors.primary)
+            }
+        } else {
+            CardIconButton(
+                AppIcons.Check,
+                stringResource(Res.string.components_accept),
+                { if (guard.tryAccept()) onAcceptClick() },
+                colors.tertiaryContainer,
+                colors.onTertiaryContainer,
+                enabled = acceptEnabled,
+            )
+            CardIconButton(
+                AppIcons.X,
+                stringResource(Res.string.components_decline),
+                { if (guard.tryAccept()) onDeclineClick() },
+                colors.errorContainer,
+                colors.error,
+            )
+        }
         Spacer(Modifier.weight(1f))
-        ChatIconButton(onChatClick)
+        if (showChat) ChatIconButton(onClick = { if (guard.tryAccept()) onChatClick() })
     }
 }
 
-/** Verification mark next to a name: shield with a check. */
-@Composable
-fun VerifiedBadge(modifier: Modifier = Modifier, size: Dp = 16.dp) {
-    AppIcon(
-        icon = AppIcons.ShieldCheck,
-        contentDescription = stringResource(Res.string.components_verified),
-        modifier = modifier,
-        size = size,
-        tint = MaterialTheme.colorScheme.primary,
-    )
-}
+/** The side of a round button inside a card: 20dp icon and 8dp around it. */
+private val DecisionButtonSize = 36.dp
 
-/** One-line name followed by the [VerifiedBadge] when [verified]. */
+/**
+ * The name of a person on one line, ellipsized when it does not fit. An empty or blank [name] is shown as
+ * "Без имени" (see [nameOrPlaceholder]), so every card that has a person on it handles a missing name alike.
+ *
+ * A person has no verification mark next to the name: trust is shown on the separate parts of a profile (a work, a
+ * document), not on the person.
+ *
+ * @param style the text style of the card the name stands on, e.g. `titleMedium`
+ * @param modifier given to the text itself, so a caller in a `Row` may pass `Modifier.weight(1f)`
+ */
 @Composable
 fun PersonName(
     name: String,
-    verified: Boolean,
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = name,
-            modifier = Modifier.weight(1f, fill = false),
-            style = style,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (verified) VerifiedBadge()
-    }
+    Text(
+        text = nameOrPlaceholder(name),
+        modifier = modifier,
+        style = style,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /** "Card/Info": icon with a value such as dates, place or format. */
@@ -161,7 +184,7 @@ fun InfoCard(text: String, icon: DrawableResource, modifier: Modifier = Modifier
     }
 }
 
-/** "Card/Upload": dashed drop zone for attaching a file. */
+/** "Card/Upload": dashed drop zone for attaching a file. A burst of taps runs [onClick] once. */
 @Composable
 fun UploadCard(
     title: String,

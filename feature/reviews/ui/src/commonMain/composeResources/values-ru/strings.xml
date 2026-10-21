@@ -1,0 +1,44 @@
+<resources>
+    <!-- 16: the form -->
+    <string name="reviews_title">Отзыв о работе</string>
+    <string name="reviews_close">Закрыть</string>
+    <string name="reviews_project_label">Проект</string>
+    <string name="reviews_project_placeholder">Выберите проект</string>
+    <!-- 1: the month of the completion, e.g. "мар 2026" -->
+    <string name="reviews_project_completed">Завершён · %1$s</string>
+    <string name="reviews_rating_label">Оценка</string>
+    <string name="reviews_title_label">Заголовок</string>
+    <string name="reviews_title_hint">Коротко о совместной работе</string>
+    <string name="reviews_text_label">Комментарий</string>
+    <string name="reviews_text_hint">Что понравилось в совместной работе…</string>
+    <!-- 1: the length typed, 2: the limit, both already grouped by the thousands with a no-break space -->
+    <string name="reviews_counter">%1$s / %2$s</string>
+    <string name="reviews_submit">Отправить отзыв</string>
+
+    <!-- 16g and 16l: what is wrong with a field -->
+    <string name="reviews_error_project">Выберите проект</string>
+    <string name="reviews_error_rating">Поставьте оценку</string>
+    <string name="reviews_error_title">Укажите заголовок</string>
+    <string name="reviews_error_title_too_long">Слишком длинный заголовок</string>
+    <string name="reviews_error_text">Напишите комментарий</string>
+    <string name="reviews_error_text_too_long">Слишком длинный комментарий</string>
+
+    <!-- 16i, 16j, 16k: why the review did not go through -->
+    <string name="reviews_already_reviewed">Вы уже оставили этому человеку отзыв по этому проекту</string>
+    <string name="reviews_not_allowed">Оставить отзыв нельзя: проект не завершён или вы в нём не участвовали</string>
+    <string name="reviews_send_failed">Не удалось отправить отзыв. Проверьте соединение</string>
+
+    <!-- 16c-16f: the picker of the project -->
+    <string name="reviews_picker_title">Общий проект</string>
+    <string name="reviews_picker_select">Выбрать</string>
+    <string name="reviews_picker_loading">Загрузка…</string>
+    <string name="reviews_picker_empty_title">Нет общих завершённых проектов</string>
+    <string name="reviews_picker_empty_text">Отзыв можно оставить тому, с кем вы вместе завершили проект</string>
+    <string name="reviews_picker_ok">Понятно</string>
+    <string name="reviews_picker_error_title">Не удалось загрузить проекты</string>
+    <string name="reviews_picker_error_text">Проверьте соединение и повторите попытку</string>
+    <string name="reviews_picker_retry">Повторить</string>
+
+    <!-- 09s: the banner over the profile after a review -->
+    <string name="reviews_sent">Отзыв отправлен</string>
+</resources>

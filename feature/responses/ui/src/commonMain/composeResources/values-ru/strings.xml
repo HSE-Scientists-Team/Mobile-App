@@ -1,0 +1,94 @@
+<resources>
+    <string name="responses_cancel">Отмена</string>
+    <string name="responses_retry">Повторить</string>
+    <string name="responses_load_error">Не удалось загрузить</string>
+    <string name="responses_action_unavailable">Действие недоступно</string>
+    <string name="responses_no_longer_available">Проект или роль больше недоступны</string>
+
+    <!-- 15 / 15c: the tab "Отклики" -->
+    <string name="responses_title">Моё участие</string>
+    <string name="responses_tab_applications">Отклики</string>
+    <string name="responses_tab_applications_count">Отклики · %1$d</string>
+    <string name="responses_tab_invitations">Приглашения</string>
+    <string name="responses_tab_invitations_count">Приглашения · %1$d</string>
+    <string name="responses_section_applications">Мои отклики</string>
+    <string name="responses_section_invitations">Приглашения</string>
+    <string name="responses_empty_applications_title">Вы ещё не откликались</string>
+    <string name="responses_empty_applications_text">Найдите проект в ленте и откликнитесь на подходящую роль</string>
+    <string name="responses_empty_invitations_title">Приглашений нет</string>
+    <string name="responses_empty_invitations_text">Когда вас пригласят в проект, приглашение появится здесь</string>
+    <string name="responses_action_withdraw">Отозвать отклик</string>
+    <!-- 1: the title of the role -->
+    <string name="responses_role_line">Роль: %1$s</string>
+    <string name="responses_invitation_role">Роль: %1$s</string>
+    <string name="responses_applied_today">отклик сегодня</string>
+    <plurals name="responses_applied_ago">
+        <item quantity="one">отклик %1$d день назад</item>
+        <item quantity="few">отклик %1$d дня назад</item>
+        <item quantity="many">отклик %1$d дней назад</item>
+        <item quantity="other">отклик %1$d дня назад</item>
+    </plurals>
+    <string name="responses_candidate_applied_today">Отклик сегодня</string>
+    <plurals name="responses_candidate_applied_ago">
+        <item quantity="one">Отклик %1$d день назад</item>
+        <item quantity="few">Отклик %1$d дня назад</item>
+        <item quantity="many">Отклик %1$d дней назад</item>
+        <item quantity="other">Отклик %1$d дня назад</item>
+    </plurals>
+
+    <!-- The status chips of the records: an application, then an invitation -->
+    <string name="responses_status_pending">Ожидает</string>
+    <string name="responses_status_accepted">Принят</string>
+    <string name="responses_status_declined">Отклонён</string>
+    <string name="responses_status_withdrawn">Отозван</string>
+    <string name="responses_status_invitation_accepted">Принято</string>
+    <string name="responses_status_invitation_declined">Отклонено</string>
+    <string name="responses_status_invitation_withdrawn">Отозвано</string>
+
+    <!-- 15n and 15o. 1: the title of the role, 2: the title of the project -->
+    <string name="responses_withdraw_title">Отозвать отклик?</string>
+    <string name="responses_withdraw_text">Отклик на роль %1$s в проекте «%2$s» будет отозван.</string>
+    <string name="responses_withdraw_text_no_role">Отклик на проект «%1$s» будет отозван.</string>
+    <string name="responses_withdraw_confirm">Отозвать</string>
+    <string name="responses_decline_title">Отклонить приглашение?</string>
+    <string name="responses_decline_text">Приглашение в проект «%1$s» будет отклонено.</string>
+    <string name="responses_decline_confirm">Отклонить</string>
+
+    <!-- 04s–04w: apply to a role -->
+    <string name="responses_apply_title">Откликнуться на роль</string>
+    <string name="responses_apply_message">Сообщение (необязательно)</string>
+    <string name="responses_apply_message_hint">Расскажите, чем вы можете быть полезны</string>
+    <string name="responses_apply_submit">Отправить отклик</string>
+    <string name="responses_apply_conflict">Роль уже занята, или вы уже откликнулись на неё</string>
+    <string name="responses_apply_not_allowed">Подтвердите почту, чтобы откликаться на проекты</string>
+    <!-- 1: signs typed, 2: the limit -->
+    <string name="responses_message_counter">%1$d / %2$d</string>
+
+    <!-- 07d: applications to the roles of a project -->
+    <string name="responses_project_title">Отклики</string>
+    <string name="responses_project_title_count">Отклики · %1$d</string>
+    <string name="responses_project_empty_title">Откликов пока нет</string>
+    <string name="responses_project_empty_text">Когда кандидаты откликнутся на роли, они появятся здесь</string>
+    <string name="responses_project_not_found">Проект не найден</string>
+    <string name="responses_filter_all">Все · %1$d</string>
+    <!-- 1: the title of the role, 2: the applications that wait -->
+    <string name="responses_filter_role">%1$s · %2$d</string>
+    <!-- 1: the name of the candidate, 2: the title of the role -->
+    <string name="responses_accepted_banner">%1$s принят в роль %2$s</string>
+    <string name="responses_accepted_banner_no_role">%1$s принят в команду</string>
+    <string name="responses_no_places">В роли %1$s нет свободных мест: принять кандидата нельзя</string>
+
+    <!-- 09k–09p: invite to a project -->
+    <string name="responses_invite_title">Пригласить в проект</string>
+    <string name="responses_invite_group_project">Проект</string>
+    <string name="responses_invite_group_role">Роль</string>
+    <string name="responses_invite_message">Сообщение (необязательно)</string>
+    <string name="responses_invite_message_hint">Почему вы приглашаете этого человека</string>
+    <string name="responses_invite_submit">Отправить приглашение</string>
+    <string name="responses_invite_empty_title">Нет проектов со свободными ролями</string>
+    <string name="responses_invite_empty_text">Создайте проект или откройте новую роль, чтобы приглашать людей</string>
+    <string name="responses_invite_create_project">Создать проект</string>
+    <string name="responses_invite_conflict">Роль уже занята, или вы уже пригласили этого человека</string>
+    <string name="responses_invite_not_allowed">Приглашать можно только в свои проекты</string>
+    <string name="responses_invite_sent">Приглашение отправлено</string>
+</resources>

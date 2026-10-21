@@ -7,10 +7,6 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.minus
 import kotlin.time.Instant
 
-private val ShortMonths = listOf(
-    "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
-)
-
 /** Time under a message bubble: "10:22". */
 fun formatMessageTime(sentAt: Instant, zone: TimeZone): String {
     val time = sentAt.toLocalDateTime(zone).time
@@ -18,16 +14,48 @@ fun formatMessageTime(sentAt: Instant, zone: TimeZone): String {
 }
 
 /**
- * Time of the last message in the chat list: "10:22" for today, "Вчера", or "9 мар" for earlier
- * days (the app is Russian-only, like [russianPluralForm]).
+ * Which day the last message of a chat belongs to, relative to "now".
+ *
+ * It carries no localized words: the UI maps each case to text with its own resources, so the
+ * label follows the app language instead of being baked into ViewModel state.
  */
-fun formatChatListTime(sentAt: Instant, now: Instant, zone: TimeZone): String {
+sealed interface ChatListTime {
+    /**
+     * Sent on the current day.
+     *
+     * @property time time of day in 24-hour format, locale-neutral ("10:22").
+     */
+    data class Today(val time: String) : ChatListTime
+
+    /** Sent on the calendar day before the current one. */
+    data object Yesterday : ChatListTime
+
+    /**
+     * Sent two or more days ago. A message dated after the current day ("from the future", e.g.
+     * because of clock skew) is also reported as [Earlier], as its date is the most honest label.
+     *
+     * @property date calendar date of the message in the requested time zone.
+     */
+    data class Earlier(val date: LocalDate) : ChatListTime
+}
+
+/**
+ * Classifies the last message of a chat for the chat list.
+ *
+ * Days are compared as calendar dates in [zone], not as 24-hour distances: 23:50 yesterday is
+ * [ChatListTime.Yesterday] even at 00:10 today.
+ *
+ * @param sentAt when the message was sent.
+ * @param now the current moment.
+ * @param zone time zone that defines where the day boundaries lie.
+ */
+fun chatListTime(sentAt: Instant, now: Instant, zone: TimeZone): ChatListTime {
     val sentDate: LocalDate = sentAt.toLocalDateTime(zone).date
     val today: LocalDate = now.toLocalDateTime(zone).date
     return when (sentDate) {
-        today -> formatMessageTime(sentAt, zone)
-        today.minus(DatePeriod(days = 1)) -> "Вчера"
-        else -> "${sentDate.day} ${ShortMonths[sentDate.month.ordinal]}"
+        today -> ChatListTime.Today(formatMessageTime(sentAt, zone))
+        today.minus(DatePeriod(days = 1)) -> ChatListTime.Yesterday
+        else -> ChatListTime.Earlier(sentDate)
     }
 }
 

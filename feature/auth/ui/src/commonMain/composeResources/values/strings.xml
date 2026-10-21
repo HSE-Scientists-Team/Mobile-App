@@ -1,0 +1,62 @@
+<resources>
+    <!-- The name of the app, on the splash screen shown while the saved session is read -->
+    <string name="auth_app_name">MatchLab</string>
+
+    <!-- Sign in -->
+    <string name="auth_sign_in_title">Sign in to MatchLab</string>
+    <string name="auth_email_label">University email</string>
+    <string name="auth_email_hint">name@university.edu</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_create_account">Create account</string>
+    <string name="auth_secure_note">Your sign-in data is stored on this device in encrypted form</string>
+    <string name="auth_session_expired">Your session has ended. Sign in again</string>
+    <string name="auth_email_confirmed">Email confirmed. Sign in</string>
+
+    <!-- Registration -->
+    <string name="auth_register_title">Registration</string>
+    <string name="auth_password_hint">At least 8 characters</string>
+    <string name="auth_repeat_password_label">Repeat password</string>
+    <string name="auth_register">Sign up</string>
+    <string name="auth_have_account">Already have an account? Sign in</string>
+    <!-- The box under the repeated password: on by default, and the same choice is a switch in the settings -->
+    <string name="auth_share_statistics">Send usage statistics</string>
+    <string name="auth_share_statistics_note">You can change this in settings</string>
+
+    <!-- Email confirmation -->
+    <string name="auth_confirm_title">Confirm your email</string>
+    <!-- 1: the email the letter was sent to -->
+    <string name="auth_confirm_message">We sent an email to %1$s. Open the link in it — it works for 30 minutes</string>
+    <string name="auth_confirmed">I've confirmed my email</string>
+    <string name="auth_link_label">Link from the email</string>
+    <string name="auth_link_confirm">Confirm</string>
+    <string name="auth_resend">Send the email again</string>
+    <!-- 1: the time left as m:ss -->
+    <string name="auth_resend_in">Send again in %1$s</string>
+    <!-- Also what a screen reader says about the back arrow of the confirmation screen -->
+    <string name="auth_change_email">Change email</string>
+
+    <!-- The link of the letter opened in the app -->
+    <string name="auth_link_failed_title">Couldn't confirm your email</string>
+    <string name="auth_link_retry">Try again</string>
+    <string name="auth_link_close">Back to sign in</string>
+
+    <!-- Problems with the form, under the field they belong to -->
+    <string name="auth_error_email_empty">Enter your email</string>
+    <string name="auth_error_email_malformed">Check the address: it should look like name@university.edu</string>
+    <string name="auth_error_password_empty">Enter your password</string>
+    <string name="auth_error_password_short">At least 8 characters</string>
+    <string name="auth_error_password_long">At most 72 bytes (a Cyrillic letter takes 2)</string>
+    <string name="auth_error_passwords_differ">Passwords don't match</string>
+
+    <!-- What the server answered -->
+    <string name="auth_error_wrong_credentials">Wrong email or password</string>
+    <string name="auth_error_account_unavailable">The email is not confirmed or the account is disabled</string>
+    <string name="auth_error_not_confirmed_yet">The email isn't confirmed yet. Open the link from the email or paste it below</string>
+    <string name="auth_error_domain_not_allowed">Registration with an email of this organization is not available. Use your university email</string>
+    <string name="auth_error_account_exists">An account with this email already exists</string>
+    <string name="auth_error_letter_not_sent">Couldn't send the email. Try again later</string>
+    <string name="auth_error_link_invalid">The link doesn't work or has already been used. Paste the link from the latest email</string>
+    <string name="auth_error_link_expired">The link has expired. Send the email again</string>
+    <string name="auth_error_link_empty">Paste the link from the email</string>
+</resources>

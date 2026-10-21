@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 6–11 Auto Backup: the encrypted session is bound to a key of this device's Keystore and is
+     useless elsewhere, so it is not backed up. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="matchlab_secure.xml" />
+</full-backup-content>

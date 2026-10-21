@@ -1,0 +1,25 @@
+<resources>
+    <string name="projectdetails_title">Project</string>
+    <string name="projectdetails_initiator">Initiator</string>
+    <!-- 1: the initiator's university -->
+    <string name="projectdetails_initiator_subtitle">Initiator · %1$s</string>
+    <string name="projectdetails_message_initiator">Message the initiator</string>
+    <string name="projectdetails_open_roles">Open roles</string>
+    <string name="projectdetails_all_roles_filled">All roles are filled</string>
+    <string name="projectdetails_not_found_title">Project not found</string>
+    <string name="projectdetails_not_found_text">It may have been taken off publication</string>
+    <string name="projectdetails_error">Could not load the project</string>
+    <string name="projectdetails_retry">Retry</string>
+    <string name="projectdetails_team">Team</string>
+    <!-- 1: the name of the team member -->
+    <string name="projectdetails_message_member">Message %1$s</string>
+
+    <!-- 04y, 04g–04i: leaving the project. 1: the title of the project -->
+    <string name="projectdetails_leave">Leave project</string>
+    <string name="projectdetails_leave_dialog_title">Leave the project?</string>
+    <string name="projectdetails_leave_dialog_text">You will no longer be a member of the project “%1$s”.</string>
+    <string name="projectdetails_leave_confirm">Leave</string>
+    <string name="projectdetails_cancel">Cancel</string>
+    <string name="projectdetails_leave_not_allowed">This action is not available in the current state of the project</string>
+    <string name="projectdetails_left_banner">You left the project</string>
+</resources>

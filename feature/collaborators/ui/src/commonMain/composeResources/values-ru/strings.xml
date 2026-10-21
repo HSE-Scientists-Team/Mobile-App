@@ -1,0 +1,37 @@
+<resources>
+    <string name="collaborators_title">Коллабораторы</string>
+    <string name="collaborators_back">Назад</string>
+    <string name="collaborators_filters">Фильтры</string>
+    <string name="collaborators_search_hint">Навык, вуз или имя</string>
+    <plurals name="collaborators_found">
+        <item quantity="one">Найден %1$d человек</item>
+        <item quantity="few">Найдено %1$d человека</item>
+        <item quantity="many">Найдено %1$d человек</item>
+        <item quantity="other">Найдено %1$d человека</item>
+    </plurals>
+    <string name="collaborators_empty_title">Никого не нашли</string>
+    <string name="collaborators_empty_search">Измените запрос или фильтры</string>
+    <string name="collaborators_error">Не удалось загрузить список</string>
+    <string name="collaborators_retry">Повторить</string>
+
+    <!-- Filters sheet -->
+    <string name="collaborators_filters_title">Фильтры коллабораторов</string>
+    <string name="collaborators_group_works">Подтверждённые работы</string>
+    <string name="collaborators_filter_verified_projects">Есть верифицированные проекты</string>
+    <string name="collaborators_filter_publications">Есть публикации</string>
+    <string name="collaborators_group_work_type">Тип работы</string>
+    <string name="collaborators_filter_scientific">Научные проекты</string>
+    <string name="collaborators_filter_practical">Практические проекты</string>
+    <string name="collaborators_field_university">Вуз</string>
+    <string name="collaborators_field_university_hint">Название вуза, например МГУ</string>
+    <string name="collaborators_field_keywords">Ключевые слова</string>
+    <string name="collaborators_field_keywords_hint">Введите слово и нажмите Enter</string>
+    <string name="collaborators_reset">Сбросить</string>
+    <string name="collaborators_show">Показать</string>
+    <plurals name="collaborators_show_count">
+        <item quantity="one">Показать %1$d человека</item>
+        <item quantity="few">Показать %1$d человека</item>
+        <item quantity="many">Показать %1$d человек</item>
+        <item quantity="other">Показать %1$d человека</item>
+    </plurals>
+</resources>

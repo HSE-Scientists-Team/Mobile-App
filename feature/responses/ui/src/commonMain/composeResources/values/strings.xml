@@ -1,0 +1,90 @@
+<resources>
+    <string name="responses_cancel">Cancel</string>
+    <string name="responses_retry">Retry</string>
+    <string name="responses_load_error">Couldn't load</string>
+    <string name="responses_action_unavailable">This action is not available</string>
+    <string name="responses_no_longer_available">The project or the role is no longer available</string>
+
+    <!-- 15 / 15c: the tab "Отклики" -->
+    <string name="responses_title">My participation</string>
+    <string name="responses_tab_applications">Applications</string>
+    <string name="responses_tab_applications_count">Applications · %1$d</string>
+    <string name="responses_tab_invitations">Invitations</string>
+    <string name="responses_tab_invitations_count">Invitations · %1$d</string>
+    <string name="responses_section_applications">My applications</string>
+    <string name="responses_section_invitations">Invitations</string>
+    <string name="responses_empty_applications_title">You haven't applied yet</string>
+    <string name="responses_empty_applications_text">Find a project in the feed and apply to a role that suits you</string>
+    <string name="responses_empty_invitations_title">No invitations</string>
+    <string name="responses_empty_invitations_text">When you are invited to a project, the invitation will appear here</string>
+    <string name="responses_action_withdraw">Withdraw application</string>
+    <!-- 1: the title of the role -->
+    <string name="responses_role_line">Role: %1$s</string>
+    <string name="responses_invitation_role">Role: %1$s</string>
+    <string name="responses_applied_today">applied today</string>
+    <plurals name="responses_applied_ago">
+        <item quantity="one">applied %1$d day ago</item>
+        <item quantity="other">applied %1$d days ago</item>
+    </plurals>
+    <string name="responses_candidate_applied_today">Applied today</string>
+    <plurals name="responses_candidate_applied_ago">
+        <item quantity="one">Applied %1$d day ago</item>
+        <item quantity="other">Applied %1$d days ago</item>
+    </plurals>
+
+    <!-- The status chips of the records: an application, then an invitation -->
+    <string name="responses_status_pending">Pending</string>
+    <string name="responses_status_accepted">Accepted</string>
+    <string name="responses_status_declined">Declined</string>
+    <string name="responses_status_withdrawn">Withdrawn</string>
+    <string name="responses_status_invitation_accepted">Accepted</string>
+    <string name="responses_status_invitation_declined">Declined</string>
+    <string name="responses_status_invitation_withdrawn">Withdrawn</string>
+
+    <!-- 15n and 15o. 1: the title of the role, 2: the title of the project -->
+    <string name="responses_withdraw_title">Withdraw application?</string>
+    <string name="responses_withdraw_text">Your application to the role %1$s in the project “%2$s” will be withdrawn.</string>
+    <string name="responses_withdraw_text_no_role">Your application to the project “%1$s” will be withdrawn.</string>
+    <string name="responses_withdraw_confirm">Withdraw</string>
+    <string name="responses_decline_title">Decline invitation?</string>
+    <string name="responses_decline_text">The invitation to the project “%1$s” will be declined.</string>
+    <string name="responses_decline_confirm">Decline</string>
+
+    <!-- 04s–04w: apply to a role -->
+    <string name="responses_apply_title">Apply to a role</string>
+    <string name="responses_apply_message">Message (optional)</string>
+    <string name="responses_apply_message_hint">Tell us how you can help</string>
+    <string name="responses_apply_submit">Send application</string>
+    <string name="responses_apply_conflict">The role is taken, or you have already applied to it</string>
+    <string name="responses_apply_not_allowed">Confirm your e-mail to apply to projects</string>
+    <!-- 1: signs typed, 2: the limit -->
+    <string name="responses_message_counter">%1$d / %2$d</string>
+
+    <!-- 07d: applications to the roles of a project -->
+    <string name="responses_project_title">Applications</string>
+    <string name="responses_project_title_count">Applications · %1$d</string>
+    <string name="responses_project_empty_title">No applications yet</string>
+    <string name="responses_project_empty_text">When candidates apply to the roles, they will appear here</string>
+    <string name="responses_project_not_found">Project not found</string>
+    <string name="responses_filter_all">All · %1$d</string>
+    <!-- 1: the title of the role, 2: the applications that wait -->
+    <string name="responses_filter_role">%1$s · %2$d</string>
+    <!-- 1: the name of the candidate, 2: the title of the role -->
+    <string name="responses_accepted_banner">%1$s joined the role %2$s</string>
+    <string name="responses_accepted_banner_no_role">%1$s joined the team</string>
+    <string name="responses_no_places">The role %1$s has no free places: the candidate cannot be accepted</string>
+
+    <!-- 09k–09p: invite to a project -->
+    <string name="responses_invite_title">Invite to a project</string>
+    <string name="responses_invite_group_project">Project</string>
+    <string name="responses_invite_group_role">Role</string>
+    <string name="responses_invite_message">Message (optional)</string>
+    <string name="responses_invite_message_hint">Why you are inviting this person</string>
+    <string name="responses_invite_submit">Send invitation</string>
+    <string name="responses_invite_empty_title">No projects with free roles</string>
+    <string name="responses_invite_empty_text">Create a project or open a new role to invite people</string>
+    <string name="responses_invite_create_project">Create project</string>
+    <string name="responses_invite_conflict">The role is taken, or you have already invited this person</string>
+    <string name="responses_invite_not_allowed">You can only invite to your own projects</string>
+    <string name="responses_invite_sent">Invitation sent</string>
+</resources>

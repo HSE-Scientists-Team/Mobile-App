@@ -12,6 +12,11 @@ import org.matchlab.academic_net.utils.suspendRunCatching
  * "Опубликовать новый проект" (together with "объявить роли": the draft carries its roles).
  *
  * Roles are optional: more can be declared later from the project's roles screen.
+ *
+ * The project is sent with the codes the app defines (`docs/api-values.md`). Without
+ * [org.matchlab.academic_net.feature.projects.domain.ProjectsCapabilities.canCreate] the screen does not offer it; if it
+ * is called anyway the result is [SubmitResult.Failure] with
+ * [org.matchlab.academic_net.common.result.FeatureUnavailableException].
  */
 class PublishProjectUseCase(private val repository: ProjectsRepository) {
     suspend operator fun invoke(draft: ProjectDraft): SubmitResult<Project, ProjectDraftError> {

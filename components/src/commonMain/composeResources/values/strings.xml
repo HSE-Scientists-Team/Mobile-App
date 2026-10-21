@@ -1,10 +1,112 @@
 <resources>
-    <string name="components_remove">Удалить</string>
-    <string name="components_add">Добавить</string>
-    <string name="components_back">Назад</string>
-    <string name="components_accept">Принять</string>
-    <string name="components_decline">Отклонить</string>
-    <string name="components_message">Написать</string>
-    <string name="components_report">Пожаловаться</string>
-    <string name="components_verified">Подтверждён</string>
+    <string name="components_remove">Remove</string>
+    <string name="components_add">Add</string>
+    <string name="components_back">Back</string>
+    <string name="components_accept">Accept</string>
+    <string name="components_decline">Decline</string>
+    <string name="components_message">Message</string>
+    <string name="components_report">Report</string>
+    <string name="components_retry">Retry</string>
+
+    <!-- The toggle of the password field says what a tap does -->
+    <string name="components_show_password">Show password</string>
+    <string name="components_hide_password">Hide password</string>
+
+    <!-- Why a call to the server failed, see failureText -->
+    <string name="components_failure_no_connection">No connection to the server</string>
+    <string name="components_failure_timeout">The server didn't answer</string>
+    <string name="components_failure_unavailable">The service is temporarily unavailable</string>
+    <string name="components_failure_other">Something went wrong</string>
+
+    <!-- Project type and status; the project card and every list of projects use them -->
+    <string name="components_project_type_scientific">Scientific</string>
+    <string name="components_project_type_practical">Practical</string>
+    <string name="components_project_status_recruiting">Recruiting</string>
+    <string name="components_project_status_unpublished">Unpublished</string>
+    <string name="components_project_status_started">In progress</string>
+    <string name="components_project_status_finished">Finished</string>
+    <string name="components_project_status_cancelled">Cancelled</string>
+    <string name="components_project_status_chip_recruiting">Published</string>
+    <plurals name="components_project_roles_count">
+        <item quantity="one">%1$d role</item>
+        <item quantity="other">%1$d roles</item>
+    </plurals>
+
+    <!-- Project page blocks: shared by the management screen and the project page of others -->
+    <string name="components_project_block_problem">Problem</string>
+    <string name="components_project_block_goal">Goal</string>
+    <string name="components_project_block_tags">Tags</string>
+    <!-- 1: places filled, 2: places in total (a role can be for several people) -->
+    <string name="components_project_roles_occupied">%1$d of %2$d filled</string>
+    <string name="components_role_applied">You applied</string>
+    <string name="components_role_apply">Apply</string>
+    <!-- 1: places of a role that are taken, 2: places of the role; the form follows the second number -->
+    <plurals name="components_role_places">
+        <item quantity="one">%1$d of %2$d spot filled</item>
+        <item quantity="other">%1$d of %2$d spots filled</item>
+    </plurals>
+
+    <!-- A person's numbers on their card: the rating line and the completed projects -->
+    <string name="components_person_rating">★ %1$s</string>
+    <plurals name="components_person_completed_projects">
+        <item quantity="one">%1$d completed project</item>
+        <item quantity="other">%1$d completed projects</item>
+    </plurals>
+
+    <!-- Sphere picker -->
+    <string name="components_sphere_picker_title">Project field</string>
+    <string name="components_sphere_picker_error">Could not load fields</string>
+
+    <!-- Dates: month names are abbreviated and used on their own ("Oct"), before a year or after a day. -->
+    <string-array name="date_months_short">
+        <item>Jan</item>
+        <item>Feb</item>
+        <item>Mar</item>
+        <item>Apr</item>
+        <item>May</item>
+        <item>Jun</item>
+        <item>Jul</item>
+        <item>Aug</item>
+        <item>Sep</item>
+        <item>Oct</item>
+        <item>Nov</item>
+        <item>Dec</item>
+    </string-array>
+    <!-- Month names next to a day number; differ from the names above only in some languages. -->
+    <string-array name="date_months_short_day">
+        <item>Jan</item>
+        <item>Feb</item>
+        <item>Mar</item>
+        <item>Apr</item>
+        <item>May</item>
+        <item>Jun</item>
+        <item>Jul</item>
+        <item>Aug</item>
+        <item>Sep</item>
+        <item>Oct</item>
+        <item>Nov</item>
+        <item>Dec</item>
+    </string-array>
+    <!-- 1: month name, 2: year -->
+    <string name="date_year_month">%1$s %2$d</string>
+    <!-- 1: start month, 2: end month, both already formatted by date_year_month -->
+    <string name="date_month_range">%1$s – %2$s</string>
+    <!-- 1: day of month, 2: month name -->
+    <string name="date_day_month">%2$s %1$d</string>
+    <!-- The day before today in a time label, see chatListTimeText -->
+    <string name="components_yesterday">Yesterday</string>
+
+    <!-- 1: how many of the 5 stars are filled -->
+    <string name="components_rating_value">Rating %1$d of 5</string>
+
+    <!-- The end of a list that loads more as it is scrolled -->
+    <string name="components_loading">Loading…</string>
+    <string name="components_load_failed">Couldn't load</string>
+
+    <!-- Shown instead of the name of a person whose name is empty -->
+    <string name="components_name_placeholder">No name</string>
+
+    <!-- Where a person is in their studies, see studyText. 1: the level as it is written ("Bachelor"), 2: the year -->
+    <string name="components_study_level_year">%1$s, course %2$d</string>
+    <string name="components_study_year">Course %1$d</string>
 </resources>

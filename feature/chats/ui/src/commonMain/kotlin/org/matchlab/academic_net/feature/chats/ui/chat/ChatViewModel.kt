@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
+import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.result.SubmitResult
 import org.matchlab.academic_net.feature.chats.domain.ChatMessage
 import org.matchlab.academic_net.feature.chats.domain.Conversation
@@ -34,9 +36,10 @@ data class MessageItem(
 
 @Immutable
 data class ChatPeer(
+    /** Whose profile a tap on the header of the chat opens. */
+    val userId: UserId,
     val name: String,
-    val isVerified: Boolean,
-    /** Key of the peer's avatar illustration. */
+    /** Key of the peer's picture: the user id. */
     val avatarKey: String,
 )
 
@@ -66,7 +69,10 @@ class ChatViewModel(
 
     val uiState: StateFlow<ChatUiState> = combine(
         observeConversation(conversationId).catch { emit(null) },
-        observeMessages(conversationId).catch { emit(emptyList()) },
+        // A message that arrives while the chat is open is read at once; the source sends the mark only when it is new.
+        observeMessages(conversationId)
+            .onEach { viewModelScope.launch { markConversationRead(conversationId) } }
+            .catch { emit(emptyList()) },
         local,
     ) { conversation, messages, local ->
         val zone = timeZone()
@@ -121,8 +127,8 @@ class ChatViewModel(
 }
 
 private fun Conversation.toPeer() = ChatPeer(
+    userId = peer.id,
     name = peer.name,
-    isVerified = peer.isVerified,
     avatarKey = peer.id.value,
 )
 

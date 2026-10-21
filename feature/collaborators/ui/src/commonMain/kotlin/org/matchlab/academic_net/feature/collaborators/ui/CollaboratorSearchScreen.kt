@@ -12,61 +12,67 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-import org.matchlab.academic_net.common.model.ProjectId
-import org.matchlab.academic_net.common.model.RoleId
 import org.matchlab.academic_net.common.model.UserSummary
-import org.matchlab.academic_net.components.AppAvatars
-import org.matchlab.academic_net.components.AppBadgeDot
-import org.matchlab.academic_net.components.AppButton
-import org.matchlab.academic_net.components.AppButtonVariant
-import org.matchlab.academic_net.components.AppIconButton
-import org.matchlab.academic_net.components.AppIcons
 import org.matchlab.academic_net.components.AppSearchBar
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.AvatarSource
+import org.matchlab.academic_net.components.FiltersButton
+import org.matchlab.academic_net.components.LoadingState
+import org.matchlab.academic_net.components.MessageState
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
+import org.matchlab.academic_net.components.format.failureText
+import org.matchlab.academic_net.components.paging.LoadMoreEffect
+import org.matchlab.academic_net.components.paging.LoadMoreFooter
+import org.matchlab.academic_net.components.paging.loadMoreStateOf
+import org.matchlab.academic_net.components.person.subtitleText
+import org.matchlab.academic_net.feature.collaborators.domain.RoleReference
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_back
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_empty_search
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_empty_title
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_error
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_filters
+import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_retry
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_search_hint
 import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_title
-import org.matchlab.academic_net.utils.RussianPluralForm
-import org.matchlab.academic_net.utils.russianPluralForm
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_few
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_many
-import org.matchlab.academic_net.feature.collaborators.ui.generated.resources.collaborators_found_one
 
 /**
- * "08 Поиск коллабораторов" for one vacant role. Opening a person leads to their profile, which
- * is a story of the next block; until it exists [onCollaboratorClick] starts a chat.
+ * "08 Поиск коллабораторов": for one vacant [role], or for everyone when it is `null` (opened from the feed;
+ * [autoFocusSearch] then puts the cursor in the search bar). The people come page by page, the next one as the list is
+ * scrolled ("Загрузка…" under it, or "Не удалось загрузить" with "Повторить"). A tap on a person calls
+ * [onCollaboratorClick]; the filters sheet (08b) is opened from the screen itself.
+ *
+ * @param dependencies what the search needs; its capabilities decide which filters the sheet offers
  */
 @Composable
 fun CollaboratorSearchRoute(
     dependencies: CollaboratorsUiDependencies,
-    projectId: ProjectId,
-    roleId: RoleId,
+    role: RoleReference?,
     onNavigateBack: () -> Unit,
     onCollaboratorClick: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
+    autoFocusSearch: Boolean = false,
 ) {
-    val viewModel = viewModel(key = "${projectId.value}/${roleId.value}") {
-        CollaboratorSearchViewModel(projectId, roleId, dependencies)
+    val viewModel = viewModel(key = role?.let { "${it.projectId.value}/${it.roleId.value}" } ?: "everyone") {
+        CollaboratorSearchViewModel(role, dependencies)
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -77,13 +83,18 @@ fun CollaboratorSearchRoute(
         onSearchSubmit = viewModel::onSearchSubmit,
         onFiltersClick = viewModel::onFiltersClick,
         onRetry = viewModel::onRetry,
+        onLoadMore = viewModel::onLoadMore,
+        onRetryLoadMore = viewModel::onRetryLoadMore,
         onCollaboratorClick = onCollaboratorClick,
+        autoFocusSearch = autoFocusSearch,
         modifier = modifier,
     )
 
     state.filtersSheet?.let { sheet ->
         CollaboratorFiltersSheet(
             state = sheet,
+            // The group "Тип работы" is offered only when the source can filter by the type of a person's works.
+            showWorkTypes = dependencies.capabilities.projectTypeFilter,
             onDraftChange = viewModel::onFiltersDraftChange,
             onReset = viewModel::onFiltersReset,
             onApply = viewModel::onFiltersApply,
@@ -100,10 +111,17 @@ internal fun CollaboratorSearchScreen(
     onSearchSubmit: () -> Unit,
     onFiltersClick: () -> Unit,
     onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
+    onRetryLoadMore: () -> Unit,
     onCollaboratorClick: (UserSummary) -> Unit,
     modifier: Modifier = Modifier,
+    autoFocusSearch: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
+    val searchFocus = remember { FocusRequester() }
+    LaunchedEffect(autoFocusSearch) {
+        if (autoFocusSearch) searchFocus.requestFocus()
+    }
     Column(
         modifier
             .fillMaxSize()
@@ -117,16 +135,11 @@ internal fun CollaboratorSearchScreen(
             onNavigateBack = onNavigateBack,
             navigationContentDescription = stringResource(Res.string.collaborators_back),
             actions = {
-                Box {
-                    AppIconButton(
-                        icon = AppIcons.Sliders,
-                        contentDescription = stringResource(Res.string.collaborators_filters),
-                        onClick = onFiltersClick,
-                    )
-                    if (!state.filters.isEmpty) {
-                        AppBadgeDot(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 6.dp))
-                    }
-                }
+                FiltersButton(
+                    active = !state.filters.isEmpty,
+                    onClick = onFiltersClick,
+                    contentDescription = stringResource(Res.string.collaborators_filters),
+                )
             },
         )
         Box(
@@ -139,82 +152,78 @@ internal fun CollaboratorSearchScreen(
                 query = state.query,
                 onQueryChange = onQueryChange,
                 placeholder = stringResource(Res.string.collaborators_search_hint),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(searchFocus),
                 onSearch = onSearchSubmit,
             )
         }
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.primary)
-            }
-            state.hasError -> Column(
-                Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-            ) {
-                Text(
-                    text = stringResource(Res.string.collaborators_error),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+            state.error != null -> MessageState(
+                title = stringResource(Res.string.collaborators_error),
+                text = failureText(state.error),
+                actionText = stringResource(Res.string.collaborators_retry),
+                onAction = onRetry,
+            )
+            state.isLoading -> LoadingState()
+            state.results.isEmpty() -> MessageState(
+                title = stringResource(Res.string.collaborators_empty_title),
+                text = stringResource(Res.string.collaborators_empty_search),
+            )
+            else -> ResultsList(
+                state = state,
+                onLoadMore = onLoadMore,
+                onRetryLoadMore = onRetryLoadMore,
+                onCollaboratorClick = onCollaboratorClick,
+            )
+        }
+    }
+}
+
+/**
+ * "Найдено N", the people loaded so far and the end of the list that asks for the next page. The list is shown from its
+ * start for every new set of results ([CollaboratorSearchUiState.resultsVersion]): left where the user had scrolled the
+ * old list, a short new one would be near its end at once and ask for its next page.
+ */
+@Composable
+private fun ResultsList(
+    state: CollaboratorSearchUiState,
+    onLoadMore: () -> Unit,
+    onRetryLoadMore: () -> Unit,
+    onCollaboratorClick: (UserSummary) -> Unit,
+) {
+    key(state.resultsVersion) {
+        val listState = rememberLazyListState()
+        val footer = loadMoreStateOf(
+            isLoadingMore = state.isLoadingMore,
+            failed = state.loadMoreFailure != null,
+            hasMore = state.hasMore,
+        )
+        LoadMoreEffect(listState = listState, state = footer, onLoadMore = onLoadMore)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+            state = listState,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(key = "header") { ResultsHeader(state.total) }
+            items(state.results, key = { it.user.id.value }) { person ->
+                PersonListItem(
+                    model = PersonListItemUiModel(
+                        name = person.user.name,
+                        subtitle = person.collaborator.subtitleText(),
+                        avatar = AvatarSource(person.user.id.value, person.user.name),
+                    ),
+                    onClick = { onCollaboratorClick(person.user) },
+                    outlined = true,
                 )
-                AppButton(
-                    text = stringResource(Res.string.collaborators_retry),
-                    onClick = onRetry,
-                    variant = AppButtonVariant.Outlined,
-                )
             }
-            state.results.isEmpty() -> Column(
-                Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-            ) {
-                Text(
-                    text = stringResource(Res.string.collaborators_empty_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colors.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = stringResource(Res.string.collaborators_empty_search),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().navigationBarsPadding(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(key = "header") { ResultsHeader(state.results.size) }
-                items(state.results, key = { it.user.id.value }) { person ->
-                    PersonListItem(
-                        model = PersonListItemUiModel(
-                            name = person.user.name,
-                            subtitle = person.subtitle,
-                            avatar = AppAvatars.forKey(person.user.id.value),
-                            isVerified = person.user.isVerified,
-                        ),
-                        onClick = { onCollaboratorClick(person.user) },
-                        outlined = true,
-                    )
-                }
-            }
+            item(key = "footer") { LoadMoreFooter(state = footer, onRetry = onRetryLoadMore) }
         }
     }
 }
 
 @Composable
 private fun ResultsHeader(count: Int) {
-    val text = stringResource(
-        when (russianPluralForm(count)) {
-            RussianPluralForm.One -> Res.string.collaborators_found_one
-            RussianPluralForm.Few -> Res.string.collaborators_found_few
-            RussianPluralForm.Many -> Res.string.collaborators_found_many
-        },
-        count,
-    )
+    val text = pluralStringResource(Res.plurals.collaborators_found, count, count)
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,

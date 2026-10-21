@@ -1,0 +1,38 @@
+<resources>
+    <!-- 17 / 17b: the form -->
+    <string name="complaints_title_user">Report</string>
+    <string name="complaints_title_project">Report a project</string>
+    <string name="complaints_reason_title">Reason</string>
+    <string name="complaints_reason_spam">Spam or ads</string>
+    <string name="complaints_reason_insults">Insults</string>
+    <string name="complaints_reason_portfolio_fraud">Faked portfolio</string>
+    <string name="complaints_reason_fake_account">Fake account</string>
+    <string name="complaints_reason_scam">Fraud</string>
+    <string name="complaints_reason_false_information">False information</string>
+    <string name="complaints_reason_other">Other</string>
+    <string name="complaints_description_label">What happened</string>
+    <string name="complaints_description_hint">Describe the situation</string>
+    <string name="complaints_submit">Send complaint</string>
+
+    <!-- 17c: what is not filled. 1: the longest text -->
+    <string name="complaints_error_reason">Choose a reason</string>
+    <string name="complaints_error_description">Describe what happened</string>
+    <string name="complaints_error_too_long">No more than %1$d signs</string>
+
+    <!-- 17f and 17g -->
+    <string name="complaints_not_allowed">Confirm your e-mail to send complaints</string>
+    <string name="complaints_failed">Couldn't send the complaint. Please try again</string>
+
+    <!-- 17e -->
+    <string name="complaints_sent_title">Complaint sent</string>
+    <string name="complaints_sent_text">A moderator will review it. Thank you for helping to make the service safer</string>
+    <string name="complaints_done">Done</string>
+
+    <!-- 09c and 09j -->
+    <string name="complaints_entry_header">Confirm the action</string>
+    <string name="complaints_entry_user">Report a user</string>
+    <string name="complaints_entry_project">Report a project</string>
+    <string name="complaints_entry_text">The complaint will go to a moderator for review.</string>
+    <string name="complaints_entry_confirm">Report</string>
+    <string name="complaints_cancel">Cancel</string>
+</resources>

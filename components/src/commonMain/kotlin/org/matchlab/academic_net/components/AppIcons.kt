@@ -11,6 +11,7 @@ import academicnet.components.generated.resources.ic_calendar
 import academicnet.components.generated.resources.ic_check
 import academicnet.components.generated.resources.ic_chevron_right
 import academicnet.components.generated.resources.ic_clock
+import academicnet.components.generated.resources.ic_eye
 import academicnet.components.generated.resources.ic_eye_off
 import academicnet.components.generated.resources.ic_file_text
 import academicnet.components.generated.resources.ic_filter
@@ -30,6 +31,7 @@ import academicnet.components.generated.resources.ic_shield_check
 import academicnet.components.generated.resources.ic_shield_x
 import academicnet.components.generated.resources.ic_sliders
 import academicnet.components.generated.resources.ic_star
+import academicnet.components.generated.resources.ic_star_filled
 import academicnet.components.generated.resources.ic_trash
 import academicnet.components.generated.resources.ic_upload
 import academicnet.components.generated.resources.ic_user
@@ -50,6 +52,9 @@ object AppIcons {
     val Check: DrawableResource = Res.drawable.ic_check
     val ChevronRight: DrawableResource = Res.drawable.ic_chevron_right
     val Clock: DrawableResource = Res.drawable.ic_clock
+
+    /** "Show password": the pair of [EyeOff] ("hide password"). */
+    val Eye: DrawableResource = Res.drawable.ic_eye
     val EyeOff: DrawableResource = Res.drawable.ic_eye_off
     val FileText: DrawableResource = Res.drawable.ic_file_text
     val Filter: DrawableResource = Res.drawable.ic_filter
@@ -69,6 +74,9 @@ object AppIcons {
     val ShieldX: DrawableResource = Res.drawable.ic_shield_x
     val Sliders: DrawableResource = Res.drawable.ic_sliders
     val Star: DrawableResource = Res.drawable.ic_star
+
+    /** [Star] with the shape filled in; the stars of [RatingStars] that are earned. */
+    val StarFilled: DrawableResource = Res.drawable.ic_star_filled
     val Trash: DrawableResource = Res.drawable.ic_trash
     val Upload: DrawableResource = Res.drawable.ic_upload
     val User: DrawableResource = Res.drawable.ic_user

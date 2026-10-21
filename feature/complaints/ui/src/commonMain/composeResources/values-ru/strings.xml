@@ -1,0 +1,38 @@
+<resources>
+    <!-- 17 / 17b: the form -->
+    <string name="complaints_title_user">Пожаловаться</string>
+    <string name="complaints_title_project">Пожаловаться на проект</string>
+    <string name="complaints_reason_title">Причина жалобы</string>
+    <string name="complaints_reason_spam">Спам или реклама</string>
+    <string name="complaints_reason_insults">Оскорбления</string>
+    <string name="complaints_reason_portfolio_fraud">Фальсификация в портфолио</string>
+    <string name="complaints_reason_fake_account">Фейковый аккаунт</string>
+    <string name="complaints_reason_scam">Мошенничество</string>
+    <string name="complaints_reason_false_information">Недостоверная информация</string>
+    <string name="complaints_reason_other">Другое</string>
+    <string name="complaints_description_label">Что произошло</string>
+    <string name="complaints_description_hint">Опишите ситуацию</string>
+    <string name="complaints_submit">Отправить жалобу</string>
+
+    <!-- 17c: what is not filled. 1: the longest text -->
+    <string name="complaints_error_reason">Выберите причину</string>
+    <string name="complaints_error_description">Опишите, что произошло</string>
+    <string name="complaints_error_too_long">Не больше %1$d знаков</string>
+
+    <!-- 17f and 17g -->
+    <string name="complaints_not_allowed">Подтвердите почту, чтобы отправлять жалобы</string>
+    <string name="complaints_failed">Не удалось отправить жалобу. Попробуйте ещё раз</string>
+
+    <!-- 17e -->
+    <string name="complaints_sent_title">Жалоба отправлена</string>
+    <string name="complaints_sent_text">Модератор рассмотрит её. Спасибо, что помогаете сделать сервис безопаснее</string>
+    <string name="complaints_done">Готово</string>
+
+    <!-- 09c and 09j -->
+    <string name="complaints_entry_header">Подтверждение действия</string>
+    <string name="complaints_entry_user">Пожаловаться на пользователя</string>
+    <string name="complaints_entry_project">Пожаловаться на проект</string>
+    <string name="complaints_entry_text">Жалоба уйдёт модератору на рассмотрение.</string>
+    <string name="complaints_entry_confirm">Пожаловаться</string>
+    <string name="complaints_cancel">Отмена</string>
+</resources>

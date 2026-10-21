@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kover)
 }
 
 // Screen with every design system component, filled with the Figma sample data.
@@ -18,6 +19,7 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
+        withHostTest {}
     }
 
     // Same targets as the modules it shows.
@@ -31,10 +33,15 @@ kotlin {
             implementation(project(":feature:profile:ui"))
             implementation(project(":feature:chats:ui"))
             implementation(project(":feature:responses:ui"))
+            implementation(project(":feature:complaints:ui"))
+            implementation(project(":feature:reviews:ui"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -19,6 +20,7 @@ kotlin {
         androidResources {
             enable = true
         }
+        withHostTest {}
     }
 
     // Same targets as :shared, which will use the feature from commonMain.
@@ -29,10 +31,24 @@ kotlin {
         commonMain.dependencies {
             // UI models expose component types (e.g. DrawableResource, chip tones).
             api(project(":components"))
+            // The screens' entry points take the feature's use cases, and the UI models its types.
+            api(project(":feature:profile:domain"))
+            implementation(project(":utils"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+            implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.androidx.lifecycle.runtimeCompose)
+            // Choosing a photo and getting it ready (a JPEG of 512 px at most): the library does it on both platforms.
+            implementation(libs.filekit.core)
+            implementation(libs.filekit.dialogs.compose)
+            implementation(libs.kotlinx.coroutines.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

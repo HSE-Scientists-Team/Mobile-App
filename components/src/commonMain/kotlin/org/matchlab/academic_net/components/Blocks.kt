@@ -17,12 +17,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
+import org.matchlab.academic_net.theme.extendedColors
 
 /** "Badge/Dot": 6dp primary dot in a 2dp surface ring (10dp overall). */
 @Composable
@@ -66,40 +69,165 @@ fun Avatar(
     )
 }
 
-/** [Avatar] for an image from resources, as UI models carry it. */
+/**
+ * [Avatar] of a person: the picture they uploaded when the app has it ([LocalAvatarImages]), otherwise the initials of
+ * their name ([rememberInitialsPainter]). The initials are shown while the picture loads and when there is none or it
+ * fails. A person with no [AvatarSource.key] ([AvatarSource.None]) has no picture to ask for: the initials only.
+ */
 @Composable
 fun Avatar(
-    image: DrawableResource,
+    source: AvatarSource,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
 ) {
-    Avatar(painterResource(image), contentDescription, modifier, size)
+    val initials = rememberInitialsPainter(source.name)
+    val images = LocalAvatarImages.current
+    if (images == null || source.key.isBlank()) {
+        Avatar(initials, contentDescription, modifier, size)
+        return
+    }
+    AsyncImage(
+        model = AvatarPicture(source.key, images.revision),
+        contentDescription = contentDescription,
+        imageLoader = images.imageLoader,
+        modifier = modifier.size(size).clip(CircleShape),
+        placeholder = initials,
+        error = initials,
+        fallback = initials,
+        contentScale = ContentScale.Crop,
+    )
 }
 
-/** "Banner/Info": note inside a screen, e.g. a service rule. */
+/** How an [InfoBanner] speaks: a quiet note, or a problem that the user has to deal with. */
+enum class InfoBannerTone {
+    /** A note or a rule of the service: `primaryContainer`. */
+    Info,
+
+    /** Something went wrong and the user has to act, e.g. "Запись изменилась. Обновите экран": `errorContainer`. */
+    Error,
+}
+
+/**
+ * "Banner/Info": note inside a screen, e.g. a service rule. A 12dp rounded box with a 20dp [icon] and the text
+ * in `bodySmall`, 12dp inside and between.
+ *
+ * With [InfoBannerTone.Error] ("Banner/Info (ошибка)") the box is `errorContainer` and the icon and the text are
+ * `onErrorContainer`.
+ *
+ * @param icon the icon at the start. When `null`: the shield with a check for [InfoBannerTone.Info], the
+ * crossed circle ([AppIcons.XCircle]) for [InfoBannerTone.Error]. A banner with a meaning of its own passes
+ * its own, e.g. [AppIcons.Clock] for "Сеанс завершён. Войдите снова"
+ * @param tone what the banner is about; it only decides the colors (and the default icon)
+ */
 @Composable
 fun InfoBanner(
     text: String,
     modifier: Modifier = Modifier,
-    icon: DrawableResource = AppIcons.ShieldCheck,
+    icon: DrawableResource? = null,
+    tone: InfoBannerTone = InfoBannerTone.Info,
 ) {
     val colors = MaterialTheme.colorScheme
+    val isError = tone == InfoBannerTone.Error
+    val contentColor = if (isError) colors.onErrorContainer else colors.onPrimaryContainer
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(colors.primaryContainer, MaterialTheme.shapes.medium)
+            .background(if (isError) colors.errorContainer else colors.primaryContainer, MaterialTheme.shapes.medium)
             .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        AppIcon(icon, contentDescription = null, size = 20.dp, tint = colors.onPrimaryContainer)
+        AppIcon(
+            icon = icon ?: if (isError) AppIcons.XCircle else AppIcons.ShieldCheck,
+            contentDescription = null,
+            size = 20.dp,
+            tint = contentColor,
+        )
         Text(
             text = text,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodySmall,
-            color = colors.onPrimaryContainer,
+            color = contentColor,
         )
+    }
+}
+
+/** What a moderator has decided about a work or a document, as [StatusBanner] tells it. */
+enum class StatusBannerStatus {
+    /** Not confirmed: there is no proof, or nobody has looked at it. Neutral colors, the crossed shield. */
+    Unverified,
+
+    /** Being checked (only its owner sees this). Warning colors, the clock. */
+    Pending,
+
+    /** Confirmed. Green, the shield with a check. */
+    Verified,
+
+    /** Turned down by the moderator, who may have left a comment. Error colors, the crossed shield. */
+    Rejected,
+}
+
+/**
+ * "Banner/Status": the verification status of a work or a document at the top of the form that edits it.
+ * A 12dp rounded box, 12dp inside and between, with a 20dp icon, the [title] in `titleSmall` and under it
+ * (2dp apart) the optional [text] in `bodySmall`. The colors and the icon follow [status]:
+ *
+ * | [status] | box / text and icon | icon |
+ * |---|---|---|
+ * | [Unverified][StatusBannerStatus.Unverified] | `surfaceContainer` / `onSurfaceVariant` | crossed shield |
+ * | [Pending][StatusBannerStatus.Pending] | `warningContainer` / `onWarningContainer` | clock |
+ * | [Verified][StatusBannerStatus.Verified] | `tertiaryContainer` / `onTertiaryContainer` | shield with a check |
+ * | [Rejected][StatusBannerStatus.Rejected] | `errorContainer` / `onErrorContainer` | crossed shield |
+ *
+ * The banner does not know the words: the screen passes [title] ("Отклонено") and, for a rejected work, the
+ * [text] ("Комментарий модератора: Нужны доказательства"). A screen reader reads them as one phrase.
+ *
+ * @param title the name of the status
+ * @param text the comment under the title, e.g. of the moderator; `null` for none
+ */
+@Composable
+fun StatusBanner(
+    status: StatusBannerStatus,
+    title: String,
+    modifier: Modifier = Modifier,
+    text: String? = null,
+) {
+    val style = status.style()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(style.container, MaterialTheme.shapes.medium)
+            .padding(12.dp)
+            .semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        AppIcon(style.icon, contentDescription = null, size = 20.dp, tint = style.content)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = style.content)
+            if (text != null) {
+                Text(text, style = MaterialTheme.typography.bodySmall, color = style.content)
+            }
+        }
+    }
+}
+
+private class StatusBannerStyle(val container: Color, val content: Color, val icon: DrawableResource)
+
+@Composable
+private fun StatusBannerStatus.style(): StatusBannerStyle {
+    val colors = MaterialTheme.colorScheme
+    val extended = MaterialTheme.extendedColors
+    return when (this) {
+        StatusBannerStatus.Unverified ->
+            StatusBannerStyle(colors.surfaceContainer, colors.onSurfaceVariant, AppIcons.ShieldX)
+        StatusBannerStatus.Pending ->
+            StatusBannerStyle(extended.warningContainer, extended.onWarningContainer, AppIcons.Clock)
+        StatusBannerStatus.Verified ->
+            StatusBannerStyle(colors.tertiaryContainer, colors.onTertiaryContainer, AppIcons.ShieldCheck)
+        StatusBannerStatus.Rejected ->
+            StatusBannerStyle(colors.errorContainer, colors.onErrorContainer, AppIcons.ShieldX)
     }
 }
 

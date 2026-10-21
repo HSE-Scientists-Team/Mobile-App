@@ -3,7 +3,6 @@ package org.matchlab.academic_net.feature.projects.ui.create
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -25,47 +24,33 @@ import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectType
 import org.matchlab.academic_net.components.AppButton
 import org.matchlab.academic_net.components.AppButtonVariant
-import org.matchlab.academic_net.components.AppFilterChip
 import org.matchlab.academic_net.components.AppIcons
-import org.matchlab.academic_net.components.AppSelectField
-import org.matchlab.academic_net.components.AppTagsField
-import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
+import org.matchlab.academic_net.components.SpherePickerSheet
 import org.matchlab.academic_net.feature.projects.domain.ProjectDraftError
-import org.matchlab.academic_net.feature.projects.domain.ProjectLimits
 import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCard
 import org.matchlab.academic_net.feature.projects.ui.VacantRoleCardUiModel
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.Res
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_add_role
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_close
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_required
+import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_create_unavailable
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_role
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_sphere
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_title_too_long
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_error_type
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_goal
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_goal_hint
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_problem
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_problem_hint
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_sphere
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_sphere_hint
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_tags
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_tags_hint
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_title
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_title_hint
-import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_field_type
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_new_title
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_publish
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_publish_error
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_publishing
 import org.matchlab.academic_net.feature.projects.ui.generated.resources.projects_roles_title
-import org.matchlab.academic_net.feature.projects.ui.label
 import org.matchlab.academic_net.feature.projects.ui.role.RoleEditorSheet
 
 /**
- * "05 Создание проекта". The start and end dates of the design are left out: setting a project's
- * dates is a story of the second sprint.
+ * "05 Создание проекта": the title, the type, the sphere, the problem, the goal, the tags, the roles and the first and
+ * the last month of the project. "Опубликовать проект" sends the form; when it is accepted the screen leaves for the new
+ * project ([onPublished]), when the request fails the message is under the form, the form keeps what was typed and the
+ * same button sends it again.
+ *
+ * @param onClose the cross of the app bar
+ * @param onPublished the project was created: the screen leaves for it
  */
 @Composable
 fun CreateProjectRoute(
@@ -87,6 +72,8 @@ fun CreateProjectRoute(
         onTitleChange = viewModel::onTitleChange,
         onTypeSelect = viewModel::onTypeSelect,
         onSphereFieldClick = viewModel::onSphereFieldClick,
+        onStartFieldClick = viewModel::onStartFieldClick,
+        onEndFieldClick = viewModel::onEndFieldClick,
         onProblemChange = viewModel::onProblemChange,
         onGoalChange = viewModel::onGoalChange,
         onAddTag = viewModel::onAddTag,
@@ -108,6 +95,15 @@ fun CreateProjectRoute(
             onDismiss = viewModel::onSpherePickerDismiss,
         )
     }
+    state.monthPickerFor?.let { field ->
+        ProjectMonthSheet(
+            field = field,
+            start = state.draft.start,
+            end = state.draft.end,
+            onSelect = viewModel::onMonthSelect,
+            onDismiss = viewModel::onMonthPickerDismiss,
+        )
+    }
     state.roleEditor?.let { editor ->
         RoleEditorSheet(
             state = editor,
@@ -127,6 +123,8 @@ internal fun CreateProjectScreen(
     onTitleChange: (String) -> Unit,
     onTypeSelect: (ProjectType) -> Unit,
     onSphereFieldClick: () -> Unit,
+    onStartFieldClick: () -> Unit,
+    onEndFieldClick: () -> Unit,
     onProblemChange: (String) -> Unit,
     onGoalChange: (String) -> Unit,
     onAddTag: (String) -> Unit,
@@ -139,7 +137,6 @@ internal fun CreateProjectScreen(
 ) {
     val colors = MaterialTheme.colorScheme
     val draft = state.draft
-    val required = stringResource(Res.string.projects_error_required)
     val errors = state.errors
 
     Column(
@@ -161,75 +158,12 @@ internal fun CreateProjectScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            AppTextField(
-                value = draft.title,
-                onValueChange = onTitleChange,
-                label = stringResource(Res.string.projects_field_title),
-                placeholder = stringResource(Res.string.projects_field_title_hint),
-                errorText = when {
-                    ProjectDraftError.TitleEmpty in errors -> required
-                    ProjectDraftError.TitleTooLong in errors ->
-                        stringResource(Res.string.projects_error_title_too_long, ProjectLimits.MaxTitleLength)
-                    else -> null
-                },
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(Res.string.projects_field_type),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.onSurface,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ProjectType.entries.forEach { type ->
-                        AppFilterChip(
-                            text = type.label(),
-                            selected = draft.type == type,
-                            onClick = { onTypeSelect(type) },
-                        )
-                    }
-                }
-                if (ProjectDraftError.TypeMissing in errors) {
-                    Text(
-                        text = stringResource(Res.string.projects_error_type),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.error,
-                    )
-                }
-            }
-            AppSelectField(
-                label = stringResource(Res.string.projects_field_sphere),
-                value = draft.sphere?.name,
-                placeholder = stringResource(Res.string.projects_field_sphere_hint),
-                onClick = onSphereFieldClick,
-                errorText = if (ProjectDraftError.SphereMissing in errors) {
-                    stringResource(Res.string.projects_error_sphere)
-                } else {
-                    null
-                },
-            )
-            AppTextField(
-                value = draft.problem,
-                onValueChange = onProblemChange,
-                label = stringResource(Res.string.projects_field_problem),
-                placeholder = stringResource(Res.string.projects_field_problem_hint),
-                singleLine = false,
-                errorText = if (ProjectDraftError.ProblemEmpty in errors) required else null,
-            )
-            AppTextField(
-                value = draft.goal,
-                onValueChange = onGoalChange,
-                label = stringResource(Res.string.projects_field_goal),
-                placeholder = stringResource(Res.string.projects_field_goal_hint),
-                singleLine = false,
-                errorText = if (ProjectDraftError.GoalEmpty in errors) required else null,
-            )
-            AppTagsField(
-                label = stringResource(Res.string.projects_field_tags),
-                tags = draft.tags,
-                onAddTag = onAddTag,
-                onRemoveTag = onRemoveTag,
-                placeholder = stringResource(Res.string.projects_field_tags_hint),
-            )
+            ProjectTitleField(draft.title, onTitleChange, errors)
+            ProjectTypeChips(draft.type, onTypeSelect, errors)
+            ProjectSphereField(draft.sphere, onSphereFieldClick, errors)
+            ProjectProblemField(draft.problem, onProblemChange, errors)
+            ProjectGoalField(draft.goal, onGoalChange, errors)
+            ProjectTagsFormField(draft.tags, onAddTag, onRemoveTag)
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = stringResource(Res.string.projects_roles_title),
@@ -257,6 +191,7 @@ internal fun CreateProjectScreen(
                     variant = AppButtonVariant.Outlined,
                 )
             }
+            ProjectMonthFields(draft.start, draft.end, onStartFieldClick, onEndFieldClick, errors)
         }
         Column(
             Modifier
@@ -268,7 +203,10 @@ internal fun CreateProjectScreen(
         ) {
             if (state.publishFailed) {
                 Text(
-                    text = stringResource(Res.string.projects_publish_error),
+                    // A source that cannot create projects at all is not a failure to try again.
+                    text = stringResource(
+                        if (state.publishUnavailable) Res.string.projects_create_unavailable else Res.string.projects_publish_error,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.error,
                 )

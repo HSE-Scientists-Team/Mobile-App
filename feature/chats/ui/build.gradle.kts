@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -45,7 +46,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
-            // View models are tested against the mock data source, as the app runs today.
+            // View models are tested over the real repository and a fake data source with a history (see TestSetup.kt).
             implementation(project(":feature:chats:data"))
         }
     }

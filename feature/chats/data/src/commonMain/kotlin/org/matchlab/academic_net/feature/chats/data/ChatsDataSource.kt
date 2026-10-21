@@ -6,11 +6,7 @@ import org.matchlab.academic_net.feature.chats.domain.ChatMessage
 import org.matchlab.academic_net.feature.chats.domain.Conversation
 import org.matchlab.academic_net.feature.chats.domain.ConversationId
 
-/**
- * Where the chats come from. The only implementation is
- * [org.matchlab.academic_net.feature.chats.data.mock.MockChatsDataSource]; a remote one (with DTOs
- * and a socket for incoming messages) replaces it when the backend appears.
- */
+/** Where the chats come from: [GatewayChatsDataSource], the text chat of the Gateway. */
 interface ChatsDataSource {
     fun observeConversations(): Flow<List<Conversation>>
 

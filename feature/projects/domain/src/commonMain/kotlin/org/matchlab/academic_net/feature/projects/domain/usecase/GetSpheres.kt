@@ -4,7 +4,7 @@ import org.matchlab.academic_net.common.model.Sphere
 import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
 import org.matchlab.academic_net.utils.suspendRunCatching
 
-/** "Выбрать сферу проекта": the spheres the user can pick from. */
+/** "Выбрать сферу проекта": the spheres the user can pick from, the app's own list (`Spheres.all`, `docs/api-values.md`). */
 class GetSpheresUseCase(private val repository: ProjectsRepository) {
     suspend operator fun invoke(): Result<List<Sphere>> =
         suspendRunCatching { repository.getSpheres() }

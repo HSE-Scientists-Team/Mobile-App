@@ -1,8 +1,9 @@
 package org.matchlab.academic_net.components
 
+import academicnet.components.generated.resources.Res
+import academicnet.components.generated.resources.components_report
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +21,23 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.stringResource
+import org.matchlab.academic_net.components.AvatarSource
+import org.matchlab.academic_net.components.interaction.onceClickable
 
-/** "List item/Action": action row in a list or a sheet. */
+/**
+ * "List item/Action": action row in a list or a sheet. A burst of taps runs [onClick] once.
+ *
+ * @param destructive the action ends something for good ("Отменить проект"): the outline, the icon and the title are
+ * `error` instead of `outlineVariant`, `primary` and `onSurface`
+ */
 @Composable
 fun ActionListItem(
     title: String,
@@ -35,15 +45,36 @@ fun ActionListItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     icon: DrawableResource = AppIcons.Check,
+    destructive: Boolean = false,
 ) {
-    OutlinedRow(modifier.clickable(onClick = onClick), MaterialTheme.shapes.large) {
-        AppIcon(icon, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.primary)
-        TitleWithSubtitle(title, subtitle)
+    val colors = MaterialTheme.colorScheme
+    OutlinedRow(
+        modifier.onceClickable(onClick = onClick),
+        MaterialTheme.shapes.large,
+        borderColor = if (destructive) colors.error else colors.outlineVariant,
+    ) {
+        AppIcon(icon, contentDescription = null, size = 20.dp, tint = if (destructive) colors.error else colors.primary)
+        TitleWithSubtitle(title, subtitle, color = if (destructive) colors.error else colors.onSurface)
         Chevron()
     }
 }
 
-/** "List item/Setting": setting row that opens another screen. */
+/**
+ * "Пожаловаться": the row of a menu that leads to a complaint (13b): the flag and the words in the error color, with the
+ * chevron. The label is the shared `components_report`, so every place that reports says the same.
+ */
+@Composable
+fun ReportListItem(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ActionListItem(
+        title = stringResource(Res.string.components_report),
+        onClick = onClick,
+        modifier = modifier,
+        icon = AppIcons.Flag,
+        destructive = true,
+    )
+}
+
+/** "List item/Setting": setting row that opens another screen. A burst of taps runs [onClick] once. */
 @Composable
 fun SettingListItem(
     title: String,
@@ -52,14 +83,21 @@ fun SettingListItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
 ) {
-    OutlinedRow(modifier.clickable(onClick = onClick), MaterialTheme.shapes.large) {
+    OutlinedRow(modifier.onceClickable(onClick = onClick), MaterialTheme.shapes.large) {
         AppIcon(icon, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         TitleWithSubtitle(title, subtitle)
         Chevron()
     }
 }
 
-/** "List item/Toggle": row with a switch; the whole row toggles it. */
+/**
+ * "List item/Toggle": row with a switch; the whole row toggles it. With [enabled] `false` the
+ * row ignores taps and the switch is dimmed, e.g. while the new value is being saved.
+ *
+ * @param dimText whether the title and the subtitle are drawn at 38% alpha, as in the design's `state=disabled`; by
+ *  default they follow [enabled]. A row that is only busy (a save is running) passes `false` so its text stays
+ *  as it is while the switch is dimmed.
+ */
 @Composable
 fun ToggleListItem(
     title: String,
@@ -67,50 +105,67 @@ fun ToggleListItem(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    enabled: Boolean = true,
+    dimText: Boolean = !enabled,
 ) {
     OutlinedRow(
-        modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
         MaterialTheme.shapes.large,
     ) {
-        TitleWithSubtitle(title, subtitle)
-        AppSwitch(checked = checked, onCheckedChange = null)
+        TitleWithSubtitle(title, subtitle, dim = dimText)
+        AppSwitch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 
-/** "List item/Radio": one option of a single-choice list; the whole row selects it. */
+/**
+ * "List item/Radio" and "List item/Radio two-line": one option of a single-choice list; the whole row selects it.
+ * Choosing is not an action that must not be repeated, so taps are not debounced.
+ *
+ * @param subtitle the second line under [text] (`labelSmall`, `onSurfaceVariant`), e.g. "Завершён · март 2026" under
+ * the name of a project; `null` for the one-line row
+ */
 @Composable
 fun RadioListItem(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
+    val colors = MaterialTheme.colorScheme
     OutlinedRow(
         modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
         MaterialTheme.shapes.medium,
         verticalPadding = 12.dp,
     ) {
         AppRadioButton(selected = selected, onClick = null)
-        Text(
-            text = text,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = text, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
+            if (subtitle != null) {
+                Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+            }
+        }
     }
 }
 
+/**
+ * What [PersonListItem] shows.
+ *
+ * @property name the person's name; an empty one is shown as "Без имени" (see [PersonName])
+ * @property subtitle the line under the name, e.g. "Stanford · 3 курс · Computer Science"
+ * @property avatar the picture of the person
+ */
 @Immutable
 data class PersonListItemUiModel(
     val name: String,
     val subtitle: String,
-    val avatar: DrawableResource,
-    val isVerified: Boolean = false,
+    val avatar: AvatarSource,
 )
 
 /**
  * "List item/Person": person in a list; clickable rows get a chevron. [outlined] puts the row in
- * a rounded card with an outline, as on the collaborators search screen.
+ * a rounded card with an outline, as on the collaborators search screen. A burst of taps runs
+ * [onClick] once.
  */
 @Composable
 fun PersonListItem(
@@ -120,7 +175,7 @@ fun PersonListItem(
     outlined: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
-    val clickable = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    val clickable = if (onClick != null) Modifier.onceClickable(onClick = onClick) else Modifier
     val row = @Composable { content: @Composable RowScope.() -> Unit ->
         if (outlined) {
             // Figma padding 16x12 plus the 1dp outline.
@@ -145,7 +200,7 @@ fun PersonListItem(
     row {
         Avatar(model.avatar, contentDescription = null, size = 48.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            PersonName(model.name, model.isVerified, MaterialTheme.typography.titleMedium)
+            PersonName(model.name, MaterialTheme.typography.titleMedium)
             Text(
                 text = model.subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -165,7 +220,7 @@ data class NotificationListItemUiModel(
     val icon: DrawableResource = AppIcons.Message,
 )
 
-/** "List item/Notification": notification with an icon and when it arrived. */
+/** "List item/Notification": notification with an icon and when it arrived. A burst of taps runs [onClick] once. */
 @Composable
 fun NotificationListItem(
     model: NotificationListItemUiModel,
@@ -176,7 +231,7 @@ fun NotificationListItem(
     PlainRow(
         modifier
             .clip(MaterialTheme.shapes.medium)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .then(if (onClick != null) Modifier.onceClickable(onClick = onClick) else Modifier),
     ) {
         Box(Modifier.background(colors.surface, CircleShape).padding(8.dp)) {
             AppIcon(model.icon, contentDescription = null, size = 20.dp, tint = colors.primary)
@@ -200,6 +255,7 @@ private fun OutlinedRow(
     modifier: Modifier,
     shape: Shape,
     verticalPadding: Dp = 14.dp,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -208,7 +264,7 @@ private fun OutlinedRow(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .border(1.dp, colors.outlineVariant, shape)
+            .border(1.dp, borderColor, shape)
             .then(modifier)
             .padding(horizontal = 17.dp, vertical = verticalPadding + 1.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -232,11 +288,19 @@ private fun PlainRow(modifier: Modifier, content: @Composable RowScope.() -> Uni
 }
 
 @Composable
-private fun RowScope.TitleWithSubtitle(title: String, subtitle: String?) {
+private fun RowScope.TitleWithSubtitle(
+    title: String,
+    subtitle: String?,
+    dim: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    val colors = MaterialTheme.colorScheme
+    val titleColor = if (dim) color.copy(alpha = DisabledTextAlpha) else color
+    val subtitleColor = if (dim) colors.onSurfaceVariant.copy(alpha = DisabledTextAlpha) else colors.onSurfaceVariant
     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(title, style = MaterialTheme.typography.titleSmall, color = titleColor)
         if (subtitle != null) {
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = subtitleColor)
         }
     }
 }
@@ -245,3 +309,6 @@ private fun RowScope.TitleWithSubtitle(title: String, subtitle: String?) {
 private fun Chevron() {
     AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.outline)
 }
+
+/** The alpha of the text of a disabled row (Figma `List item/Toggle`, `state=disabled`). */
+private const val DisabledTextAlpha = 0.38f

@@ -1,0 +1,251 @@
+package org.matchlab.academic_net.feature.profile.domain
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import org.matchlab.academic_net.common.model.ProjectType
+
+private fun text(length: Int) = "a".repeat(length)
+
+class WorkDraftTest {
+    private val valid = WorkDraft(title = "Title", description = "Description")
+
+    @Test
+    fun scientificTypeIsTheDefault() {
+        assertEquals(ProjectType.Scientific, WorkDraft().type)
+    }
+
+    @Test
+    fun emptyDraftLacksTitleAndDescription() {
+        assertEquals(
+            setOf(WorkDraftError.TitleEmpty, WorkDraftError.DescriptionEmpty),
+            WorkDraft().validate(),
+        )
+    }
+
+    @Test
+    fun draftWithoutLinkAndProofIsValid() {
+        assertEquals(emptySet(), valid.validate())
+    }
+
+    @Test
+    fun blankTitleAndDescriptionAreEmpty() {
+        assertEquals(
+            setOf(WorkDraftError.TitleEmpty, WorkDraftError.DescriptionEmpty),
+            valid.copy(title = "   ", description = " \n ").validate(),
+        )
+    }
+
+    @Test
+    fun titleAtTheLimitIsValidAndOneMoreIsTooLong() {
+        assertEquals(emptySet(), valid.copy(title = text(ProfileLimits.MaxTitleLength)).validate())
+        assertEquals(
+            setOf(WorkDraftError.TitleTooLong),
+            valid.copy(title = text(ProfileLimits.MaxTitleLength + 1)).validate(),
+        )
+    }
+
+    @Test
+    fun descriptionAtTheLimitIsValidAndOneMoreIsTooLong() {
+        assertEquals(emptySet(), valid.copy(description = text(ProfileLimits.MaxDescriptionLength)).validate())
+        assertEquals(
+            setOf(WorkDraftError.DescriptionTooLong),
+            valid.copy(description = text(ProfileLimits.MaxDescriptionLength + 1)).validate(),
+        )
+    }
+
+    @Test
+    fun linkMustBeAWebLinkWhenGiven() {
+        assertEquals(emptySet(), valid.copy(link = "https://doi.org/10.1234/cv").validate())
+        assertEquals(emptySet(), valid.copy(link = "").validate())
+        assertEquals(setOf(WorkDraftError.LinkInvalid), valid.copy(link = "doi.org/10.1234").validate())
+        assertEquals(setOf(WorkDraftError.LinkInvalid), valid.copy(link = "ftp://example.com").validate())
+    }
+
+    @Test
+    fun draftWithNothingOrBlankLinkIsNotSentForVerification() {
+        assertFalse(valid.sendsForVerification)
+        assertFalse(valid.copy(link = "   ").sendsForVerification)
+    }
+
+    @Test
+    fun linkOrProofSendsTheWorkForVerification() {
+        assertTrue(valid.copy(link = "https://github.com/a/b").sendsForVerification)
+        assertTrue(valid.copy(hasEvidenceFile = true).sendsForVerification)
+    }
+
+    @Test
+    fun normalizingTrimsTheFields() {
+        val normalized = WorkDraft(
+            type = ProjectType.Practical,
+            title = "  My   work ",
+            description = "  Text \n",
+            link = " https://github.com/a/b ",
+        ).normalized()
+
+        assertEquals(ProjectType.Practical, normalized.type)
+        assertEquals("My work", normalized.title)
+        assertEquals("Text", normalized.description)
+        assertEquals("https://github.com/a/b", normalized.link)
+        assertEquals(emptySet(), normalized.validate())
+    }
+}
+
+class DocumentDraftTest {
+    private val valid = DocumentDraft(
+        title = "Сертификат Deep Learning",
+        issuer = "Coursera",
+        year = "2025",
+        proof = ProofAttachment("https://files.example.com/cert.pdf"),
+    )
+
+    @Test
+    fun educationIsTheDefaultKind() {
+        assertEquals(DocumentKind.Education, DocumentDraft().kind)
+    }
+
+    @Test
+    fun filledDraftIsValid() {
+        assertEquals(emptySet(), valid.validate())
+    }
+
+    @Test
+    fun emptyDraftLacksTitleIssuerAndProof() {
+        assertEquals(
+            setOf(DocumentDraftError.TitleEmpty, DocumentDraftError.IssuerEmpty, DocumentDraftError.ProofMissing),
+            DocumentDraft().validate(),
+        )
+    }
+
+    @Test
+    fun yearIsOptional() {
+        assertEquals(emptySet(), valid.copy(year = "").validate())
+        assertNull(valid.copy(year = "").yearNumber)
+    }
+
+    @Test
+    fun yearBoundariesAreInclusive() {
+        assertEquals(emptySet(), valid.copy(year = ProfileLimits.MinYear.toString()).validate())
+        assertEquals(emptySet(), valid.copy(year = ProfileLimits.MaxYear.toString()).validate())
+        assertEquals(
+            setOf(DocumentDraftError.YearInvalid),
+            valid.copy(year = (ProfileLimits.MinYear - 1).toString()).validate(),
+        )
+        assertEquals(
+            setOf(DocumentDraftError.YearInvalid),
+            valid.copy(year = (ProfileLimits.MaxYear + 1).toString()).validate(),
+        )
+    }
+
+    @Test
+    fun yearThatIsNotANumberIsInvalid() {
+        for (year in listOf("abc", "20 25", "+2025", "-2025", "2025.5", "99999999999999999999")) {
+            assertEquals(setOf(DocumentDraftError.YearInvalid), valid.copy(year = year).validate(), year)
+        }
+    }
+
+    @Test
+    fun yearNumberIsTheParsedYear() {
+        assertEquals(2025, valid.yearNumber)
+        assertEquals(2027, valid.copy(year = " 2027 ").yearNumber)
+        assertNull(valid.copy(year = "1800").yearNumber)
+    }
+
+    @Test
+    fun titleAndIssuerLimits() {
+        assertEquals(
+            emptySet(),
+            valid.copy(
+                title = text(ProfileLimits.MaxTitleLength),
+                issuer = text(ProfileLimits.MaxIssuerLength),
+            ).validate(),
+        )
+        assertEquals(
+            setOf(DocumentDraftError.TitleTooLong, DocumentDraftError.IssuerTooLong),
+            valid.copy(
+                title = text(ProfileLimits.MaxTitleLength + 1),
+                issuer = text(ProfileLimits.MaxIssuerLength + 1),
+            ).validate(),
+        )
+    }
+
+    @Test
+    fun proofIsRequiredAndMustBeAWebLink() {
+        assertEquals(setOf(DocumentDraftError.ProofMissing), valid.copy(proof = null).validate())
+        assertEquals(
+            setOf(DocumentDraftError.ProofInvalid),
+            valid.copy(proof = ProofAttachment("cert.pdf")).validate(),
+        )
+    }
+
+    @Test
+    fun normalizingTrimsTheFields() {
+        val normalized = valid.copy(
+            title = "  Сертификат   Deep Learning ",
+            issuer = " Coursera ",
+            year = " 2025 ",
+            proof = ProofAttachment(" https://files.example.com/cert.pdf "),
+        ).normalized()
+
+        assertEquals("Сертификат Deep Learning", normalized.title)
+        assertEquals("Coursera", normalized.issuer)
+        assertEquals("2025", normalized.year)
+        assertEquals(ProofAttachment("https://files.example.com/cert.pdf"), normalized.proof)
+        assertEquals(emptySet(), normalized.validate())
+    }
+
+    @Test
+    fun normalizingKeepsAMissingProofMissing() {
+        assertNull(valid.copy(proof = null).normalized().proof)
+    }
+
+    // ---- the proof file ----
+
+    private val file = UploadFile(byteArrayOf(1), "application/pdf", "diploma.pdf")
+
+    @Test
+    fun aChosenFileIsAProofOfAWorkAndAllowsSendingIt() {
+        val draft = WorkDraft(title = "T", description = "D")
+
+        assertFalse(draft.sendsForVerification)
+        assertTrue(draft.copy(proofFile = file).sendsForVerification)
+        assertTrue(draft.copy(proofFile = file).hasProofFile)
+    }
+
+    @Test
+    fun theFileARecordHasCountsUntilTheUserRemovesIt() {
+        val has = WorkDraft(title = "T", description = "D", hasEvidenceFile = true)
+
+        assertTrue(has.hasProofFile)
+        assertTrue(has.sendsForVerification)
+        assertFalse(has.copy(removeEvidenceFile = true).hasProofFile)
+        assertFalse(has.copy(removeEvidenceFile = true).sendsForVerification)
+        assertTrue(has.copy(removeEvidenceFile = true, proofFile = file).hasProofFile, "a new file replaces the removed one")
+    }
+
+    @Test
+    fun aDocumentNeedsALinkOrAFileAsItsProof() {
+        val bare = valid.copy(proof = null)
+
+        assertEquals(setOf(DocumentDraftError.ProofMissing), bare.validate())
+        assertEquals(emptySet(), bare.copy(proofFile = file).validate())
+        assertEquals(emptySet(), bare.copy(hasEvidenceFile = true).validate())
+        assertEquals(setOf(DocumentDraftError.ProofMissing), bare.copy(hasEvidenceFile = true, removeEvidenceFile = true).validate())
+    }
+
+    @Test
+    fun aLinkAndAFileTogetherAreFineAndTheLinkIsStillChecked() {
+        assertEquals(emptySet(), valid.copy(proofFile = file).validate())
+        assertEquals(setOf(DocumentDraftError.ProofInvalid), valid.copy(proof = ProofAttachment("cert.pdf"), proofFile = file).validate())
+    }
+
+    @Test
+    fun normalizingKeepsTheChosenFile() {
+        val normalized = valid.copy(proofFile = file, title = " Диплом ").normalized()
+
+        assertSame(file, normalized.proofFile)
+    }
+}

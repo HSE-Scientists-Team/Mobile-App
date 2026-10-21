@@ -1,0 +1,47 @@
+package org.matchlab.academic_net.di
+
+import me.tatarka.inject.annotations.Provides
+import org.matchlab.academic_net.feature.projects.data.ProjectsDataSource
+import org.matchlab.academic_net.feature.projects.data.ProjectsRepositoryImpl
+import org.matchlab.academic_net.feature.projects.domain.ProjectsRepository
+import org.matchlab.academic_net.feature.projects.domain.usecase.AddRoleUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.ChangeProjectLifecycleUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.GetParticipatingProjectsUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.GetSpheresUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.LoadProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveMyProjectsUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.ObserveProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.PublishProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveMemberUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.RemoveRoleUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.UnpublishProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.UpdateProjectUseCase
+import org.matchlab.academic_net.feature.projects.domain.usecase.UpdateRoleUseCase
+import org.matchlab.academic_net.feature.projects.ui.ProjectsUiDependencies
+
+/**
+ * The projects feature: its repository, use cases and what its screens receive.
+ */
+internal interface ProjectsModule {
+    @Provides
+    @SessionScope
+    fun projectsRepository(source: ProjectsDataSource): ProjectsRepository = ProjectsRepositoryImpl(source)
+
+    @Provides
+    fun projectsUiDependencies(repository: ProjectsRepository): ProjectsUiDependencies = ProjectsUiDependencies(
+        observeMyProjects = ObserveMyProjectsUseCase(repository),
+        observeProject = ObserveProjectUseCase(repository),
+        loadProject = LoadProjectUseCase(repository),
+        publishProject = PublishProjectUseCase(repository),
+        unpublishProject = UnpublishProjectUseCase(repository),
+        addRole = AddRoleUseCase(repository),
+        getSpheres = GetSpheresUseCase(repository),
+        changeLifecycle = ChangeProjectLifecycleUseCase(repository),
+        updateProject = UpdateProjectUseCase(repository),
+        updateRole = UpdateRoleUseCase(repository),
+        removeRole = RemoveRoleUseCase(repository),
+        removeMember = RemoveMemberUseCase(repository),
+        getParticipatingProjects = GetParticipatingProjectsUseCase(repository),
+        capabilities = repository.capabilities,
+    )
+}

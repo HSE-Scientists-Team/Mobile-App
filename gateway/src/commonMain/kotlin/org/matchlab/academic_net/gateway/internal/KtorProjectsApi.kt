@@ -1,0 +1,81 @@
+package org.matchlab.academic_net.gateway.internal
+
+import org.matchlab.academic_net.common.paging.PageRequest
+import org.matchlab.academic_net.gateway.ProjectCatalogApi
+import org.matchlab.academic_net.gateway.ProjectSearchParams
+import org.matchlab.academic_net.gateway.ProjectsApi
+import org.matchlab.academic_net.gateway.dto.ProjectCreateDto
+import org.matchlab.academic_net.gateway.dto.ProjectDto
+import org.matchlab.academic_net.gateway.dto.ProjectListDto
+import org.matchlab.academic_net.gateway.dto.ProjectRoleInputDto
+import org.matchlab.academic_net.gateway.dto.ProjectTransitionDto
+import org.matchlab.academic_net.gateway.dto.ProjectUpdateDto
+
+/**
+ * [ProjectsApi] and [ProjectCatalogApi] over the client of a session. One class serves both interfaces, because they
+ * read the same `GET /projects/{id}`.
+ */
+internal class KtorProjectsApi(private val requests: ApiRequests) : ProjectsApi, ProjectCatalogApi {
+    override suspend fun get(id: String): ProjectDto = requests.get(projectPath(id))
+
+    override suspend fun addRole(id: String, input: ProjectRoleInputDto): ProjectDto =
+        requests.post("${projectPath(id)}/roles", input)
+
+    override suspend fun create(input: ProjectCreateDto): ProjectDto = requests.post("projects", input)
+
+    override suspend fun transition(id: String, input: ProjectTransitionDto): ProjectDto =
+        requests.post("${projectPath(id)}/transitions", input)
+
+    override suspend fun update(id: String, input: ProjectUpdateDto): ProjectDto = requests.put(projectPath(id), input)
+
+    override suspend fun updateRole(id: String, roleId: String, input: ProjectRoleInputDto): ProjectDto =
+        requests.put(rolePath(id, roleId), input)
+
+    override suspend fun deleteRole(id: String, roleId: String, expectedRevision: Int): ProjectDto =
+        requests.deleteFor(rolePath(id, roleId), query = mapOf("expected_revision" to expectedRevision.toString()))
+
+    override suspend fun removeMember(id: String, userId: String): ProjectDto =
+        requests.deleteFor("${projectPath(id)}/members/${pathSegment(userId)}")
+
+    override suspend fun leave(id: String): ProjectDto = requests.deleteFor("${projectPath(id)}/membership")
+
+    override suspend fun search(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
+        requests.get(
+            "search/projects",
+            query = params.query(page, withViewerFilters = false),
+            repeatedQuery = params.repeatedQuery(),
+        )
+
+    override suspend fun list(params: ProjectSearchParams, page: PageRequest): ProjectListDto =
+        requests.get(
+            "projects",
+            query = params.query(page, withViewerFilters = true),
+            repeatedQuery = params.repeatedQuery(),
+        )
+
+    private fun projectPath(id: String) = "projects/${pathSegment(id)}"
+
+    private fun rolePath(id: String, roleId: String) = "${projectPath(id)}/roles/${pathSegment(roleId)}"
+
+    /**
+     * The parameters with one value. `limit` and `offset` always go (the bounds are those of [PageRequest]); a text
+     * only if it is not blank. `mine` and `status` go only with [withViewerFilters] (the catalog list, not the search);
+     * `profile_user_id` is never among them: its meaning is not described.
+     */
+    private fun ProjectSearchParams.query(page: PageRequest, withViewerFilters: Boolean): Map<String, String?> = buildMap {
+        put("limit", page.limit.toString())
+        put("offset", page.offset.toString())
+        q?.takeIf { it.isNotBlank() }?.let { put("q", it) }
+        type?.takeIf { it.isNotBlank() }?.let { put("type", it) }
+        field?.takeIf { it.isNotBlank() }?.let { put("field", it) }
+        duration?.takeIf { it.isNotBlank() }?.let { put("duration", it) }
+        if (withViewerFilters) {
+            mine?.takeIf { it.isNotBlank() }?.let { put("mine", it) }
+            status?.takeIf { it.isNotBlank() }?.let { put("status", it) }
+        }
+    }
+
+    /** The array of the query: each tag is a `tag=…` of its own, in the given order; a blank one is left out. */
+    private fun ProjectSearchParams.repeatedQuery(): Map<String, List<String>> =
+        mapOf("tag" to tags.filter { it.isNotBlank() })
+}

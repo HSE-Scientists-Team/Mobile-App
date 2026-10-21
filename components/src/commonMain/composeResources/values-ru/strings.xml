@@ -1,0 +1,118 @@
+<resources>
+    <string name="components_remove">Удалить</string>
+    <string name="components_add">Добавить</string>
+    <string name="components_back">Назад</string>
+    <string name="components_accept">Принять</string>
+    <string name="components_decline">Отклонить</string>
+    <string name="components_message">Написать</string>
+    <string name="components_report">Пожаловаться</string>
+    <string name="components_retry">Повторить</string>
+
+    <!-- The toggle of the password field says what a tap does -->
+    <string name="components_show_password">Показать пароль</string>
+    <string name="components_hide_password">Скрыть пароль</string>
+
+    <!-- Why a call to the server failed, see failureText -->
+    <string name="components_failure_no_connection">Нет связи с сервером</string>
+    <string name="components_failure_timeout">Сервер не ответил</string>
+    <string name="components_failure_unavailable">Сервис временно недоступен</string>
+    <string name="components_failure_other">Что-то пошло не так</string>
+
+    <!-- Project type and status; the project card and every list of projects use them -->
+    <string name="components_project_type_scientific">Научный</string>
+    <string name="components_project_type_practical">Проектный</string>
+    <string name="components_project_status_recruiting">Поиск соавторов</string>
+    <string name="components_project_status_unpublished">Снят с публикации</string>
+    <string name="components_project_status_started">В работе</string>
+    <string name="components_project_status_finished">Завершён</string>
+    <string name="components_project_status_cancelled">Отменён</string>
+    <string name="components_project_status_chip_recruiting">Опубликован</string>
+    <plurals name="components_project_roles_count">
+        <item quantity="one">%1$d роль</item>
+        <item quantity="few">%1$d роли</item>
+        <item quantity="many">%1$d ролей</item>
+        <item quantity="other">%1$d роли</item>
+    </plurals>
+
+    <!-- Project page blocks: shared by the management screen and the project page of others -->
+    <string name="components_project_block_problem">Проблема</string>
+    <string name="components_project_block_goal">Цель</string>
+    <string name="components_project_block_tags">Теги</string>
+    <!-- 1: places filled, 2: places in total (a role can be for several people) -->
+    <string name="components_project_roles_occupied">%1$d из %2$d занято</string>
+    <string name="components_role_applied">Вы откликнулись</string>
+    <string name="components_role_apply">Откликнуться</string>
+    <!-- 1: places of a role that are taken, 2: places of the role; the form follows the second number -->
+    <plurals name="components_role_places">
+        <item quantity="one">%1$d из %2$d места занято</item>
+        <item quantity="few">%1$d из %2$d мест занято</item>
+        <item quantity="many">%1$d из %2$d мест занято</item>
+        <item quantity="other">%1$d из %2$d мест занято</item>
+    </plurals>
+
+    <!-- A person's numbers on their card: the rating line and the completed projects -->
+    <string name="components_person_rating">★ %1$s</string>
+    <plurals name="components_person_completed_projects">
+        <item quantity="one">%1$d завершённый проект</item>
+        <item quantity="few">%1$d завершённых проекта</item>
+        <item quantity="many">%1$d завершённых проектов</item>
+        <item quantity="other">%1$d завершённых проекта</item>
+    </plurals>
+
+    <!-- Sphere picker -->
+    <string name="components_sphere_picker_title">Сфера проекта</string>
+    <string name="components_sphere_picker_error">Не удалось загрузить сферы</string>
+
+    <!-- Dates: month names are abbreviated and used on their own ("окт"), before a year or after a day. -->
+    <string-array name="date_months_short">
+        <item>янв</item>
+        <item>фев</item>
+        <item>мар</item>
+        <item>апр</item>
+        <item>май</item>
+        <item>июн</item>
+        <item>июл</item>
+        <item>авг</item>
+        <item>сен</item>
+        <item>окт</item>
+        <item>ноя</item>
+        <item>дек</item>
+    </string-array>
+    <!-- Month names next to a day number ("9 мая"); differ from the names above only in May. -->
+    <string-array name="date_months_short_day">
+        <item>янв</item>
+        <item>фев</item>
+        <item>мар</item>
+        <item>апр</item>
+        <item>мая</item>
+        <item>июн</item>
+        <item>июл</item>
+        <item>авг</item>
+        <item>сен</item>
+        <item>окт</item>
+        <item>ноя</item>
+        <item>дек</item>
+    </string-array>
+    <!-- 1: month name, 2: year -->
+    <string name="date_year_month">%1$s %2$d</string>
+    <!-- 1: start month, 2: end month, both already formatted by date_year_month -->
+    <string name="date_month_range">%1$s — %2$s</string>
+    <!-- 1: day of month, 2: month name -->
+    <string name="date_day_month">%1$d %2$s</string>
+    <!-- The day before today in a time label, see chatListTimeText -->
+    <string name="components_yesterday">Вчера</string>
+
+    <!-- 1: how many of the 5 stars are filled -->
+    <string name="components_rating_value">Оценка %1$d из 5</string>
+
+    <!-- The end of a list that loads more as it is scrolled -->
+    <string name="components_loading">Загрузка…</string>
+    <string name="components_load_failed">Не удалось загрузить</string>
+
+    <!-- Shown instead of the name of a person whose name is empty -->
+    <string name="components_name_placeholder">Без имени</string>
+
+    <!-- Where a person is in their studies, see studyText. 1: the level as it is written ("Бакалавриат"), 2: the year -->
+    <string name="components_study_level_year">%1$s, %2$d курс</string>
+    <string name="components_study_year">%1$d курс</string>
+</resources>
