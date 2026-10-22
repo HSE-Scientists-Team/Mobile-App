@@ -1,0 +1,31 @@
+// Only the explicit security task uses this init script; normal builds are unchanged.
+// Gradle writes the selected, transitive Maven versions in its native lock format.
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':androidApp')
+    def names = ['debugRuntimeClasspath', 'releaseRuntimeClasspath']
+    def variants = names.collect { app.configurations.getByName(it) }
+    // Include JVM unit-test dependencies when the Android plugin exposes them.
+    ['debugUnitTestRuntimeClasspath', 'releaseUnitTestRuntimeClasspath'].each { name ->
+        def configuration = app.configurations.findByName(name)
+        if (configuration != null && configuration.canBeResolved) {
+            variants.add(configuration)
+        }
+    }
+    app.dependencyLocking.lockFile.set(
+        gradle.rootProject.layout.projectDirectory.file('.trivy-dependencies/gradle.lockfile'))
+    variants.each { configuration ->
+        configuration.resolutionStrategy.activateDependencyLocking()
+    }
+    app.tasks.register('writeSecurityDependencyLocks') {
+        doLast {
+            variants.each { configuration ->
+                // A failed download or unresolved dependency must fail the scan setup.
+                def files = configuration.resolve()
+                if (files.isEmpty()) {
+                    throw new GradleException("No dependencies resolved for ${configuration.name}")
+                }
+                logger.lifecycle("Security dependencies resolved: ${configuration.name} (${files.size()} artifacts)")
+            }
+        }
+    }
+}

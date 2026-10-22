@@ -43,3 +43,10 @@ replay_pid*.log
 
 # The AppMetrica key of the iOS app (docs/analytics.md): never committed.
 /iosApp/Configuration/Local.xcconfig
+
+# Generated Trivy inputs and reports
+/.trivy-dependencies/
+/trivy-*.json
+/trivy-*.sarif
+/trivy_envs.txt
+/.cache/trivy/

@@ -1,0 +1,80 @@
+name: Trivy security scan
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: trivy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: zulu
+          java-version: '21'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-37"
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Resolve Android dependencies without building an APK
+        run: >-
+          bash ./gradlew --no-daemon --no-configuration-cache --max-workers=2
+          --write-locks --init-script scripts/security/gradle-locks.init.gradle
+          :androidApp:writeSecurityDependencyLocks
+      - name: Scan dependencies and configuration
+        id: trivy
+        env:
+          TRIVY_INCLUDE_DEV_DEPS: 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.0
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          skip-dirs: .git,.local,.gradle,.kotlin,.cache,**/build
+          skip-files: gradle/wrapper/gradle-wrapper.jar
+          format: json
+          list-all-pkgs: true
+          output: trivy-source.json
+          exit-code: '0'
+          ignore-unfixed: false
+          timeout: 10m0s
+      - name: Verify dependency coverage and generate SARIF
+        id: report
+        run: |
+          python3 scripts/security/check-trivy-report.py trivy-source.json
+          trivy convert --format sarif --output trivy-source.sarif trivy-source.json
+      - name: Upload security findings
+        if: ${{ !cancelled() && steps.report.outcome == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: github/codeql-action/upload-sarif@d0bae162f31f17dd92c46ccdc4dfee5710f8dc67 # v3
+        with:
+          sarif_file: trivy-source.sarif
+          category: trivy-source
+      - name: Save scan report
+        if: ${{ !cancelled() && steps.report.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-source
+          path: |
+            trivy-source.sarif
+            trivy-source.json
+            .trivy-dependencies/gradle.lockfile
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
