@@ -40,6 +40,7 @@ import org.matchlab.academic_net.components.AppSearchBarButton
 import org.matchlab.academic_net.components.AppSegmentedControl
 import org.matchlab.academic_net.components.Avatar
 import org.matchlab.academic_net.components.AvatarSource
+import org.matchlab.academic_net.components.GuestAvatar
 import org.matchlab.academic_net.components.LocalNavigationBarOverlap
 import org.matchlab.academic_net.components.PersonListItem
 import org.matchlab.academic_net.components.PersonListItemUiModel
@@ -57,6 +58,7 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_find
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_people_title
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_profile
+import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_sign_in
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_empty_text
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_empty_title
 import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_projects_error
@@ -81,7 +83,8 @@ import org.matchlab.academic_net.feature.feed.ui.generated.resources.feed_title
  * none, "Найти проекты" calls [onSearchProjectsClick] (when it is given). The "Люди" scope shows the people the server
  * recommends: a tap on one calls [onPersonClick]; when there are none, "Найти людей" calls [onSearchPeopleClick] too. The header draws the
  * avatar of the signed-in user (`dependencies.viewerId`, with the initials of their name until the picture is there),
- * which opens the profile ([onProfileClick]).
+ * which opens the profile ([onProfileClick]). For a visitor who has not signed in (`dependencies.isGuest`) it is the
+ * guest avatar, and the tap is still [onProfileClick]: the app answers it with the sign-in.
  */
 @Composable
 fun FeedRoute(
@@ -113,6 +116,7 @@ fun FeedRoute(
         onProjectsRetry = viewModel::onProjectsRetry,
         onPeopleRetry = viewModel::onPeopleRetry,
         modifier = modifier,
+        isGuest = dependencies.isGuest,
     )
 }
 
@@ -128,10 +132,11 @@ internal fun FeedScreen(
     onProjectsRetry: () -> Unit,
     onPeopleRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    isGuest: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     Column(modifier.fillMaxSize()) {
-        FeedHeader(AvatarSource(state.viewerAvatarKey, state.viewerName), onProfileClick)
+        FeedHeader(AvatarSource(state.viewerAvatarKey, state.viewerName), isGuest, onProfileClick)
         // The top edge meets the header, the bottom one is rounded like cards and the navigation bar.
         Column(
             Modifier
@@ -178,7 +183,7 @@ internal fun FeedScreen(
 
 /** "header": the app name and the viewer's avatar, which opens the profile. */
 @Composable
-private fun FeedHeader(avatar: AvatarSource, onProfileClick: () -> Unit) {
+private fun FeedHeader(avatar: AvatarSource, isGuest: Boolean, onProfileClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -202,11 +207,15 @@ private fun FeedHeader(avatar: AvatarSource, onProfileClick: () -> Unit) {
                 .clickable(role = Role.Button, onClick = onProfileClick),
             contentAlignment = Alignment.Center,
         ) {
-            Avatar(
-                source = avatar,
-                contentDescription = stringResource(Res.string.feed_profile),
-                size = 32.dp,
-            )
+            if (isGuest) {
+                GuestAvatar(contentDescription = stringResource(Res.string.feed_sign_in), size = 32.dp)
+            } else {
+                Avatar(
+                    source = avatar,
+                    contentDescription = stringResource(Res.string.feed_profile),
+                    size = 32.dp,
+                )
+            }
         }
     }
 }

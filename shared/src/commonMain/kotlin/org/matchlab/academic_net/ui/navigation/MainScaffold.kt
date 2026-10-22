@@ -39,11 +39,13 @@ private const val TabFadeInMillis = 210
 /**
  * Root screen: the selected tab's [content] above the bottom navigation bar. The content gets
  * `selectTab` to switch to another tab (e.g. the feed's avatar opens the profile). Tabs in [badges]
- * show the dot.
+ * show the dot. Without [showBottomBar] (a visitor who has not signed in) there is no bar and the feed, the first tab,
+ * is the only screen.
  */
 @Composable
 fun MainScaffold(
     badges: Set<TopLevelDestination> = emptySet(),
+    showBottomBar: Boolean = true,
     content: @Composable (destination: TopLevelDestination, selectTab: (TopLevelDestination) -> Unit) -> Unit,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(TopLevelDestination.Feed) }
@@ -57,15 +59,17 @@ fun MainScaffold(
     Scaffold(
         containerColor = containerColor,
         bottomBar = {
-            AppNavigationBar {
-                TopLevelDestination.entries.forEach { destination ->
-                    AppNavigationBarItem(
-                        selected = destination == currentDestination,
-                        onClick = { currentDestination = destination },
-                        icon = destination.icon,
-                        label = stringResource(destination.label),
-                        badge = destination in badges,
-                    )
+            if (showBottomBar) {
+                AppNavigationBar {
+                    TopLevelDestination.entries.forEach { destination ->
+                        AppNavigationBarItem(
+                            selected = destination == currentDestination,
+                            onClick = { currentDestination = destination },
+                            icon = destination.icon,
+                            label = stringResource(destination.label),
+                            badge = destination in badges,
+                        )
+                    }
                 }
             }
         },
@@ -87,7 +91,7 @@ fun MainScaffold(
             },
         ) { destination ->
             // The overlap is the tab's own, not the selected one's: a tab that fades out keeps its padding.
-            val overlap = if (destination.scrollsUnderBar) NavigationBarOverlap else 0.dp
+            val overlap = if (destination.scrollsUnderBar && showBottomBar) NavigationBarOverlap else 0.dp
             Box(Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding() - overlap)) {
                 tabStateHolder.SaveableStateProvider(destination.name) {
                     // A tab that scrolls under the bar reaches its middle; its list adds the same to its bottom padding.

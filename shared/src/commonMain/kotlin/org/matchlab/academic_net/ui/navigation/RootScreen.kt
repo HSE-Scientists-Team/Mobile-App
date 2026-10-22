@@ -10,7 +10,7 @@ import org.matchlab.academic_net.feature.auth.ui.signInStart
  *
  * The choice is made from the state alone ([toRootScreen]), so it is the same on the first frame after a start, after a
  * rotation and after the process was restarted. In particular a user whose session was restored never sees the
- * sign-in screen, not even for a frame.
+ * guest's screen, not even for a frame.
  */
 internal sealed interface RootScreen {
     /**
@@ -19,8 +19,12 @@ internal sealed interface RootScreen {
      */
     data object Splash : RootScreen
 
-    /** The sign-in flow: there is no session. [start] is what its first screen starts with. */
-    data class SignIn(val start: SignInStart) : RootScreen
+    /**
+     * A visitor who has not signed in: the main screen without the bottom bar, where people and projects can be looked at
+     * and searched, and anything else asks for the sign-in, which opens over it. [start] is what the first screen of
+     * that sign-in starts with.
+     */
+    data class Guest(val start: SignInStart) : RootScreen
 
     /** The tabs and everything above them, for the signed-in user [session]. */
     data class Main(val session: Session) : RootScreen
@@ -30,12 +34,13 @@ internal sealed interface RootScreen {
  * The screen the root shows for [this] state of the session.
  *
  * - `Restoring` is the splash.
- * - `SignedOut` is the sign-in flow, starting with the address the user last used and, if the server stopped accepting
- *   their session, with the note that says so (see [signInStart]).
+ * - `SignedOut` is the browsing of a visitor. The sign-in is not shown at once: it opens over the browsing when the
+ *   visitor asks for it (or, after the server stopped accepting their session, by itself, with the note that says so),
+ *   starting with the address the user last used (see [signInStart]).
  * - `SignedIn` is the tabs, at once: restoring a session does not wait for the network.
  */
 internal fun AuthState.toRootScreen(): RootScreen = when (this) {
     AuthState.Restoring -> RootScreen.Splash
-    is AuthState.SignedOut -> RootScreen.SignIn(signInStart())
+    is AuthState.SignedOut -> RootScreen.Guest(signInStart())
     is AuthState.SignedIn -> RootScreen.Main(session)
 }

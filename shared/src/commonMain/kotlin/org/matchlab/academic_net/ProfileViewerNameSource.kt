@@ -2,8 +2,10 @@ package org.matchlab.academic_net
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import me.tatarka.inject.annotations.Inject
+import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.feature.feed.domain.ViewerNameSource
 import org.matchlab.academic_net.feature.profile.domain.MyProfileRepository
 
@@ -14,7 +16,11 @@ import org.matchlab.academic_net.feature.profile.domain.MyProfileRepository
 @Inject
 internal class ProfileViewerNameSource(
     private val profile: MyProfileRepository,
+    private val session: Session,
 ) : ViewerNameSource {
-    override fun observeName(): Flow<String> =
-        profile.observeMyProfile().map { it.profile.person.user.name }.distinctUntilChanged()
+    override fun observeName(): Flow<String> {
+        // A guest has no profile (reading it needs an account): the header draws the guest avatar, not initials.
+        if (session.isGuest) return emptyFlow()
+        return profile.observeMyProfile().map { it.profile.person.user.name }.distinctUntilChanged()
+    }
 }

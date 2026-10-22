@@ -13,6 +13,9 @@ import org.matchlab.academic_net.common.model.ProjectJoinId
 import org.matchlab.academic_net.common.model.ProjectJoinStatus
 import org.matchlab.academic_net.common.model.ProjectJoinType
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.common.model.UserId
+import org.matchlab.academic_net.feature.auth.domain.AccessToken
+import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.feature.responses.domain.MyJoinsRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -49,6 +52,17 @@ private class FakeMyJoins(initial: List<ProjectJoin>? = null) : MyJoinsRepositor
 
 /** The adapters that connect the responses to the projects and to the project page. */
 class ResponsesAdaptersTest {
+    private val signedIn = Session(UserId("me"), "me@hse.ru", AccessToken("token"))
+
+    @Test
+    fun aGuestHasNoAppliedRolesAndTheListOfApplicationsIsNotAsked() = runTest {
+        val joins = FakeMyJoins(listOf(join("a", "p1", "r1", status = ProjectJoinStatus.Pending)))
+
+        val roles = ResponsesAppliedRolesSource(joins, Session.Guest).observeAppliedRoles(ProjectId("p1")).first()
+
+        assertEquals(emptySet(), roles)
+    }
+
     // ---- ResponsesAppliedRolesSource ----
 
     @Test
@@ -66,7 +80,7 @@ class ResponsesAdaptersTest {
             ),
         )
 
-        val roles = ResponsesAppliedRolesSource(joins).observeAppliedRoles(ProjectId("p1")).first()
+        val roles = ResponsesAppliedRolesSource(joins, signedIn).observeAppliedRoles(ProjectId("p1")).first()
 
         assertEquals(setOf(RoleId("r1"), RoleId("r2")), roles)
     }
@@ -76,7 +90,7 @@ class ResponsesAdaptersTest {
         val joins = FakeMyJoins(null)
         val seen = mutableListOf<Set<RoleId>>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            ResponsesAppliedRolesSource(joins).observeAppliedRoles(ProjectId("p1")).toList(seen)
+            ResponsesAppliedRolesSource(joins, signedIn).observeAppliedRoles(ProjectId("p1")).toList(seen)
         }
 
         joins.joins.value = listOf(join("a"))
