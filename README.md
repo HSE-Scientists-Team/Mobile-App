@@ -53,3 +53,24 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+
+### Trivy security scanning
+
+GitHub Actions → `Trivy security scan` runs on pull requests, pushes to `master`, Mondays, and manual dispatches. Findings are advisory: vulnerabilities do not block a release, but failed dependency resolution, an empty/incomplete scan, and scanner/report errors fail the workflow. Results appear in Security → Code scanning and Actions artifacts (14 days). Fork PRs retain artifacts without uploading SARIF to Security. No additional tokens, signing keys, analytics keys, or backend credentials are required.
+
+The workflow uses Java 21 and Android SDK tooling to resolve Android debug/release runtime dependencies, including transitive dependencies from shared KMP modules and JVM unit-test variants when present. An isolated Gradle init script creates `.trivy-dependencies/gradle.lockfile` only for this scan; normal builds and version selection are unchanged. Trivy scans that native lockfile and repository configuration. A coverage check verifies that every resolved Maven coordinate appears in the Trivy report. The workflow does not compile/install an APK or call MatchLab APIs.
+
+Coverage is Android Maven dependencies and supported configuration checks; this is not a Kotlin code audit, a complete iOS/native dependency scan, or Android Manifest security analysis. Gradle wrapper JAR scanning is excluded; setup-gradle validates the wrapper. Secret scanning is not enabled. Trivy is pinned to 0.76.0 and its action to the v0.36.0 commit, matching the other MatchLab repositories.
+
+To generate the dependency inventory locally (Java 21 and Android SDK required):
+
+```sh
+bash ./gradlew --no-daemon --no-configuration-cache --max-workers=2 \
+  --write-locks --init-script scripts/security/gradle-locks.init.gradle \
+  :androidApp:writeSecurityDependencyLocks
+trivy fs --scanners vuln,misconfig --include-dev-deps --list-all-pkgs \
+  --skip-dirs .git,.gradle,.kotlin,.cache --skip-dirs '**/build' \
+  --skip-files gradle/wrapper/gradle-wrapper.jar \
+  --format json --output trivy-source.json .
+python3 scripts/security/check-trivy-report.py trivy-source.json
+```
