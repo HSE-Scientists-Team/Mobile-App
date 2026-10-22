@@ -2,12 +2,14 @@ package org.matchlab.academic_net
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import me.tatarka.inject.annotations.Inject
 import org.matchlab.academic_net.common.model.ProjectId
 import org.matchlab.academic_net.common.model.ProjectJoinStatus
 import org.matchlab.academic_net.common.model.ProjectJoinType
 import org.matchlab.academic_net.common.model.RoleId
+import org.matchlab.academic_net.feature.auth.domain.Session
 import org.matchlab.academic_net.feature.projectdetails.domain.AppliedRolesSource
 import org.matchlab.academic_net.feature.responses.domain.MyJoinsRepository
 
@@ -18,10 +20,13 @@ import org.matchlab.academic_net.feature.responses.domain.MyJoinsRepository
 @Inject
 internal class ResponsesAppliedRolesSource(
     private val joins: MyJoinsRepository,
+    private val session: Session,
 ) : AppliedRolesSource {
     /** The roles of [projectId] with an application that waits (status Pending or unknown); empty while the list is unknown. */
-    override fun observeAppliedRoles(projectId: ProjectId): Flow<Set<RoleId>> =
-        joins.observeMyJoins()
+    override fun observeAppliedRoles(projectId: ProjectId): Flow<Set<RoleId>> {
+        // A guest has no applications, and the list of them needs an account: nothing is asked.
+        if (session.isGuest) return flowOf(emptySet())
+        return joins.observeMyJoins()
             .map { list ->
                 list.orEmpty()
                     .filter {
@@ -33,4 +38,5 @@ internal class ResponsesAppliedRolesSource(
                     .toSet()
             }
             .distinctUntilChanged()
+    }
 }

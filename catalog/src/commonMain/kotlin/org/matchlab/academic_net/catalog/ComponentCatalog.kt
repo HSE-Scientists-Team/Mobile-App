@@ -87,6 +87,7 @@ import org.matchlab.academic_net.components.AppMultilineField
 import org.matchlab.academic_net.components.AppTextField
 import org.matchlab.academic_net.components.AppTopBar
 import org.matchlab.academic_net.components.Avatar
+import org.matchlab.academic_net.components.GuestAvatar
 import org.matchlab.academic_net.components.FilterChipGroup
 import org.matchlab.academic_net.components.FiltersButton
 import org.matchlab.academic_net.components.FiltersSheet
@@ -417,6 +418,8 @@ private fun BaseComponents() {
             Avatar(Arjun, null, size = 48.dp)
             Avatar(Elena, null, size = 32.dp)
             Avatar(Arjun, null, size = 24.dp)
+            GuestAvatar(null, size = 32.dp)
+            GuestAvatar(null, size = 48.dp)
             AppBadgeCount(2)
             AppBadgeDot()
         }

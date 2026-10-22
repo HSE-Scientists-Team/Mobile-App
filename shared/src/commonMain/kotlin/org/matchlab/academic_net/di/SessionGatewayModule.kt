@@ -30,6 +30,11 @@ internal interface SessionGatewayModule {
         auth: AuthRepository,
         resources: SessionResources,
     ): GatewaySession = resources.closeOnEnd(
-        gateway.openSession(session.accessToken.value) { rejected -> auth.expireSession(AccessToken(rejected)) },
+        // A guest has no token to refuse: a 401 only says the call needs an account, and the screens ask for one before it.
+        if (session.isGuest) {
+            gateway.openGuestSession()
+        } else {
+            gateway.openSession(session.accessToken.value) { rejected -> auth.expireSession(AccessToken(rejected)) }
+        },
     )
 }

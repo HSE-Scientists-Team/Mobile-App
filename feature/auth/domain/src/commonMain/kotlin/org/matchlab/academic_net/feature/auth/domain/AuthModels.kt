@@ -42,7 +42,18 @@ data class Session(
     val email: String,
     val accessToken: AccessToken,
 ) {
+    /** The visitor who has not signed in: browsing only, no requests carry a token (see [Guest]). */
+    val isGuest: Boolean get() = accessToken.value.isEmpty()
+
     override fun toString(): String = "Session(userId=$userId)"
+
+    companion object {
+        /**
+         * The visitor without an account. It is never saved and the server never sees it: it only tells the object graph
+         * of the session to make a browsing-only one (no token, no calls that need a user).
+         */
+        val Guest: Session = Session(UserId(""), "", AccessToken(""))
+    }
 }
 
 /** Whether the user is signed in. The app's screens depend on it: chats and the profile exist only in [SignedIn]. */

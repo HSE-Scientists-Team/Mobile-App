@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.matchlab.academic_net.gateway.dto.UserProfileDto
 import org.matchlab.academic_net.gateway.internal.ApiRequests
+import org.matchlab.academic_net.gateway.internal.GuestRecommendationsApi
 import org.matchlab.academic_net.gateway.internal.ExternalRequests
 import org.matchlab.academic_net.gateway.internal.KtorAchievementsApi
 import org.matchlab.academic_net.gateway.internal.KtorChatApi
@@ -41,6 +42,8 @@ class GatewaySession internal constructor(
     internal val requests: ApiRequests,
     /** The client for the signed links of the file storage: the Gateway's own, with no token. */
     private val externalHttp: Lazy<HttpClient>,
+    /** The visitor without an account (see [Gateway.openGuestSession]): the feed is read from the open catalogs. */
+    guest: Boolean = false,
 ) : AutoCloseable {
     private val external = ExternalRequests(externalHttp)
 
@@ -68,9 +71,6 @@ class GatewaySession internal constructor(
     /** The people search of "08". */
     val peopleSearch: PeopleSearchApi = KtorPeopleSearchApi(requests)
 
-    /** What the server recommends: the people of the feed ("01c"). */
-    val recommendations: RecommendationsApi = KtorRecommendationsApi(requests)
-
     // One Ktor class serves both interfaces: the projects and the page of a project read the same GET /projects/{id}.
     private val projectCalls = KtorProjectsApi(requests)
 
@@ -79,6 +79,13 @@ class GatewaySession internal constructor(
 
     /** Everybody's projects: the search and the page of a project. */
     val projectCatalog: ProjectCatalogApi = projectCalls
+
+    /**
+     * What the server recommends: the people ("01c") and the projects ("01") of the feed. A visitor without an account
+     * gets no recommendations from the server (they need a user); their feed is the open catalogs.
+     */
+    val recommendations: RecommendationsApi =
+        if (guest) GuestRecommendationsApi(peopleSearch, projectCatalog) else KtorRecommendationsApi(requests)
 
     /** Applications and invitations: the candidate's and the initiator's side. */
     val projectJoins: ProjectJoinsApi = KtorProjectJoinsApi(requests)
