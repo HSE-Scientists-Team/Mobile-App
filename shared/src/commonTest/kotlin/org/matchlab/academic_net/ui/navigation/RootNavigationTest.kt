@@ -29,22 +29,22 @@ class RootScreenTest {
     }
 
     @Test
-    fun withoutASessionTheSignInStartsWithTheLastAddress() {
+    fun withoutASessionTheVisitorBrowsesAndTheSignInStartsWithTheLastAddress() {
         val screen = AuthState.SignedOut(sessionExpired = false, lastEmail = "anna@hse.ru").toRootScreen()
 
-        assertEquals(RootScreen.SignIn(SignInStart(email = "anna@hse.ru", sessionExpired = false)), screen)
+        assertEquals(RootScreen.Guest(SignInStart(email = "anna@hse.ru", sessionExpired = false)), screen)
     }
 
     @Test
     fun aSessionThatEndedIsToldOnTheSignInScreen() {
         val screen = AuthState.SignedOut(sessionExpired = true, lastEmail = "anna@hse.ru").toRootScreen()
 
-        assertEquals(RootScreen.SignIn(SignInStart(email = "anna@hse.ru", sessionExpired = true)), screen)
+        assertEquals(RootScreen.Guest(SignInStart(email = "anna@hse.ru", sessionExpired = true)), screen)
     }
 
     @Test
     fun aFirstLaunchStartsTheSignInWithAnEmptyField() {
-        assertEquals(RootScreen.SignIn(SignInStart(email = "", sessionExpired = false)), AuthState.SignedOut().toRootScreen())
+        assertEquals(RootScreen.Guest(SignInStart(email = "", sessionExpired = false)), AuthState.SignedOut().toRootScreen())
     }
 
     @Test
@@ -60,10 +60,10 @@ class RootScreenTest {
     }
 
     @Test
-    fun noStateShowsTheSignInToASignedInUser() {
-        // A user whose session was restored never sees the sign-in screen, not even for a frame.
-        assertFalse(AuthState.SignedIn(session).toRootScreen() is RootScreen.SignIn)
-        assertFalse(AuthState.Restoring.toRootScreen() is RootScreen.SignIn)
+    fun noStateShowsTheGuestScreenToASignedInUser() {
+        // A user whose session was restored never sees the guest's screen, not even for a frame.
+        assertFalse(AuthState.SignedIn(session).toRootScreen() is RootScreen.Guest)
+        assertFalse(AuthState.Restoring.toRootScreen() is RootScreen.Guest)
     }
 }
 
@@ -184,12 +184,14 @@ class GraphViewModelStoresTest {
     }
 
     @Test
-    fun signedOutClearsTheTabsFirstAndThenClosesTheGraph() {
+    fun signedOutClearsTheTabsAndLeavesTheGraphToTheVisitorsGraphThatReplacesIt() {
         val stores = GraphViewModelStores().apply { fill() }
 
         stores.release(AuthState.SignedOut(), sessions)
 
-        assertEquals(listOf("cleared main", "graph closed"), journal, "the states of the screens go before the clients")
+        // Closing the graph here would end the visitor's graph, which the root has already opened (SessionGraphs.open
+        // closes the one it replaces).
+        assertEquals(listOf("cleared main"), journal)
     }
 
     @Test
@@ -208,6 +210,18 @@ class GraphViewModelStoresTest {
         stores.release(AuthState.SignedIn(session), sessions)
 
         assertEquals(listOf("cleared auth"), journal)
+    }
+
+    @Test
+    fun signedInAlsoClearsTheScreensTheVisitorWasLookingAt() {
+        val stores = GraphViewModelStores().apply {
+            fill()
+            ViewModelProvider.create(guest.viewModelStore, Factory("guest", journal)).get(Marker::class)
+        }
+
+        stores.release(AuthState.SignedIn(session), sessions)
+
+        assertEquals(setOf("cleared auth", "cleared guest"), journal.toSet())
     }
 
     @Test
@@ -241,7 +255,7 @@ class GraphViewModelStoresTest {
         stores.fill()
         stores.release(AuthState.SignedOut(), sessions)
 
-        assertEquals(listOf("cleared main", "graph closed"), journal)
+        assertEquals(listOf("cleared main"), journal)
     }
 
     @Test

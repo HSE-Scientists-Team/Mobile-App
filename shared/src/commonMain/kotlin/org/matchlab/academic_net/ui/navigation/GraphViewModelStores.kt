@@ -20,26 +20,31 @@ internal class GraphViewModelStores : ViewModel() {
     val auth = GraphViewModelStoreOwner()
     val main = GraphViewModelStoreOwner()
 
+    /** The screens a visitor without an account looks at; gone the moment they sign in. */
+    val guest = GraphViewModelStoreOwner()
+
     /**
      * Lets go of what the graph that [state] has just ended left behind. The root calls it whenever the state of the
      * session changes between signed in and signed out, and again, harmlessly, on a start in either of them:
      *
      * - `SignedIn`: the sign-in flow is over; its view models (the forms, whose passwords were only in memory) are
-     *   cleared.
+     *   cleared, and so are those of the screens the visitor was looking at (they hold the repositories of the guest's
+     *   graph, which the user's graph replaces; the root opens the screens again over the user's).
      * - `SignedOut`: the session is over, by the user's choice or the server's refusal. The view models of the tabs
-     *   and everything above them (the states of the screens, the drafts, the running work) are cleared first, and
-     *   then the [sessions] graph is closed (its caches, its local chats, its Gateway session). After that nothing of
-     *   the account is alive. The saved session is not touched here: the sign-out that ended the session erased it,
-     *   and a start in this state has nothing to erase.
+     *   and everything above them (the states of the screens, the drafts, the running work) are cleared. The graph of
+     *   the account (its caches, its local chats, its Gateway session) is closed by the graph of the visitor that
+     *   replaces it ([SessionGraphs.open]), not here: the root has opened that one by the time this is called, and
+     *   [SessionGraphs.close] would end it. The saved session is not touched here: the sign-out that ended the session
+     *   erased it, and a start in this state has nothing to erase.
      * - `Restoring`: nothing is decided yet, nothing is released.
      */
     fun release(state: AuthState, sessions: SessionGraphs) {
         when (state) {
-            is AuthState.SignedIn -> auth.viewModelStore.clear()
-            is AuthState.SignedOut -> {
-                main.viewModelStore.clear()
-                sessions.close()
+            is AuthState.SignedIn -> {
+                auth.viewModelStore.clear()
+                guest.viewModelStore.clear()
             }
+            is AuthState.SignedOut -> main.viewModelStore.clear()
             AuthState.Restoring -> Unit
         }
     }
@@ -47,5 +52,6 @@ internal class GraphViewModelStores : ViewModel() {
     override fun onCleared() {
         auth.viewModelStore.clear()
         main.viewModelStore.clear()
+        guest.viewModelStore.clear()
     }
 }

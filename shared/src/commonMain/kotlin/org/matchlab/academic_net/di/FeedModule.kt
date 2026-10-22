@@ -29,6 +29,7 @@ internal interface FeedModule {
         viewerName: ViewerNameSource,
         session: Session,
     ): FeedUiDependencies = FeedUiDependencies(
+        isGuest = session.isGuest,
         viewerId = session.userId,
         observeViewerName = ObserveViewerNameUseCase(viewerName),
         getRecommendedPeople = GetRecommendedPeopleUseCase(repository),

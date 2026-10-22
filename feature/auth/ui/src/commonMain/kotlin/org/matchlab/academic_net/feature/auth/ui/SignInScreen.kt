@@ -50,6 +50,8 @@ import org.matchlab.academic_net.feature.auth.ui.generated.resources.auth_sign_i
  * @param onRegisterClick "Создать аккаунт": the user wants to register; the address typed so far is passed on
  * @param emailConfirmed the address was confirmed and the app could not sign in by itself: a banner says so
  * ("Почта подтверждена. Войдите"); [sessionExpired] is told first if both are set
+ * @param onClose the sign-in was opened over the screens a visitor was browsing: the arrow of the bar returns to them.
+ * `null` when there is nothing below the screen and the bar has no arrow
  */
 @Composable
 fun SignInRoute(
@@ -59,6 +61,7 @@ fun SignInRoute(
     onRegisterClick: (email: String) -> Unit,
     modifier: Modifier = Modifier,
     emailConfirmed: Boolean = false,
+    onClose: (() -> Unit)? = null,
 ) {
     val viewModel = viewModel {
         SignInViewModel(
@@ -80,6 +83,7 @@ fun SignInRoute(
         onSignInClick = viewModel::onSignInClick,
         onRegisterClick = { onRegisterClick(viewModel.uiState.value.email) },
         modifier = modifier,
+        onClose = onClose,
     )
 }
 
@@ -93,10 +97,12 @@ internal fun SignInScreen(
     onSignInClick: () -> Unit,
     onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null,
 ) {
-    // The first screen of the app: there is nowhere to go back to, so the bar has no arrow.
+    // Opened over the browsing of a visitor, the screen has an arrow back to it ([onClose]); with nothing below it,
+    // there is nowhere to go back to and the bar has no arrow.
     AuthFormScreen(
-        topBar = { AppTopBar(title = stringResource(Res.string.auth_sign_in_title)) },
+        topBar = { AppTopBar(title = stringResource(Res.string.auth_sign_in_title), onNavigateBack = onClose) },
         modifier = modifier,
     ) {
         FormGroup(FormMetrics.PartGap) {

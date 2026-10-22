@@ -52,6 +52,8 @@ internal object AuthRoutes {
  * the letter's answer comes. It is not navigation state, so it is passed on whether or not the navigation was carried
  * out: the letter has been sent with that choice made.
  *
+ * @param onClose the flow is opened over the browsing of a visitor ([MainNavHost]): the arrow of the first screen returns
+ * to what they were looking at. `null` when the flow stands alone
  * @param onStatisticsChosen the person's choice on the registration form, `true` to send usage statistics; the app keeps
  * it as the setting of the device
  */
@@ -61,6 +63,7 @@ internal fun AuthNavHost(
     start: SignInStart,
     onStatisticsChosen: (Boolean) -> Unit,
     emailConfirmed: Boolean = false,
+    onClose: (() -> Unit)? = null,
 ) {
     val navController = rememberNavController()
     var flow by rememberSaveable(stateSaver = AuthFlow.Saver) { mutableStateOf(AuthFlow(start.email, emailConfirmed)) }
@@ -79,6 +82,7 @@ internal fun AuthNavHost(
                 email = flow.email,
                 sessionExpired = start.sessionExpired,
                 emailConfirmed = flow.emailConfirmed,
+                onClose = onClose,
                 onRegisterClick = { typed ->
                     if (navController.navigateSingleTop(entry, AuthRoutes.Register)) {
                         flow = flow.registrationStarted(typed)

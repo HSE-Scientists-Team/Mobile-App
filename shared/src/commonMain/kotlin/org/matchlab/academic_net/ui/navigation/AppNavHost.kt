@@ -1,8 +1,12 @@
 package org.matchlab.academic_net.ui.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -14,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,6 +46,8 @@ import org.matchlab.academic_net.common.model.UserId
 import org.matchlab.academic_net.common.model.UserSummary
 import org.matchlab.academic_net.di.SessionGraphs
 import org.matchlab.academic_net.feature.auth.domain.AuthState
+import org.matchlab.academic_net.feature.auth.domain.Session
+import org.matchlab.academic_net.feature.auth.ui.SignInStart
 import org.matchlab.academic_net.feature.auth.ui.AuthSplash
 import org.matchlab.academic_net.feature.auth.ui.AuthUiDependencies
 import org.matchlab.academic_net.feature.auth.ui.ConfirmLinkRoute
@@ -86,6 +93,9 @@ import org.matchlab.academic_net.feature.settings.ui.SettingsRoute
 
 private object Routes {
     const val Main = "main"
+
+    // The sign-in flow, opened over the screens a visitor without an account is looking at.
+    const val Login = "login"
     const val CreateProject = "create_project"
 
     const val ProjectArgument = "projectId"
@@ -175,8 +185,15 @@ private fun optionalStringArgument(name: String) = navArgument(name) {
 
 /**
  * The root of the app. Which graph is on the screen follows the state of the session ([toRootScreen]): the splash while
- * the saved session is read, the sign-in flow ([AuthNavHost]) while there is none, the tabs and everything above them
- * ([MainNavHost]) while there is one. The graphs replace each other, and what belongs to the one that goes away is let
+ * the saved session is read, the browsing of a visitor while there is no session, the tabs and everything above them
+ * ([MainNavHost]) while there is one.
+ *
+ * **A visitor without an account** sees the main screen without the bottom bar and may look at and search people and
+ * projects. Everything else (an application, a message, an invitation, a report, a review, the avatar in the header)
+ * opens the sign-in flow ([AuthNavHost]) over what they are looking at, as one more screen of the same navigation. When
+ * they sign in, the root swaps the graphs and the screens they were looking at are opened again, in the same order, over
+ * the tabs of the user: "back" leads where it led before the sign-in, and a visitor who had only the main screen gets
+ * the main screen of the user. The graphs replace each other, and what belongs to the one that goes away is let
  * go of ([GraphViewModelStores.release]): the view models of its screens are cleared and, when the session is over, the
  * session graph of the account is closed, so after signing out nothing of it (chats, their drafts, the running work,
  * the Gateway session) stays alive.
@@ -236,6 +253,8 @@ internal fun AppNavHost(
         }
     }
     val stores = viewModel { GraphViewModelStores() }
+    // The screens the visitor was looking at (routes, one per line), kept to open them again once they have signed in.
+    var guestStack by rememberSaveable { mutableStateOf("") }
 
     // Let go of a graph's state when the session says that graph is over.
     LaunchedEffect(authState is AuthState.SignedIn, authState is AuthState.SignedOut) {
@@ -245,22 +264,48 @@ internal fun AppNavHost(
     when (val screen = authState.toRootScreen()) {
         // The stored session is being read; nothing to show but the name of the app.
         RootScreen.Splash -> AuthSplash()
-        is RootScreen.SignIn -> CompositionLocalProvider(LocalViewModelStoreOwner provides stores.auth) {
-            val link = linkToConfirm
-            if (link != null) {
-                ConfirmLinkRoute(
-                    dependencies = auth,
-                    email = screen.start.email,
-                    link = link,
-                    onConfirmed = {
-                        confirmedByLink = true
-                        linkToConfirm = null
-                    },
-                    onClose = { linkToConfirm = null },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surface).safeDrawingPadding(),
-                )
-            } else {
-                AuthNavHost(auth, screen.start, onStatisticsChosen, emailConfirmed = confirmedByLink)
+        is RootScreen.Guest -> {
+            val dependencies = remember { sessions.open(Session.Guest) }
+            Box(Modifier.fillMaxSize()) {
+                CompositionLocalProvider(
+                    LocalViewModelStoreOwner provides stores.guest,
+                    LocalAvatarImages provides rememberAvatarImages(dependencies.avatars),
+                ) {
+                    MainNavHost(
+                        dependencies = dependencies,
+                        clicks = clicks,
+                        signOut = {},
+                        guest = GuestAccess(
+                            auth = auth,
+                            start = screen.start,
+                            onStatisticsChosen = onStatisticsChosen,
+                            emailConfirmed = confirmedByLink,
+                            // The session was refused, or the address was just confirmed: the sign-in has something to say.
+                            openSignIn = screen.start.sessionExpired || confirmedByLink,
+                            onStackChanged = { guestStack = it },
+                        ),
+                    )
+                }
+                // The confirmation of the address from the link of the letter stands over the browsing.
+                val link = linkToConfirm
+                if (link != null) {
+                    CompositionLocalProvider(LocalViewModelStoreOwner provides stores.auth) {
+                        ConfirmLinkRoute(
+                            dependencies = auth,
+                            email = screen.start.email,
+                            link = link,
+                            onConfirmed = {
+                                confirmedByLink = true
+                                linkToConfirm = null
+                            },
+                            onClose = { linkToConfirm = null },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .safeDrawingPadding(),
+                        )
+                    }
+                }
             }
         }
         is RootScreen.Main -> key(screen.session) {
@@ -273,8 +318,11 @@ internal fun AppNavHost(
                     dependencies = dependencies,
                     clicks = clicks,
                     signOut = { auth.signOut() },
+                    resumeStack = guestStack,
                 )
             }
+            // The screens are opened again by the first composition of the tabs; what was kept is spent.
+            LaunchedEffect(screen.session) { guestStack = "" }
         }
     }
 }
@@ -299,13 +347,62 @@ internal fun AppNavHost(
  * @param clicks counts the taps that open a project or a profile, see above
  * @param signOut ends the session ("Выйти из аккаунта" of the settings); the root swaps the graphs when the state of
  * the session changes, so the screen needs no navigation of its own
+ * @param guest set for a visitor without an account: there is no bottom bar, and every action but looking opens the
+ * sign-in flow over the current screen (see [GuestAccess]); `null` for a signed-in user
+ * @param resumeStack the screens (routes, one per line) the visitor was looking at before they signed in: they are opened
+ * again over the main screen, in order, so that the user lands on the screen they came from
  */
 @Composable
-private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker, signOut: suspend () -> Unit) {
+private fun MainNavHost(
+    dependencies: SessionDependencies,
+    clicks: ClickTracker,
+    signOut: suspend () -> Unit,
+    guest: GuestAccess? = null,
+    resumeStack: String = "",
+) {
+    val isGuest = guest != null
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val chatOpener = remember { ExclusiveLauncher() }
     val signOutLauncher = remember { ExclusiveLauncher() }
+
+    // A visitor's action that needs an account: the sign-in opens over the screen that asked for it.
+    val askToSignIn: (NavBackStackEntry) -> Unit = { from -> navController.navigateSingleTop(from, Routes.Login) }
+
+    // The screens of the visitor are opened again after they sign in. The first composition does it, without the
+    // transitions between them (only the last one is meant to be seen). It uses `navigate` directly: it is the one
+    // place that builds a stack, not a tap that could be repeated.
+    val restore = remember { resumeStack.split('\n').filter { it.isNotBlank() } }
+    var restoring by remember { mutableStateOf(restore.isNotEmpty()) }
+    LaunchedEffect(Unit) {
+        if (restore.isEmpty()) return@LaunchedEffect
+        restore.forEach { route -> runCatching { navController.navigate(route) } }
+        // The transitions are chosen a frame after the navigation: keep them off until the screens are drawn.
+        withFrameNanos { }
+        withFrameNanos { }
+        restoring = false
+    }
+
+    // A visitor: tell the root what is on the screen, so that it can be opened again after the sign-in; and open the
+    // sign-in at once when it has something to say (the session was refused, the address was confirmed).
+    if (guest != null) {
+        LaunchedEffect(navController) {
+            navController.currentBackStack.collect { entries ->
+                guest.onStackChanged(
+                    entries.mapNotNull { it.concreteRoute() }
+                        .filter { it != Routes.Main && it != Routes.Login }
+                        .joinToString("\n"),
+                )
+            }
+        }
+        var signInShown by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(guest.openSignIn) {
+            if (guest.openSignIn && !signInShown) {
+                signInShown = true
+                navController.navigate(Routes.Login) { launchSingleTop = true }
+            }
+        }
+    }
 
     // The review of a person (09r, 16, 09s). The form is opened from the profile, which knows the person: the form gets
     // them from here, as its route carries the id only. A review that went through is told to the profile the form was
@@ -338,7 +435,9 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
     // opens the chat only if the user is still on the screen that asked: after "back" it would
     // otherwise open over whatever is below. A person with no id (API-GAP G55) has nobody to talk to.
     val openChatWith: (NavBackStackEntry, UserSummary) -> Unit = { from, user ->
-        if (user.id.value.isNotBlank() && navController.isCurrent(from)) {
+        if (isGuest) {
+            askToSignIn(from)
+        } else if (user.id.value.isNotBlank() && navController.isCurrent(from)) {
             chatOpener.launchIn(scope) {
                 dependencies.chats.openConversation(user).onSuccess { id ->
                     navController.navigateOnce(from, Routes.chat(id))
@@ -350,24 +449,41 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
     NavHost(
         navController = navController,
         startDestination = Routes.Main,
-        enterTransition = NavTransitions.enter,
-        exitTransition = NavTransitions.exit,
-        popEnterTransition = NavTransitions.enter,
-        popExitTransition = NavTransitions.exit,
+        enterTransition = { if (restoring) EnterTransition.None else NavTransitions.enter(this) },
+        exitTransition = { if (restoring) ExitTransition.None else NavTransitions.exit(this) },
+        popEnterTransition = { if (restoring) EnterTransition.None else NavTransitions.enter(this) },
+        popExitTransition = { if (restoring) ExitTransition.None else NavTransitions.exit(this) },
     ) {
+        composable(Routes.Login) { entry ->
+            if (guest != null) {
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+                    AuthNavHost(
+                        dependencies = guest.auth,
+                        start = guest.start,
+                        onStatisticsChosen = guest.onStatisticsChosen,
+                        emailConfirmed = guest.emailConfirmed,
+                        onClose = { navController.popBackStackOnce(entry) },
+                    )
+                }
+            }
+        }
         composable(Routes.Main) { entry ->
-            val profileBadge = profileTabHasBadge(dependencies.profile)
-            val responsesBadge = responsesTabHasBadge(dependencies.responses)
+            // A visitor has no profile and no responses to mark (reading them needs an account).
+            val profileBadge = !isGuest && profileTabHasBadge(dependencies.profile)
+            val responsesBadge = !isGuest && responsesTabHasBadge(dependencies.responses)
             MainScaffold(
                 badges = buildSet {
                     if (profileBadge) add(TopLevelDestination.Profile)
                     if (responsesBadge) add(TopLevelDestination.Responses)
                 },
+                showBottomBar = !isGuest,
             ) { destination, selectTab ->
                 when (destination) {
                     TopLevelDestination.Feed -> FeedRoute(
                         dependencies = dependencies.feed,
-                        onProfileClick = { selectTab(TopLevelDestination.Profile) },
+                        onProfileClick = {
+                            if (isGuest) askToSignIn(entry) else selectTab(TopLevelDestination.Profile)
+                        },
                         onSearchPeopleClick = { navController.navigateSingleTop(entry, Routes.PeopleSearch) },
                         onSearchProjectsClick = { navController.navigateSingleTop(entry, Routes.ProjectSearch) },
                         onPersonClick = { user -> openProfile(entry, user.id, UserSource.FeedPeople) },
@@ -543,10 +659,14 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
                     onMemberClick = { userId -> openProfile(entry, userId, UserSource.ProjectTeam) },
                     onContactMember = { user -> openChatWith(entry, user) },
                     onApplyClick = { roleId ->
-                        applyRequest += 1
-                        applyRoleId = roleId.value
+                        if (isGuest) {
+                            askToSignIn(entry)
+                        } else {
+                            applyRequest += 1
+                            applyRoleId = roleId.value
+                        }
                     },
-                    onReportClick = { report = true },
+                    onReportClick = { if (isGuest) askToSignIn(entry) else report = true },
                 )
                 applyRoleId?.let { roleId ->
                     ApplyToRoleSheet(
@@ -646,12 +766,18 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
                     onAuthorClick = { authorId -> openProfile(entry, authorId, UserSource.ReviewAuthor) },
                     onAuthorChatClick = { author -> openChatWith(entry, author) },
                     onInviteClick = {
-                        inviteRequests += 1
-                        inviteRequest = inviteRequests
+                        if (isGuest) {
+                            askToSignIn(entry)
+                        } else {
+                            inviteRequests += 1
+                            inviteRequest = inviteRequests
+                        }
                     },
-                    onReportClick = { report = true },
+                    onReportClick = { if (isGuest) askToSignIn(entry) else report = true },
                     onLeaveReviewClick = { user ->
-                        if (user.id.value.isNotBlank() && navController.isCurrent(entry)) {
+                        if (isGuest) {
+                            askToSignIn(entry)
+                        } else if (user.id.value.isNotBlank() && navController.isCurrent(entry)) {
                             reviewTarget = user
                             navController.navigateOnce(entry, Routes.review(user.id))
                         }
@@ -852,4 +978,42 @@ private fun MainNavHost(dependencies: SessionDependencies, clicks: ClickTracker,
             }
         }
     }
+}
+
+/**
+ * What a visitor without an account needs from [MainNavHost] besides the screens: the sign-in flow that opens over them.
+ *
+ * @property auth the sign-in of the process
+ * @property start what the first screen of the flow starts with (the last address, the note that the session ended)
+ * @property onStatisticsChosen the choice "send usage statistics" of the registration form
+ * @property emailConfirmed the address was confirmed from the link of the letter and the app could not sign in by
+ * itself: the sign-in screen says so
+ * @property openSignIn the sign-in has something to say and opens by itself, once, over the main screen
+ * @property onStackChanged the screens the visitor is looking at changed: their routes, one per line, without the main
+ * screen and the sign-in; the root keeps them to open again after the sign-in
+ */
+private class GuestAccess(
+    val auth: AuthUiDependencies,
+    val start: SignInStart,
+    val onStatisticsChosen: (Boolean) -> Unit,
+    val emailConfirmed: Boolean,
+    val openSignIn: Boolean,
+    val onStackChanged: (String) -> Unit,
+)
+
+/**
+ * The route of the screen of [this] entry with its arguments filled in (`project_details/42`), or `null` for an entry
+ * that has none (the root of the graph). An argument that is not set is left out together with its `name=` of the query.
+ */
+private fun NavBackStackEntry.concreteRoute(): String? {
+    var route = destination.route ?: return null
+    destination.arguments.keys.forEach { name ->
+        val value = arguments?.read { getStringOrNull(name) }
+        route = if (value == null) {
+            route.replace(Regex("[?&]$name=\\{$name\\}"), "")
+        } else {
+            route.replace("{$name}", value)
+        }
+    }
+    return route
 }
