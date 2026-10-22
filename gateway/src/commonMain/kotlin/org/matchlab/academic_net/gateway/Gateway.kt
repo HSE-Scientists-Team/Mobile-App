@@ -59,4 +59,19 @@ class Gateway internal constructor(
         val externalHttp = lazy { http.config { } }
         return GatewaySession(sessionHttp, requests, externalHttp)
     }
+
+    /**
+     * Opens the calls of a visitor who has not signed in: no `Authorization` header goes into any request (a token the
+     * server does not accept is a 401, not a guest's access), so the server answers only the calls it opens to everybody
+     * (the catalog and the search of projects, the search of people, the public profiles).
+     *
+     * A 401 on any call means the call needs an account; it is reported to [onAuthRequired] before the call fails with
+     * `RemoteFailure.Http(401)`. The session is closed like any other; the engine is shared.
+     */
+    fun openGuestSession(onAuthRequired: suspend () -> Unit = {}): GatewaySession {
+        val guestHttp = http.config { }
+        val requests = ApiRequests(guestHttp, apiBase, onUnauthorized = onAuthRequired)
+        val externalHttp = lazy { http.config { } }
+        return GatewaySession(guestHttp, requests, externalHttp, guest = true)
+    }
 }
