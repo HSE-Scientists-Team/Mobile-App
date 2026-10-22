@@ -72,7 +72,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1.0"
 
         buildConfigField("String", "GATEWAY_URL", javaString(matchlabGatewayUrl))
         buildConfigField("String", "APPMETRICA_API_KEY", javaString(matchlabAppMetricaKey))
